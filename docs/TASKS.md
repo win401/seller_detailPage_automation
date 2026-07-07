@@ -1,43 +1,109 @@
 # Tasks
 
-## Phase 1: Product Definition
+## 1. 프로젝트 기본 구조
 
-- [x] Define target users
-- [x] Define core problem
-- [x] Define MVP flow
-- [ ] Choose final Korean product name
-- [ ] Decide demo product category
+- [ ] 라우트 구조 정리
+- [ ] 공통 레이아웃 구성
+- [ ] shadcn/ui 컴포넌트 정리
+- [ ] 공통 타입 정의
+- [ ] mock 상세페이지 데이터 작성
 
-## Phase 2: UX Structure
+## 2. 인증과 대시보드
 
-- [ ] Design input form fields
-- [ ] Define detail page sections
-- [ ] Define preview layout
-- [ ] Define export format
-- [ ] Prepare Claude Design prompt
+- [ ] Supabase Auth 설정
+- [ ] 로그인 화면
+- [ ] 회원가입 화면
+- [ ] 로그아웃
+- [ ] 프로젝트 대시보드
+- [ ] 새 프로젝트 생성 진입
 
-## Phase 3: Implementation
+## 3. 상품 입력
 
-- [ ] Create Next.js project
-- [ ] Add Tailwind CSS and shadcn/ui
-- [ ] Build product input form
-- [ ] Build image upload preview
-- [ ] Build AI generation API route
-- [ ] Build detail page preview
-- [ ] Add editable text sections
-- [ ] Add PNG download
+- [ ] 상품명 입력
+- [ ] 카테고리 선택
+- [ ] 핵심 키워드 입력
+- [ ] 타깃 고객 입력
+- [ ] 강조 포인트 체크박스
+- [ ] 톤앤매너 선택
+- [ ] 디자인 무드 선택
+- [ ] 플랫폼 선택
+- [ ] 스타일 세트 선택
 
-## Phase 4: Demo
+## 4. 이미지 처리
 
-- [ ] Prepare sample product data
-- [ ] Prepare before/after story
-- [ ] Capture generated detail page
-- [ ] Prepare presentation script
+- [ ] 이미지 업로드
+- [ ] 클라이언트 리사이즈
+- [ ] WebP/JPEG 압축
+- [ ] 최적화 전/후 용량 표시
+- [ ] Supabase Storage 저장
 
-## Immediate Next Actions
+## 5. AI 생성
 
-1. Choose product name.
-2. Choose one demo product.
-3. Decide whether the first version uses Claude API or OpenAI API for text.
-4. Make a Claude Design prompt for the detail page visual draft.
+- [ ] Vercel AI SDK 설정
+- [ ] 13섹션 zod schema 작성
+- [ ] 생성 API route 작성
+- [ ] mock fallback 작성
+- [ ] 과장 표현 방지 프롬프트 적용
+- [ ] 누락 섹션 검증
 
+## 6. 상세페이지 캔버스
+
+- [ ] 모바일 캔버스 레이아웃
+- [ ] 13개 섹션 렌더링
+- [ ] 무드 프리셋 적용
+- [ ] 선택 섹션 표시
+- [ ] 미리보기 확대/축소
+
+## 7. 블록형 편집기
+
+- [ ] 섹션 문구 수정
+- [ ] 섹션 이미지 교체
+- [ ] 섹션 숨김/복구
+- [ ] dnd-kit 섹션 순서 변경
+- [ ] 카피 후보 선택
+- [ ] 특정 섹션 다시 생성
+
+## 8. 스타일 세트
+
+- [ ] 스타일 세트 목록
+- [ ] 스타일 세트 생성
+- [ ] 스타일 세트 수정
+- [ ] 기본 무드/톤/색상 저장
+- [ ] 섹션 표시 기본값 저장
+- [ ] 새 프로젝트에 스타일 세트 적용
+
+## 9. 저장
+
+- [ ] 프로젝트 저장
+- [ ] 프로젝트 불러오기
+- [ ] 프로젝트 수정 저장
+- [ ] localStorage 임시 저장
+- [ ] RLS 정책 적용
+
+## 10. Export
+
+- [ ] 플랫폼 가로폭 적용
+- [ ] 전체 상세페이지 이미지 생성
+- [ ] 2000px 단위 슬라이싱
+- [ ] 파일명 자동 정리
+- [ ] ZIP 다운로드
+- [ ] 다운로드 상태 표시
+
+## 11. 관리자 화면
+
+- [ ] 관리자 권한 확인
+- [ ] 사용자 수 표시
+- [ ] 프로젝트 수 표시
+- [ ] AI 생성 횟수 표시
+- [ ] ZIP 다운로드 횟수 표시
+- [ ] 최근 프로젝트 메타데이터 표시
+
+## 12. 마무리
+
+- [ ] 샘플 상품 데이터
+- [ ] 빈 상태 UI
+- [ ] 로딩 상태 UI
+- [ ] 오류 상태 UI
+- [ ] 반응형 점검
+- [ ] lint/build 확인
+- [ ] 발표 데모 흐름 정리
