@@ -16,10 +16,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { mockGenerateDetailPage } from "@/lib/mock-ai";
 import { mockEmphasisOptions, mockProductInput, mockStyleSets } from "@/lib/mock-data";
 import {
   ADDITIONAL_INSTRUCTION_EXAMPLES,
   DesignMood,
+  GenerateDetailPageInput,
+  GenerateDetailPageOutput,
   MOOD_LABELS,
   PLATFORM_LABELS,
   Platform,
@@ -58,6 +61,11 @@ function Chip({
 
 export default function CreateProjectPage() {
   const router = useRouter();
+  const [productName, setProductName] = useState(mockProductInput.productName);
+  const [category, setCategory] = useState(mockProductInput.category);
+  const [price, setPrice] = useState(mockProductInput.price ?? "");
+  const [keywordText, setKeywordText] = useState(mockProductInput.keywords.join(", "));
+  const [targetCustomer, setTargetCustomer] = useState(mockProductInput.targetCustomer);
   const [emphasis, setEmphasis] = useState<Record<string, boolean>>({
     warmth: true,
     design: true,
@@ -66,6 +74,7 @@ export default function CreateProjectPage() {
   const [mood, setMood] = useState<DesignMood>("minimal");
   const [platform, setPlatform] = useState<Platform>("smartstore");
   const [additionalInstruction, setAdditionalInstruction] = useState("");
+  const [referenceMemo, setReferenceMemo] = useState("");
   const [productImage, setProductImage] = useState<{
     dataUrl: string;
     name: string;
@@ -73,20 +82,72 @@ export default function CreateProjectPage() {
     type: string;
   } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationMessage, setGenerationMessage] = useState<string | null>(null);
 
   function toggleEmphasis(key: string) {
     setEmphasis((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  function handleGenerate() {
+  async function handleGenerate() {
     setIsGenerating(true);
+    setGenerationMessage("AI가 13섹션 초안을 생성하는 중입니다...");
+    const input: GenerateDetailPageInput = {
+      productName,
+      category,
+      keywords: keywordText
+        .split(",")
+        .map((keyword) => keyword.trim())
+        .filter(Boolean),
+      targetCustomer,
+      emphasisPoints: mockEmphasisOptions
+        .filter((option) => emphasis[option.key])
+        .map((option) => option.label),
+      tone,
+      designMood: mood,
+      platform,
+      imageDescription: referenceMemo || productImage?.name || "",
+      additionalInstruction,
+    };
+
     if (productImage) {
       window.localStorage.setItem("detail-page-draft-assets:p1", JSON.stringify({ productImage }));
     }
-    // Thin end-to-end flow (docs/TASKS.md §0): no AI API wired yet, mock fallback.
-    setTimeout(() => {
+
+    try {
+      const response = await fetch("/api/generate-detail-page", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!response.ok) throw new Error("AI generation request failed");
+      const output = (await response.json()) as GenerateDetailPageOutput;
+      window.localStorage.setItem(
+        "detail-page-project:p1",
+        JSON.stringify({ sections: output.sections, hiddenIds: [] })
+      );
+      window.localStorage.setItem(
+        "detail-page-generation:p1",
+        JSON.stringify({ input, source: output.source ?? "ai", warnings: output.warnings ?? [] })
+      );
+      setGenerationMessage(
+        output.source === "mock" ? "mock 초안으로 에디터를 준비했습니다." : "AI 초안 생성 완료"
+      );
       router.push("/projects/p1/editor");
-    }, 400);
+    } catch {
+      const output = mockGenerateDetailPage(input);
+      window.localStorage.setItem(
+        "detail-page-project:p1",
+        JSON.stringify({ sections: output.sections, hiddenIds: [] })
+      );
+      window.localStorage.setItem(
+        "detail-page-generation:p1",
+        JSON.stringify({ input, source: "mock", warnings: output.warnings ?? [] })
+      );
+      setGenerationMessage("AI 호출 실패로 mock 초안을 사용합니다.");
+      router.push("/projects/p1/editor");
+    } finally {
+      setIsGenerating(false);
+    }
   }
 
   function handleProductImageChange(file: File | undefined) {
@@ -118,34 +179,33 @@ export default function CreateProjectPage() {
             <div className="flex flex-col gap-3">
               <div className="grid gap-1.5">
                 <Label>상품명</Label>
-                <Input defaultValue={mockProductInput.productName} />
+                <Input value={productName} onChange={(e) => setProductName(e.target.value)} />
               </div>
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="grid gap-1.5">
                   <Label>카테고리</Label>
-                  <Input defaultValue={mockProductInput.category} />
+                  <Input value={category} onChange={(e) => setCategory(e.target.value)} />
                 </div>
                 <div className="grid gap-1.5">
                   <Label>가격</Label>
-                  <Input defaultValue={mockProductInput.price} />
+                  <Input value={price} onChange={(e) => setPrice(e.target.value)} />
                 </div>
               </div>
               <div className="grid gap-1.5">
                 <Label>핵심 키워드</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {mockProductInput.keywords.map((kw) => (
-                    <span
-                      key={kw}
-                      className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground"
-                    >
-                      {kw}
-                    </span>
-                  ))}
-                </div>
+                <Input
+                  value={keywordText}
+                  onChange={(e) => setKeywordText(e.target.value)}
+                  placeholder="보온보냉, 슬림디자인, 컵홀더호환"
+                />
               </div>
               <div className="grid gap-1.5">
                 <Label>타깃 고객</Label>
-                <Textarea rows={2} defaultValue={mockProductInput.targetCustomer} />
+                <Textarea
+                  rows={2}
+                  value={targetCustomer}
+                  onChange={(e) => setTargetCustomer(e.target.value)}
+                />
               </div>
             </div>
           </section>
@@ -293,6 +353,8 @@ export default function CreateProjectPage() {
             <Textarea
               rows={2}
               placeholder="레퍼런스 메모: 따뜻한 우드톤 책상, 자연광, 여백 넉넉하게"
+              value={referenceMemo}
+              onChange={(e) => setReferenceMemo(e.target.value)}
             />
           </section>
         </div>
@@ -308,6 +370,11 @@ export default function CreateProjectPage() {
           {isGenerating ? "생성 중..." : "AI로 13섹션 상세페이지 생성"}
         </Button>
       </div>
+      {generationMessage && (
+        <p className="mt-3 text-right text-xs font-semibold text-muted-foreground">
+          {generationMessage}
+        </p>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { AiEditAction, DetailSection } from "./types";
+import { mockSections } from "./mock-data";
+import { AiEditAction, DetailSection, GenerateDetailPageInput, GenerateDetailPageOutput } from "./types";
 
 /**
  * Mock fallback for the AI editing assistant (docs/TASKS.md §0, §12).
@@ -24,4 +25,33 @@ export function mockAiRewrite(section: DetailSection, action: AiEditAction): str
     default:
       return body;
   }
+}
+
+export function mockGenerateDetailPage(input: GenerateDetailPageInput): GenerateDetailPageOutput {
+  const keywordText = input.keywords.slice(0, 2).join(" · ");
+  const sections = mockSections.map((section) => {
+    const headlinePrefix =
+      section.kind === "intro"
+        ? input.productName
+        : section.kind === "one_line"
+          ? keywordText || input.productName
+          : section.headline;
+
+    return {
+      ...section,
+      headline: headlinePrefix || section.headline,
+      body:
+        section.kind === "intro"
+          ? `${input.targetCustomer || "고객"}에게 어울리는 ${input.productName} 상세페이지 초안입니다.`
+          : section.body,
+      imagePrompt:
+        `${input.designMood} mood, ${section.imageRole}, product detail page section image, keep real product facts unchanged`,
+    };
+  });
+
+  return {
+    sections,
+    source: "mock",
+    warnings: ["AI Gateway/API 키가 없거나 호출에 실패하면 mock 초안을 사용합니다."],
+  };
 }

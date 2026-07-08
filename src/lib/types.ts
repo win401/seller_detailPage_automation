@@ -200,6 +200,8 @@ export interface GenerateDetailPageInput {
 
 export interface GenerateDetailPageOutput {
   sections: DetailSection[];
+  source?: "ai" | "mock";
+  warnings?: string[];
 }
 
 // ---------- AI editing assistant contract (docs/PROMPTS.md) ----------

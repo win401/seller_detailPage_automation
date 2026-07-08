@@ -7,9 +7,9 @@
 
 - [x] 로그인 (데모 계정 진입 포함) — mock, Supabase Auth 연동 전
 - [x] 새 프로젝트 생성 진입
-- [x] 상품 정보 입력 (최소 필드: 상품명, 카테고리, 키워드, 타깃, 톤앤매너, 무드, 플랫폼, 추가 제작 요청) — UI만, 생성 로직에는 미연동
+- [x] 상품 정보 입력 (최소 필드: 상품명, 카테고리, 키워드, 타깃, 톤앤매너, 무드, 플랫폼, 추가 제작 요청) — AI 생성 API 입력값으로 연결
 - [x] 상품 이미지 업로드 (최적화 없이 원본 업로드만) — 브라우저 preview + 에디터 임시 전달
-- [x] AI 13섹션 생성 (mock fallback 허용) — mock 데이터로 대체, 실제 AI 호출 없음
+- [x] AI 13섹션 생성 (mock fallback 허용) — Vercel AI SDK API + mock fallback
 - [x] 모바일 캔버스에 13섹션 렌더링
 - [x] 섹션 1개 문구 직접 수정
 - [x] AI 편집 도우미로 섹션 1개 다시쓰기 → 적용하기 — mock rewrite 로직
@@ -75,12 +75,12 @@
 
 ## 6. AI 생성
 
-- [ ] Vercel AI SDK 설정
-- [ ] 13섹션 zod schema 작성
-- [ ] 생성 API route 작성
-- [ ] mock fallback 작성
-- [ ] 과장 표현 방지 프롬프트 적용
-- [ ] 추가 제작 요청 additionalInstruction 반영
+- [x] Vercel AI SDK 설정
+- [x] 13섹션 zod schema 작성
+- [x] 생성 API route 작성
+- [x] mock fallback 작성
+- [x] 과장 표현 방지 프롬프트 적용
+- [x] 추가 제작 요청 additionalInstruction 반영
 - [ ] 누락 섹션 검증
 - [ ] AI 편집 도우미 structured output schema 작성
 
