@@ -106,6 +106,10 @@ export interface DetailSection {
   /** What role the section's image should play, e.g. "product-on-desk". */
   imageRole: string;
   imageUrl?: string;
+  imageLabel?: string;
+  imageSource?: "uploaded" | "reference" | "generated" | "mock";
+  imageGradient?: string;
+  imagePrompt?: string;
   /** Alternative copy candidates the user can swap in (docs/PROMPTS.md). */
   alternatives: string[];
 }
@@ -254,6 +258,24 @@ export interface ImageEnhancementDirection {
   negativePrompt: string;
   compositingNotes: string[];
   safetyChecks: string[];
+}
+
+export interface UploadedImageDraft {
+  dataUrl: string;
+  name: string;
+  size: number;
+  type: string;
+}
+
+export interface SectionImageAsset {
+  id: string;
+  label: string;
+  description: string;
+  source: "uploaded" | "reference" | "generated" | "mock";
+  dataUrl?: string;
+  gradient?: string;
+  promptHint: string;
+  tags: string[];
 }
 
 // ---------- editor UI state ----------

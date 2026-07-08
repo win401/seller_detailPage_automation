@@ -21,9 +21,17 @@ import { SectionCanvas } from "@/components/editor/section-canvas";
 import { SectionList } from "@/components/editor/section-list";
 import { SectionEditPanel } from "@/components/editor/section-edit-panel";
 import { AiAssistantPanel } from "@/components/editor/ai-assistant-panel";
-import { mockProjectSummaries, mockSections } from "@/lib/mock-data";
+import { getMockReferencesForSection, mockProjectSummaries, mockSections } from "@/lib/mock-data";
 import { mockAiRewrite } from "@/lib/mock-ai";
-import { AiEditAction, DetailSection, EditorLayout, EditorTab, PLATFORM_LABELS } from "@/lib/types";
+import {
+  AiEditAction,
+  DetailSection,
+  EditorLayout,
+  EditorTab,
+  PLATFORM_LABELS,
+  SectionImageAsset,
+  UploadedImageDraft,
+} from "@/lib/types";
 
 interface Snapshot {
   sections: DetailSection[];
@@ -36,6 +44,7 @@ export default function DetailPageEditor() {
   const projectSummary =
     mockProjectSummaries.find((p) => p.id === projectId) ?? mockProjectSummaries[0];
   const storageKey = `detail-page-project:${projectId}`;
+  const draftAssetsKey = `detail-page-draft-assets:${projectId}`;
   const canvasWrapRef = useRef<HTMLDivElement>(null);
 
   const [sections, setSections] = useState<DetailSection[]>(mockSections);
@@ -51,6 +60,7 @@ export default function DetailPageEditor() {
   const [redoStack, setRedoStack] = useState<Snapshot[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [loadedFromStorage, setLoadedFromStorage] = useState(false);
+  const [productImage, setProductImage] = useState<UploadedImageDraft | null>(null);
 
   // Load a locally saved draft, if one exists (docs/MVP_PLAN.md Should Have:
   // localStorage fallback). Supabase persistence is a later phase.
@@ -69,6 +79,20 @@ export default function DetailPageEditor() {
       // ignore corrupt local storage
     }
   }, [storageKey]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(draftAssetsKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { productImage?: UploadedImageDraft };
+      if (parsed.productImage) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setProductImage(parsed.productImage);
+      }
+    } catch {
+      // ignore corrupt asset storage
+    }
+  }, [draftAssetsKey]);
 
   const selectedSection = sections.find((s) => s.id === selectedId) ?? sections[0];
 
@@ -128,6 +152,43 @@ export default function DetailPageEditor() {
       prev.map((s) => (s.id === selectedId ? { ...s, body: newBody } : s))
     );
     flash(selectedId);
+  }
+
+  function applySectionImage(asset: SectionImageAsset) {
+    pushHistory();
+    setSections((prev) =>
+      prev.map((s) =>
+        s.id === selectedId
+          ? {
+              ...s,
+              imageUrl: asset.dataUrl,
+              imageGradient: asset.gradient,
+              imageLabel: asset.label,
+              imageSource: asset.source,
+              imagePrompt: asset.promptHint,
+            }
+          : s
+      )
+    );
+    flash(selectedId);
+    toast("섹션 이미지가 반영되었습니다", { description: asset.label });
+  }
+
+  function uploadSectionImage(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") return;
+      applySectionImage({
+        id: `section-upload-${selectedId}-${Date.now()}`,
+        label: file.name,
+        description: "섹션에 직접 업로드한 이미지",
+        source: "uploaded",
+        dataUrl: reader.result,
+        promptHint: "Use this uploaded image for the selected detail-page section.",
+        tags: ["uploaded", selectedSection.kind, selectedSection.imageRole],
+      });
+    };
+    reader.readAsDataURL(file);
   }
 
   function selectAiAction(action: AiEditAction) {
@@ -223,6 +284,10 @@ export default function DetailPageEditor() {
   const visibleSections = useMemo(
     () => sections.filter((s) => !hiddenIds.has(s.id)),
     [sections, hiddenIds]
+  );
+  const selectedReferences = useMemo(
+    () => getMockReferencesForSection(selectedSection),
+    [selectedSection]
   );
 
   return (
@@ -349,6 +414,10 @@ export default function DetailPageEditor() {
                 onMoveDown={() => moveSelected(1)}
                 onToggleHide={() => toggleHide(selectedId)}
                 onRegenerate={regenerateSelected}
+                productImage={productImage}
+                references={selectedReferences}
+                onApplyImage={applySectionImage}
+                onUploadSectionImage={uploadSectionImage}
               />
             </div>
           </div>
@@ -405,6 +474,10 @@ export default function DetailPageEditor() {
                   onMoveDown={() => moveSelected(1)}
                   onToggleHide={() => toggleHide(selectedId)}
                   onRegenerate={regenerateSelected}
+                  productImage={productImage}
+                  references={selectedReferences}
+                  onApplyImage={applySectionImage}
+                  onUploadSectionImage={uploadSectionImage}
                 />
               )}
               {tab === "ai" && (

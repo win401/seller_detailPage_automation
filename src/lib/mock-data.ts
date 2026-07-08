@@ -5,6 +5,7 @@ import {
   ProductInput,
   ProjectSummary,
   SECTION_KIND_LABELS,
+  SectionImageAsset,
   SectionKind,
   StyleSet,
 } from "./types";
@@ -229,3 +230,58 @@ export const mockStyleSets: StyleSet[] = [
     updatedAt: "2026-06-10T00:00:00.000Z",
   },
 ];
+
+export const mockSectionImageReferences: SectionImageAsset[] = [
+  {
+    id: "ref-minimal-desk",
+    label: "미니멀 데스크",
+    description: "자연광이 들어오는 우드톤 책상 위 여백 중심 컷",
+    source: "reference",
+    gradient: "linear-gradient(135deg, #f6efe4 0%, #d9b99a 48%, #7d6a58 100%)",
+    promptHint: "warm wooden desk, soft morning natural light, minimal composition, generous whitespace",
+    tags: ["intro", "one_line", "product-hero-lifestyle", "product-flatlay"],
+  },
+  {
+    id: "ref-soft-macro",
+    label: "소재 클로즈업",
+    description: "무광 질감과 디테일을 강조하는 부드러운 접사 컷",
+    source: "reference",
+    gradient: "radial-gradient(circle at 30% 25%, #f4f2ed 0%, #b9b7ad 38%, #3f443d 100%)",
+    promptHint: "macro product detail, matte stainless texture, shallow depth of field, clean premium lighting",
+    tags: ["benefit_1", "detail", "product-detail-macro", "product-detail-texture"],
+  },
+  {
+    id: "ref-commute-scene",
+    label: "출근길 사용 장면",
+    description: "가방, 노트북, 이동 동선이 보이는 실사용 라이프스타일 컷",
+    source: "reference",
+    gradient: "linear-gradient(145deg, #e9eef0 0%, #9ca9a3 45%, #2f3a36 100%)",
+    promptHint: "commute lifestyle scene, tumbler beside laptop and tote bag, calm urban morning mood",
+    tags: ["problem", "use_scene", "recommended_for", "problem-context-commute", "lifestyle-multi-scene"],
+  },
+  {
+    id: "ref-clean-parts",
+    label: "구성품 정렬",
+    description: "뚜껑과 바디를 깔끔하게 분리해 구조를 보여주는 컷",
+    source: "reference",
+    gradient: "linear-gradient(135deg, #fafafa 0%, #dcd8cf 50%, #8f8b82 100%)",
+    promptHint: "disassembled product parts, clean top-down layout, neutral background, precise shadows",
+    tags: ["benefit_3", "solution", "product-disassembled", "product-cross-section"],
+  },
+  {
+    id: "ref-premium-badge",
+    label: "신뢰 포인트",
+    description: "인증, 보증, 소재 정보를 차분하게 보여주는 그래픽형 컷",
+    source: "reference",
+    gradient: "linear-gradient(135deg, #fbfaf7 0%, #d8c8ae 46%, #5b4637 100%)",
+    promptHint: "premium trust point layout, subtle badge area, clean product information space, no fake certification",
+    tags: ["trust", "faq", "cta", "certification-badge"],
+  },
+];
+
+export function getMockReferencesForSection(section: DetailSection): SectionImageAsset[] {
+  const matched = mockSectionImageReferences.filter((ref) =>
+    ref.tags.some((tag) => tag === section.kind || tag === section.imageRole)
+  );
+  return matched.length > 0 ? matched : mockSectionImageReferences.slice(0, 3);
+}

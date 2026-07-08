@@ -66,6 +66,12 @@ export default function CreateProjectPage() {
   const [mood, setMood] = useState<DesignMood>("minimal");
   const [platform, setPlatform] = useState<Platform>("smartstore");
   const [additionalInstruction, setAdditionalInstruction] = useState("");
+  const [productImage, setProductImage] = useState<{
+    dataUrl: string;
+    name: string;
+    size: number;
+    type: string;
+  } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
   function toggleEmphasis(key: string) {
@@ -74,10 +80,28 @@ export default function CreateProjectPage() {
 
   function handleGenerate() {
     setIsGenerating(true);
+    if (productImage) {
+      window.localStorage.setItem("detail-page-draft-assets:p1", JSON.stringify({ productImage }));
+    }
     // Thin end-to-end flow (docs/TASKS.md §0): no AI API wired yet, mock fallback.
     setTimeout(() => {
       router.push("/projects/p1/editor");
     }, 400);
+  }
+
+  function handleProductImageChange(file: File | undefined) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") return;
+      setProductImage({
+        dataUrl: reader.result,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+      });
+    };
+    reader.readAsDataURL(file);
   }
 
   return (
@@ -211,13 +235,37 @@ export default function CreateProjectPage() {
         <div className="flex flex-col gap-5">
           <section className="rounded-xl border border-border bg-card p-4.5">
             <div className="mb-3 text-[13px] font-bold">상품 이미지</div>
-            <div className="flex flex-col items-center gap-2 rounded-[10px] border border-dashed border-border bg-card-soft px-4 py-6 text-center text-muted-foreground">
-              <ImagePlus className="size-5.5" />
-              <span className="text-[13px]">도매 원본 상품 사진 업로드</span>
-              <span className="text-[11px] font-semibold text-accent">
-                최적화: WebP · 1200px 기준으로 자동 압축
-              </span>
-            </div>
+            <label className="flex cursor-pointer flex-col items-center gap-2 rounded-[10px] border border-dashed border-border bg-card-soft px-4 py-6 text-center text-muted-foreground transition-colors hover:border-primary/70 hover:bg-muted/60">
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(e) => handleProductImageChange(e.target.files?.[0])}
+              />
+              {productImage ? (
+                <>
+                  <span
+                    className="h-44 w-full rounded-lg bg-contain bg-center bg-no-repeat"
+                    style={{ backgroundImage: `url(${productImage.dataUrl})` }}
+                    aria-label="업로드한 상품 이미지 미리보기"
+                  />
+                  <span className="text-[13px] font-semibold text-foreground">
+                    {productImage.name}
+                  </span>
+                  <span className="text-[11px] font-semibold text-accent">
+                    {(productImage.size / 1024).toFixed(0)}KB · 에디터에서 섹션 이미지로 사용 가능
+                  </span>
+                </>
+              ) : (
+                <>
+                  <ImagePlus className="size-5.5" />
+                  <span className="text-[13px]">도매 원본 상품 사진 업로드</span>
+                  <span className="text-[11px] font-semibold text-accent">
+                    이번 단계에서는 브라우저 preview로 먼저 연결
+                  </span>
+                </>
+              )}
+            </label>
           </section>
 
           <section className="rounded-xl border border-border bg-card p-4.5">
@@ -227,9 +275,17 @@ export default function CreateProjectPage() {
               바뀌지 않습니다.
             </p>
             <div className="mb-3 grid grid-cols-2 gap-2.5">
-              <div className="flex h-[84px] items-center justify-center rounded-lg border border-dashed border-border bg-muted text-[11.5px] text-muted-foreground">
-                원본 상품 이미지
-              </div>
+              {productImage ? (
+                <div
+                  className="h-[84px] rounded-lg border border-border bg-muted bg-contain bg-center bg-no-repeat"
+                  style={{ backgroundImage: `url(${productImage.dataUrl})` }}
+                  aria-label="원본 상품 이미지"
+                />
+              ) : (
+                <div className="flex h-[84px] items-center justify-center rounded-lg border border-dashed border-border bg-muted text-[11.5px] text-muted-foreground">
+                  원본 상품 이미지
+                </div>
+              )}
               <div className="flex h-[84px] items-center justify-center rounded-lg border border-dashed border-border bg-muted text-[11.5px] text-muted-foreground">
                 레퍼런스 이미지
               </div>

@@ -36,6 +36,7 @@ export function SectionCanvas({
           const isFlash = sec.id === flashId;
           const isCta = sec.kind === "cta";
           const isIntro = sec.kind === "intro";
+          const hasImage = !!sec.imageUrl || !!sec.imageGradient;
           return (
             <div
               key={sec.id}
@@ -51,6 +52,23 @@ export function SectionCanvas({
                 isFlash && "animate-[flashHighlight_0.9s_ease]"
               )}
             >
+              {hasImage && (
+                <div
+                  className="h-36 border-b border-canvas-border bg-cover bg-center"
+                  style={{
+                    backgroundImage: sec.imageUrl
+                      ? `url(${sec.imageUrl})`
+                      : sec.imageGradient,
+                  }}
+                  aria-label={sec.imageLabel ?? sec.imageRole}
+                >
+                  <div className="flex h-full items-end bg-gradient-to-t from-black/24 to-transparent p-3">
+                    <span className="rounded-full bg-white/85 px-2 py-1 text-[10px] font-bold text-canvas-dark">
+                      {sec.imageLabel ?? sec.imageRole}
+                    </span>
+                  </div>
+                </div>
+              )}
               <div className={cn("px-5", isIntro || isCta ? "py-6.5" : "py-5")}>
                 <div
                   className={cn(
