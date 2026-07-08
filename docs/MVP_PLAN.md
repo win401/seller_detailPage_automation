@@ -424,6 +424,7 @@ API 비용 제어:
 - `default_platform`
 - `section_visibility`
 - `brand_note`
+- `style_signal_summary`
 - `created_at`
 - `updated_at`
 
@@ -437,13 +438,93 @@ API 비용 제어:
 - `selected_platform`
 - `selected_mood`
 - `selected_tone`
-- `sections`
-- `agent_outputs`
-- `section_order`
-- `hidden_section_ids`
+- `current_draft_version_id`
+- `status`
 - `asset_paths`
 - `created_at`
 - `updated_at`
+
+프로젝트 테이블은 현재 프로젝트의 대표 상태만 가볍게 저장합니다. 상세 섹션 JSON, 에이전트 결과, 수정 버전은 아래 별도 테이블에 저장합니다.
+
+### competitor_references
+
+- `id`
+- `project_id`
+- `user_id`
+- `url`
+- `memo`
+- `reference_type`
+- `created_at`
+
+사용자가 직접 입력한 경쟁 상세페이지 URL과 참고 메모를 저장합니다. MVP에서는 URL을 자동 크롤링하지 않으며, 분석 에이전트는 사용자가 제공한 메모와 상품 정보만 근거로 사용합니다.
+
+`reference_type` 후보:
+
+- `same_product`
+- `similar_product`
+- `design_reference`
+- `copy_reference`
+- `etc`
+
+### agent_runs
+
+- `id`
+- `project_id`
+- `user_id`
+- `draft_version_id`
+- `agent_type`
+- `status`
+- `input_snapshot`
+- `output`
+- `warnings`
+- `model`
+- `tokens_used`
+- `error_message`
+- `created_at`
+
+각 에이전트의 실행 기록을 저장합니다. 포트폴리오와 디버깅 관점에서 "어떤 입력을 바탕으로 어떤 에이전트 결과가 만들어졌는지"를 추적할 수 있게 합니다.
+
+`agent_type` 후보:
+
+- `analysis`
+- `planning`
+- `production`
+- `review`
+- `revision_planning`
+- `style_signal_summary`
+
+`status` 후보:
+
+- `pending`
+- `running`
+- `succeeded`
+- `failed`
+- `mocked`
+
+### draft_versions
+
+- `id`
+- `project_id`
+- `user_id`
+- `version_number`
+- `source`
+- `planning_run_id`
+- `production_run_id`
+- `review_run_id`
+- `sections`
+- `section_order`
+- `hidden_section_ids`
+- `review_summary`
+- `created_at`
+
+상세페이지 시안 버전을 저장합니다. 최초 제작 시안, 기획자 에이전트 수정 요청 이후 새 시안, 사용자의 수동 수정본을 모두 버전으로 관리할 수 있게 합니다.
+
+`source` 후보:
+
+- `initial`
+- `revision`
+- `manual_edit`
+- `imported_mock`
 
 ### usage_events
 
@@ -459,14 +540,34 @@ API 비용 제어:
 - `id`
 - `user_id`
 - `project_id`
+- `draft_version_id`
+- `agent_run_id`
 - `source`
 - `signal_type`
-- `before_value`
-- `after_value`
 - `summary`
+- `example_before`
+- `example_after`
+- `confidence`
 - `created_at`
 
 수동 수정 내용을 그대로 학습 데이터처럼 저장하기보다, 문장 길이 선호, 톤 보정, 섹션 숨김/강조 경향처럼 다음 기획에 참고할 수 있는 요약 신호로 저장합니다.
+
+`signal_type` 후보:
+
+- `tone`
+- `length`
+- `structure`
+- `visual`
+- `section_visibility`
+- `wording`
+
+### 데이터 저장 원칙
+
+- 경쟁 상세페이지 URL은 참고 링크로만 저장하고 자동 크롤링 결과를 저장하지 않습니다.
+- 에이전트 결과는 `agent_runs`에 저장하고, 사용자가 실제로 보는 시안은 `draft_versions`에 저장합니다.
+- `detail_page_projects.current_draft_version_id`는 사용자가 마지막으로 선택한 대표 시안을 가리킵니다.
+- 사용자의 수동 수정은 원문 전체를 장기 보관하기보다 `user_style_signals`에 요약 신호로 저장합니다.
+- Supabase RLS는 모든 테이블에서 `user_id = auth.uid()` 기준으로 적용합니다.
 
 ## 개발 순서
 
