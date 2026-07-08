@@ -1,4 +1,5 @@
 import { generateText, Output } from "ai";
+import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 
 import { mockGenerateDetailPage } from "@/lib/mock-ai";
@@ -56,7 +57,7 @@ const generatedSectionSchema = z.object({
 
 const generatedOutputSchema = z.object({
   sections: z.array(generatedSectionSchema).length(13),
-  warnings: z.array(z.string()).default([]),
+  warnings: z.array(z.string()),
 });
 
 const sectionPlan = SECTION_KIND_ORDER.map((kind, index) => ({
@@ -112,6 +113,7 @@ ${sectionPlan.map((section) => `- ${section.id}: ${section.kind} (${section.titl
 - alternatives는 대체 카피 후보 2개
 - imageRole은 섹션에 필요한 이미지 역할
 - imagePrompt는 Pinterest 스타일 레퍼런스나 이미지 생성에 넘길 수 있는 안전한 이미지 연출 프롬프트
+- warnings는 근거가 부족하거나 사용자가 확인해야 할 사항이 있을 때만 작성하고, 없으면 빈 배열로 반환한다.
 `.trim();
 }
 
@@ -126,9 +128,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const model = process.env.AI_MODEL ?? "anthropic/claude-sonnet-4.5";
+    if (!process.env.OPENAI_API_KEY) {
+      return fallback(input, "OPENAI_API_KEY가 없어 mock 초안을 사용했습니다.");
+    }
+
+    const modelId = process.env.AI_MODEL ?? "gpt-5.4-mini";
     const { output } = await generateText({
-      model,
+      model: openai(modelId),
+      maxRetries: 0,
       temperature: 0.35,
       output: Output.object({ schema: generatedOutputSchema }),
       prompt: buildPrompt(input),
