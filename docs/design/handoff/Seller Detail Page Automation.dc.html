@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+<template id="__bundler_thumbnail" data-bg-color="#faf9f5">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#faf9f5"/>
+    <rect x="360" y="240" width="480" height="320" rx="24" fill="#cc785c"/>
+    <rect x="420" y="300" width="360" height="24" rx="12" fill="#faf9f5" opacity="0.9"/>
+    <rect x="420" y="344" width="240" height="24" rx="12" fill="#faf9f5" opacity="0.7"/>
+    <rect x="420" y="420" width="360" height="60" rx="14" fill="#faf9f5" opacity="0.95"/>
+  </svg>
+</template>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Noto+Sans+KR:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    @keyframes aiPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+    @keyframes flashHighlight { 0% { box-shadow: 0 0 0 0 rgba(204,95,51,0.55); } 100% { box-shadow: 0 0 0 10px rgba(204,95,51,0); } }
+    @keyframes toastIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: 'Noto Sans KR','Manrope',ui-sans-serif,system-ui,sans-serif; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: rgba(120,120,110,0.35); border-radius: 8px; }
+  </style>
+</helmet>
+
+<div style="{{ rootStyle }}">
+
+  <!-- ============ LOGIN ============ -->
+  <sc-if value="{{ isLogin }}" hint-placeholder-val="{{ true }}">
+    <div style="{{ loginWrapStyle }}">
+      <div style="{{ loginCardStyle }}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:28px;">
+          <div style="{{ logoDotStyle }}"></div>
+          <span style="{{ logoTextStyle }}">셀러페이지 AI</span>
+        </div>
+        <h1 style="{{ loginTitleStyle }}">{{ loginHeading }}</h1>
+        <p style="{{ loginSubStyle }}">쿠팡·스마트스토어 셀러를 위한 상세페이지 제작 자동화 도구</p>
+
+        <div style="margin-top:28px;display:flex;flex-direction:column;gap:14px;">
+          <div>
+            <label style="{{ fieldLabelStyle }}">이메일</label>
+            <input type="email" placeholder="seller@example.com" style="{{ inputStyle }}">
+          </div>
+          <div>
+            <label style="{{ fieldLabelStyle }}">비밀번호</label>
+            <input type="password" placeholder="••••••••" style="{{ inputStyle }}">
+          </div>
+        </div>
+
+        <button type="button" onClick="{{ goDashboard }}" style="{{ primaryBtnStyle }}" style-hover="{{ primaryBtnHoverStyle }}">
+          {{ loginActionLabel }}
+        </button>
+
+        <button type="button" onClick="{{ toggleSignup }}" style="{{ ghostLinkBtnStyle }}">
+          {{ signupToggleLabel }}
+        </button>
+
+        <div style="{{ dividerRowStyle }}">
+          <div style="{{ dividerLineStyle }}"></div>
+          <span style="{{ dividerTextStyle }}">또는</span>
+          <div style="{{ dividerLineStyle }}"></div>
+        </div>
+
+        <button type="button" onClick="{{ goDashboard }}" style="{{ demoBtnStyle }}" style-hover="{{ demoBtnHoverStyle }}">
+          데모 계정으로 시작하기
+        </button>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ APP SHELL (non-login) ============ -->
+  <sc-if value="{{ notLogin }}" hint-placeholder-val="{{ true }}">
+    <div style="{{ shellStyle }}">
+
+      <!-- NAV -->
+      <div style="{{ navStyle }}">
+        <div style="display:flex;align-items:center;gap:28px;">
+          <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onClick="{{ goDashboard }}">
+            <div style="{{ logoDotStyle }}"></div>
+            <span style="{{ logoTextStyle }}">셀러페이지 AI</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <button type="button" onClick="{{ goDashboard }}" style="{{ navLinkStyleFor('dashboard') }}">대시보드</button>
+            <button type="button" onClick="{{ goStyles }}" style="{{ navLinkStyleFor('styles') }}">스타일 세트</button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="{{ themeSwitchStyle }}">
+            <button type="button" onClick="{{ setThemeLight }}" style="{{ themeBtnStyleFor('light') }}" title="Light">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+            </button>
+            <button type="button" onClick="{{ setThemeSystem }}" style="{{ themeBtnStyleFor('system') }}" title="System">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5"></rect><path d="M8 20h8M12 16v4"></path></svg>
+            </button>
+            <button type="button" onClick="{{ setThemeDark }}" style="{{ themeBtnStyleFor('dark') }}" title="Dark">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z"></path></svg>
+            </button>
+          </div>
+          <div style="{{ avatarStyle }}">SW</div>
+        </div>
+      </div>
+
+      <!-- ============ DASHBOARD ============ -->
+      <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ pageWrapStyle }}">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:24px;">
+            <div>
+              <h1 style="{{ h1Style }}">프로젝트</h1>
+              <p style="{{ mutedTextStyle }}">진행 중인 상세페이지 프로젝트를 관리하세요</p>
+            </div>
+            <button type="button" onClick="{{ goCreate }}" style="{{ primaryBtnInlineStyle }}" style-hover="{{ primaryBtnHoverStyle }}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+              새 상세페이지 만들기
+            </button>
+          </div>
+
+          <div style="display:flex;gap:12px;margin-bottom:20px;">
+            <div style="{{ searchBoxStyle }}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+              <input placeholder="상품명, 카테고리로 검색" style="{{ searchInputStyle }}">
+            </div>
+            <div onClick="{{ goStyles }}" style="{{ styleSetShortcutStyle }}">
+              스타일 세트 관리
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"></path></svg>
+            </div>
+          </div>
+
+          <div style="{{ tableCardStyle }}">
+            <div style="{{ tableHeadRowStyle }}">
+              <span style="flex:2.4;">상품명</span>
+              <span style="flex:1.2;">카테고리</span>
+              <span style="flex:1;">플랫폼</span>
+              <span style="flex:1;">수정일</span>
+              <span style="flex:0.8;"></span>
+            </div>
+            <sc-for list="{{ projects }}" as="p" hint-placeholder-count="4">
+              <div style="{{ tableRowStyle }}">
+                <span style="flex:2.4;font-weight:600;">{{ p.name }}</span>
+                <span style="flex:1.2;color:{{ mutedColor }};">{{ p.category }}</span>
+                <span style="flex:1;"><span style="{{ platformBadgeStyleFor(p.platform) }}">{{ p.platform }}</span></span>
+                <span style="flex:1;color:{{ mutedColor }};">{{ p.updated }}</span>
+                <span style="flex:0.8;text-align:right;">
+                  <button type="button" onClick="{{ goEditor }}" style="{{ tableOpenBtnStyle }}">열기</button>
+                </span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ CREATE ============ -->
+      <sc-if value="{{ isCreate }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ pageWrapStyle }}">
+          <h1 style="{{ h1Style }}">새 상세페이지 만들기</h1>
+          <p style="{{ mutedTextStyle }}">상품 정보와 사진만 넣으면 AI가 13섹션 초안을 만들어드려요</p>
+
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin-top:24px;">
+
+            <div style="display:flex;flex-direction:column;gap:20px;">
+              <div style="{{ sectionCardStyle }}">
+                <div style="{{ cardLabelStyle }}">기본 정보</div>
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                  <div>
+                    <label style="{{ fieldLabelStyle }}">상품명</label>
+                    <input value="{{ product.name }}" style="{{ inputStyle }}" readOnly="{{ true }}">
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <div>
+                      <label style="{{ fieldLabelStyle }}">카테고리</label>
+                      <input value="{{ product.category }}" style="{{ inputStyle }}" readOnly="{{ true }}">
+                    </div>
+                    <div>
+                      <label style="{{ fieldLabelStyle }}">가격</label>
+                      <input value="{{ product.price }}" style="{{ inputStyle }}" readOnly="{{ true }}">
+                    </div>
+                  </div>
+                  <div>
+                    <label style="{{ fieldLabelStyle }}">핵심 키워드</label>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                      <sc-for list="{{ product.keywords }}" as="kw" hint-placeholder-count="4">
+                        <span style="{{ tagChipStyle }}">{{ kw }}</span>
+                      </sc-for>
+                    </div>
+                  </div>
+                  <div>
+                    <label style="{{ fieldLabelStyle }}">타깃 고객</label>
+                    <textarea rows="2" value="{{ product.audience }}" style="{{ textareaStyle }}" readOnly="{{ true }}"></textarea>
+                  </div>
+                </div>
+              </div>
+
+              <div style="{{ sectionCardStyle }}">
+                <div style="{{ cardLabelStyle }}">강조 포인트</div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                  <sc-for list="{{ emphasisOptions }}" as="opt" hint-placeholder-count="5">
+                    <button type="button" onClick="{{ opt.toggle }}" style="{{ opt.chipStyle }}">
+                      <sc-if value="{{ opt.checked }}" hint-placeholder-val="{{ false }}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+                      </sc-if>
+                      {{ opt.label }}
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div style="{{ sectionCardStyle }}">
+                <div style="{{ cardLabelStyle }}">톤앤매너 &amp; 디자인 무드</div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+                  <sc-for list="{{ toneOptions }}" as="t" hint-placeholder-count="4">
+                    <button type="button" onClick="{{ t.select }}" style="{{ t.chipStyle }}">{{ t.label }}</button>
+                  </sc-for>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                  <sc-for list="{{ moodOptions }}" as="m" hint-placeholder-count="4">
+                    <button type="button" onClick="{{ m.select }}" style="{{ m.chipStyle }}">{{ m.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div style="{{ sectionCardStyle }}">
+                <div style="{{ cardLabelStyle }}">플랫폼 &amp; 스타일 세트</div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+                  <sc-for list="{{ platformOptions }}" as="pf" hint-placeholder-count="4">
+                    <button type="button" onClick="{{ pf.select }}" style="{{ pf.chipStyle }}">{{ pf.label }}</button>
+                  </sc-for>
+                </div>
+                <select style="{{ selectStyle }}">
+                  <option>기본 스타일 세트 · 테라코타 &amp; 크림</option>
+                  <option>모던 뉴트럴 스타일 세트</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:20px;">
+              <div style="{{ sectionCardStyle }}">
+                <div style="{{ cardLabelStyle }}">상품 이미지</div>
+                <div style="{{ dropzoneStyle }}">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M21 15l-5-5L5 21"></path></svg>
+                  <span>도매 원본 상품 사진 업로드</span>
+                  <span style="{{ dropHintStyle }}">최적화: WebP · 1200px · 92KB → 340KB 절감</span>
+                </div>
+              </div>
+
+              <div style="{{ sectionCardStyle }}">
+                <div style="{{ cardLabelStyle }}">이미지 개선/합성 준비</div>
+                <p style="{{ smallMutedStyle }}">레퍼런스는 분위기·구도·조명만 참고합니다. 상품의 실제 형태·색상·소재는 바뀌지 않습니다.</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0;">
+                  <div style="{{ refThumbStyle }}">원본 상품 이미지</div>
+                  <div style="{{ refThumbStyle }}">레퍼런스 이미지</div>
+                </div>
+                <textarea rows="2" placeholder="레퍼런스 메모: 따뜻한 우드톤 책상, 자연광, 여백 넉넉하게" style="{{ textareaStyle }}"></textarea>
+                <div style="{{ promptPreviewStyle }}">
+                  <div style="{{ promptLabelStyle }}">이미지 생성 프롬프트</div>
+                  <p style="{{ promptTextStyle }}">우드톤 데스크 위 스테인리스 텀블러, 자연광, 아침 분위기, 여백 넉넉한 구도</p>
+                  <div style="{{ promptLabelStyle }}">negative prompt</div>
+                  <p style="{{ promptTextStyle }}">형태 왜곡, 로고 변형, 텍스트 워터마크</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;margin-top:24px;">
+            <button type="button" onClick="{{ goEditor }}" style="{{ bigGenerateBtnStyle }}" style-hover="{{ primaryBtnHoverStyle }}">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.9L19 9l-5.1 1.9L12 16l-1.9-5.1L5 9l5.1-1.1L12 3z"></path><path d="M19 14l.8 2.1L22 17l-2.2.9L19 20l-.8-2.1L16 17l2.2-.9L19 14z"></path></svg>
+              AI로 13섹션 상세페이지 생성
+            </button>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- ============ EDITOR ============ -->
+      <sc-if value="{{ isEditor }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ editorToolbarStyle }}">
+          <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+            <button type="button" onClick="{{ goDashboard }}" style="{{ iconGhostBtnStyle }}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
+            </button>
+            <div style="min-width:0;">
+              <div style="{{ editorTitleStyle }}">{{ product.name }}</div>
+              <div style="{{ editorSubStyle }}">스마트스토어 · 실용적 톤 · 마지막 저장 3분 전</div>
+            </div>
+          </div>
+
+          <div style="{{ layoutSwitchStyle }}">
+            <button type="button" onClick="{{ setLayoutHorizontal }}" style="{{ layoutBtnStyleFor('horizontal') }}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="1.5"></rect><path d="M9 4v16M15 4v16"></path></svg>
+              가로 모니터
+            </button>
+            <button type="button" onClick="{{ setLayoutVertical }}" style="{{ layoutBtnStyleFor('vertical') }}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="1.5"></rect><path d="M6 14h12"></path></svg>
+              세로 모니터
+            </button>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="{{ platformBadgeStyleFor('스마트스토어') }}">스마트스토어</span>
+            <button type="button" style="{{ iconTextBtnStyle }}">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"></path><path d="M17 21v-8H7v8M7 3v5h8"></path></svg>
+              저장
+            </button>
+            <button type="button" onClick="{{ triggerExportToast }}" style="{{ primaryBtnSmallStyle }}" style-hover="{{ primaryBtnHoverStyle }}">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4"></path><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path></svg>
+              ZIP 다운로드
+            </button>
+          </div>
+        </div>
+
+        <!-- HORIZONTAL LAYOUT: 3 columns -->
+        <sc-if value="{{ isLayoutHorizontal }}" hint-placeholder-val="{{ true }}">
+          <div style="{{ editorHorizontalGridStyle }}">
+            <div style="{{ sectionListColStyle }}">
+              <div style="{{ colHeaderStyle }}">섹션 목록</div>
+              <sc-for list="{{ sectionRows }}" as="row" hint-placeholder-count="13">
+                <div onClick="{{ row.select }}" style="{{ row.rowStyle }}">
+                  <span style="{{ dragHandleStyle }}">⠿</span>
+                  <span style="{{ sectionIndexStyle }}">{{ row.indexLabel }}</span>
+                  <span style="{{ row.titleStyle }}">{{ row.title }}</span>
+                  <button type="button" onClick="{{ row.toggleHide }}" style="{{ visIconBtnStyle }}">
+                    <sc-if value="{{ row.hidden }}" hint-placeholder-val="{{ false }}">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a21.6 21.6 0 0 1 5.06-5.94M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 7 11 7a21.6 21.6 0 0 1-2.66 3.94M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><path d="M1 1l22 22"></path></svg>
+                    </sc-if>
+                    <sc-if value="{{ row.visible }}" hint-placeholder-val="{{ true }}">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </sc-if>
+                  </button>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="{{ canvasColStyle }}">
+              <div style="{{ colHeaderStyle }}">상세페이지 캔버스</div>
+              <div style="{{ canvasScrollStyle }}">
+                <div style="{{ phoneFrameStyle }}">
+                  <div style="{{ phoneNotchStyle }}">
+                    <span style="color: #FF9200; font-size: 15px; font-family: Times New Roman; background-color: #000000"><u style="">상세페이지 캔버스</u></span>
+                    <span style="{{ canvasWidthTagStyle }}">스마트스토어 · 860px</span>
+                  </div>
+                  <div style="{{ canvasBodyStyle }}">
+                    <sc-for list="{{ canvasSections }}" as="cs" hint-placeholder-count="13">
+                      <div onClick="{{ cs.select }}" style="{{ cs.wrapStyle }}">
+                        <div>
+                          <div style="{{ cs.kickerStyle }}">{{ cs.kicker }}</div>
+                          <div style="color: #F90202; height: 100px; text-decoration-line: line-through; background-color: #B96363">{{ cs.title }}</div>
+                          <div style="{{ cs.bodyStyle }}">{{ cs.body }}</div>
+                        </div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="{{ editPanelColStyle }}">
+              <div style="{{ colHeaderStyle }}">섹션 편집 · {{ selectedSection.title }}</div>
+              <div style="{{ editPanelScrollStyle }}">
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                  <div>
+                    <label style="{{ fieldLabelStyle }}">제목</label>
+                    <input value="{{ selectedSection.title }}" onChange="{{ updateSelectedTitle }}" style="{{ inputStyle }}">
+                  </div>
+                  <div>
+                    <label style="{{ fieldLabelStyle }}">본문</label>
+                    <textarea rows="5" value="{{ selectedSection.body }}" onChange="{{ updateSelectedBody }}" style="{{ textareaStyle }}"></textarea>
+                  </div>
+                  <div style="display:flex;gap:8px;">
+                    <button type="button" onClick="{{ moveSelectedUp }}" style="{{ smallGhostBtnStyle }}">위로</button>
+                    <button type="button" onClick="{{ moveSelectedDown }}" style="{{ smallGhostBtnStyle }}">아래로</button>
+                    <button type="button" onClick="{{ toggleSelectedHide }}" style="{{ smallGhostBtnStyle }}">{{ selectedHideLabel }}</button>
+                  </div>
+                  <button type="button" onClick="{{ regenerateSelected }}" style="{{ regenBtnStyle }}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6M3 22v-6h6"></path><path d="M3.5 9A9 9 0 0 1 20 6.3M20.5 15A9 9 0 0 1 4 17.7"></path></svg>
+                    이 섹션 다시 생성
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- VERTICAL LAYOUT: canvas-centric with tab panel -->
+        <sc-if value="{{ isLayoutVertical }}" hint-placeholder-val="{{ false }}">
+          <div style="{{ editorVerticalWrapStyle }}">
+            <div style="{{ verticalCanvasAreaStyle }}">
+              <div style="{{ phoneFrameStyle }}">
+                <div style="{{ phoneNotchStyle }}">
+                  <span>상세페이지 캔버스</span>
+                  <span style="{{ canvasWidthTagStyle }}">스마트스토어 · 860px</span>
+                </div>
+                <div style="{{ canvasBodyStyle }}">
+                  <sc-for list="{{ canvasSections }}" as="cs2" hint-placeholder-count="13">
+                    <div onClick="{{ cs2.select }}" style="{{ cs2.wrapStyle }}">
+                      <div style="background: url(&quot;./--mrbl7pmz.png&quot;) center / cover no-repeat">
+                        <div style="{{ cs2.kickerStyle }}">{{ cs2.kicker }}</div>
+                        <div style="{{ cs2.titleStyle }}">{{ cs2.title }}</div>
+                        <div style="{{ cs2.bodyStyle }}">{{ cs2.body }}</div>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+
+            <div style="{{ verticalTabPanelStyle }}">
+              <div style="{{ verticalTabBarStyle }}">
+                <button type="button" onClick="{{ setTabSections }}" style="{{ tabBtnStyleFor('sections') }}">섹션</button>
+                <button type="button" onClick="{{ setTabEdit }}" style="{{ tabBtnStyleFor('edit') }}">편집</button>
+                <button type="button" onClick="{{ setTabAi }}" style="{{ tabBtnStyleFor('ai') }}">AI 도우미</button>
+              </div>
+              <div style="{{ verticalTabBodyStyle }}">
+                <sc-if value="{{ isTabSections }}" hint-placeholder-val="{{ true }}">
+                  <sc-for list="{{ sectionRows }}" as="vrow" hint-placeholder-count="13">
+                    <div onClick="{{ vrow.select }}" style="{{ vrow.rowStyle }}">
+                      <span style="{{ dragHandleStyle }}">⠿</span>
+                      <span style="{{ sectionIndexStyle }}">{{ vrow.indexLabel }}</span>
+                      <span style="{{ vrow.titleStyle }}">{{ vrow.title }}</span>
+                      <button type="button" onClick="{{ vrow.toggleHide }}" style="{{ visIconBtnStyle }}">{{ vrow.hideGlyph }}</button>
+                    </div>
+                  </sc-for>
+                </sc-if>
+                <sc-if value="{{ isTabEdit }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:12px;">
+                    <div style="{{ cardLabelStyle }}">{{ selectedSection.title }}</div>
+                    <textarea rows="4" value="{{ selectedSection.body }}" onChange="{{ updateSelectedBody }}" style="{{ textareaStyle }}"></textarea>
+                    <div style="display:flex;gap:8px;">
+                      <button type="button" onClick="{{ moveSelectedUp }}" style="{{ smallGhostBtnStyle }}">위로</button>
+                      <button type="button" onClick="{{ moveSelectedDown }}" style="{{ smallGhostBtnStyle }}">아래로</button>
+                      <button type="button" onClick="{{ toggleSelectedHide }}" style="{{ smallGhostBtnStyle }}">{{ selectedHideLabel }}</button>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ isTabAi }}" hint-placeholder-val="{{ false }}">
+                  <div style="{{ inlineAiPanelStyle }}">
+                    <div>
+                      <div style="{{ aiContextLabelStyle }}">선택된 섹션</div>
+                      <div style="{{ aiContextTitleStyle }}">{{ selectedSection.title }}</div>
+                    </div>
+                    <div style="{{ aiQuickRowStyle }}">
+                      <sc-for list="{{ quickActions }}" as="qa" hint-placeholder-count="6">
+                        <button type="button" onClick="{{ qa.select }}" style="{{ qa.btnStyle }}">{{ qa.label }}</button>
+                      </sc-for>
+                    </div>
+                    <input placeholder="짧게 요청해보세요 (예: 더 신뢰가 가게)" style="{{ aiFreeInputStyle }}">
+                    <sc-if value="{{ aiHasPending }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;flex-direction:column;gap:8px;">
+                        <div style="{{ aiCompareBoxStyle }}">
+                          <div style="{{ aiCompareLabelStyle }}">적용 전</div>
+                          <p style="{{ aiCompareTextMutedStyle }}">{{ selectedSection.body }}</p>
+                        </div>
+                        <div style="{{ aiCompareBoxActiveStyle }}">
+                          <div style="{{ aiCompareLabelActiveStyle }}">적용 후</div>
+                          <p style="{{ aiCompareTextStyle }}">{{ aiPending }}</p>
+                        </div>
+                        <div style="display:flex;gap:8px;">
+                          <button type="button" onClick="{{ applyAiPending }}" style="{{ aiApplyBtnStyle }}">적용하기</button>
+                          <button type="button" onClick="{{ discardAiPending }}" style="{{ aiDiscardBtnStyle }}">취소</button>
+                        </div>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ aiNoPending }}" hint-placeholder-val="{{ true }}">
+                      <p style="{{ aiHintTextStyle }}">빠른 액션을 선택하면 적용 전/후를 비교할 수 있어요.</p>
+                    </sc-if>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- FLOATING AI ASSISTANT (horizontal layout only) -->
+        <sc-if value="{{ showFloatingAi }}" hint-placeholder-val="{{ true }}">
+          <sc-if value="{{ aiClosed }}" hint-placeholder-val="{{ true }}">
+            <button type="button" onClick="{{ openAi }}" style="{{ aiFabStyle }}">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.9L19 9l-5.1 1.9L12 16l-1.9-5.1L5 9l5.1-1.1L12 3z"></path></svg>
+            </button>
+          </sc-if>
+          <sc-if value="{{ aiOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="{{ aiFloatingPanelStyle }}">
+              <div style="{{ aiPanelHeaderStyle }}">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.9L19 9l-5.1 1.9L12 16l-1.9-5.1L5 9l5.1-1.1L12 3z"></path></svg>
+                  <span style="font-weight:700;">AI 편집 도우미</span>
+                </div>
+                <button type="button" onClick="{{ closeAi }}" style="{{ iconGhostBtnStyle }}">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                </button>
+              </div>
+              <div style="{{ aiPanelBodyStyle }}">
+                <div>
+                  <div style="{{ aiContextLabelStyle }}">선택된 섹션</div>
+                  <div style="{{ aiContextTitleStyle }}">{{ selectedSection.title }}</div>
+                </div>
+                <div style="{{ aiQuickRowStyle }}">
+                  <sc-for list="{{ quickActions }}" as="qaf" hint-placeholder-count="6">
+                    <button type="button" onClick="{{ qaf.select }}" style="{{ qaf.btnStyle }}">{{ qaf.label }}</button>
+                  </sc-for>
+                </div>
+                <input placeholder="짧게 요청해보세요 (예: 더 신뢰가 가게)" style="{{ aiFreeInputStyle }}">
+                <sc-if value="{{ aiHasPending }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;flex-direction:column;gap:8px;">
+                    <div style="{{ aiCompareBoxStyle }}">
+                      <div style="{{ aiCompareLabelStyle }}">적용 전</div>
+                      <p style="{{ aiCompareTextMutedStyle }}">{{ selectedSection.body }}</p>
+                    </div>
+                    <div style="{{ aiCompareBoxActiveStyle }}">
+                      <div style="{{ aiCompareLabelActiveStyle }}">적용 후</div>
+                      <p style="{{ aiCompareTextStyle }}">{{ aiPending }}</p>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                      <button type="button" onClick="{{ applyAiPending }}" style="{{ aiApplyBtnStyle }}">적용하기</button>
+                      <button type="button" onClick="{{ discardAiPending }}" style="{{ aiDiscardBtnStyle }}">취소</button>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ aiNoPending }}" hint-placeholder-val="{{ true }}">
+                  <p style="{{ aiHintTextStyle }}">빠른 액션을 선택하면 적용 전/후를 비교할 수 있어요.</p>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+        </sc-if>
+
+        <sc-if value="{{ toastVisible }}" hint-placeholder-val="{{ false }}">
+          <div style="{{ toastStyle }}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+            {{ toastMessage }}
+          </div>
+        </sc-if>
+      </sc-if>
+
+      <!-- ============ STYLE SETS ============ -->
+      <sc-if value="{{ isStyles }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ pageWrapStyle }}">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:24px;">
+            <div>
+              <h1 style="{{ h1Style }}">스타일 세트</h1>
+              <p style="{{ mutedTextStyle }}">반복되는 톤·색상·플랫폼 설정을 저장해두고 재사용하세요</p>
+            </div>
+            <button type="button" style="{{ primaryBtnInlineStyle }}" style-hover="{{ primaryBtnHoverStyle }}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+              새 스타일 세트 만들기
+            </button>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+            <sc-for list="{{ styleSets }}" as="ss" hint-placeholder-count="3">
+              <div style="{{ styleSetCardStyle }}">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                  <span style="{{ styleSetNameStyle }}">{{ ss.name }}</span>
+                  <span style="{{ platformBadgeStyleFor(ss.platform) }}">{{ ss.platform }}</span>
+                </div>
+                <div style="{{ swatchRowStyle }}">
+                  <div style="{{ ss.primarySwatchStyle }}"></div>
+                  <div style="{{ ss.secondarySwatchStyle }}"></div>
+                  <span style="{{ smallMutedStyle }}">대표 · 보조 색상</span>
+                </div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0;">
+                  <span style="{{ tagChipStyle }}">{{ ss.mood }}</span>
+                  <span style="{{ tagChipStyle }}">{{ ss.tone }}</span>
+                </div>
+                <p style="{{ smallMutedStyle }}">{{ ss.note }}</p>
+                <div style="{{ visibilityRowStyle }}">
+                  <sc-for list="{{ ss.visibilityDots }}" as="vd" hint-placeholder-count="13">
+                    <span style="{{ vd.dotStyle }}"></span>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+
+class Component extends DCLogic {
+  state = {
+    screen: 'login',
+    theme: 'light',
+    editorLayout: 'horizontal',
+    editorTab: 'sections',
+    selectedId: 's5',
+    aiOpen: false,
+    aiSelectedAction: null,
+    aiFreeText: '',
+    aiPending: null,
+    toastVisible: false,
+    toastMessage: '',
+    flashId: null,
+    emphasis: { warmth: true, design: true, wash: false, price: false, gift: false },
+    tone: 'practical',
+    mood: 'minimal',
+    platform: 'smartstore',
+    sections: [
+      { id: 's1', kicker: 'INTRO', title: '안녕?\n', body: '무광 스테인리스 텀블러, 책상 위 커피와 함께하는 아침 루틴.', hidden: false },
+      { id: 's2', kicker: 'ONE LINE', title: '안녕하세요?\n', body: '아침 커피의 온도를 오래 지키는 데일리 텀블러', hidden: false },
+      { id: 's3', kicker: 'PROBLEM', title: 'Problem', body: '출근길에 급하게 내린 커피, 자리에 앉을 때쯤이면 벌써 미지근해집니다.', hidden: false },
+      { id: 's4', kicker: 'SOLUTION', title: 'Solution', body: '이중 진공 구조가 온도를 오래 유지해 마지막 한 모금까지 처음 그대로.', hidden: false },
+      { id: 's5', kicker: 'BENEFIT 01', title: 'Key Benefit 1', body: '보온·보냉 지속력 — 6시간이 지나도 따뜻함이 남아있는 이중 진공 구조.', hidden: false },
+      { id: 's6', kicker: 'BENEFIT 02', title: 'Key Benefit 2', body: '슬림 바디 & 컵홀더 호환 — 가방과 차량 어디에도 자연스럽게 들어갑니다.', hidden: false },
+      { id: 's7', kicker: 'BENEFIT 03', title: 'Key Benefit 3', body: '분리 세척 가능한 뚜껑 — 매일 써도 위생적으로 관리하기 쉬운 구조.', hidden: false },
+      { id: 's8', kicker: 'DETAIL', title: 'Detail Point', body: '무광 스테인리스 마감과 이음새 없는 바디로 손에 닿는 느낌까지 신경 썼습니다.', hidden: false },
+      { id: 's9', kicker: 'USE SCENE', title: 'Use Scene', body: '출근길 지하철, 카페 테이크아웃, 차량 이동까지 — 어디서든 자연스럽게.', hidden: false },
+      { id: 's10', kicker: 'FOR YOU', title: 'Recommended For', body: '출근길 커피를 챙기는 직장인, 도서관에서 오래 머무는 학생에게 추천합니다.', hidden: false },
+      { id: 's11', kicker: 'TRUST', title: 'Trust Point', body: '식품안전 인증 소재, 1년 무상 교환 보증으로 안심하고 사용하세요.', hidden: false },
+      { id: 's12', kicker: 'FAQ', title: 'FAQ', body: 'Q. 차량 컵홀더에 들어가나요? A. 대부분의 일반 컵홀더에 맞는 슬림형입니다.', hidden: false },
+      { id: 's13', kicker: 'CTA', title: 'CTA', body: '매일 마시는 음료를 더 오래, 더 편하게 즐겨보세요.', hidden: false },
+    ],
+  };
+
+  product = {
+    name: '온도 유지 프리미엄 텀블러',
+    price: '29,900원',
+    category: '생활/주방용품',
+    audience: '출근길 커피를 자주 마시는 직장인, 텀블러를 매일 들고 다니는 대학생',
+    keywords: ['보온보냉', '슬림디자인', '컵홀더호환', '분리세척'],
+  };
+
+  projects = [
+    { name: '온도 유지 프리미엄 텀블러', category: '생활/주방용품', platform: '스마트스토어', updated: '3분 전' },
+    { name: '무선 목받침 넥쿠션', category: '자동차용품', platform: '쿠팡', updated: '2시간 전' },
+    { name: '반신욕 스파 발마사지기', category: '뷰티/헬스', platform: '스마트스토어', updated: '어제' },
+    { name: '접이식 캠핑 테이블', category: '레저/스포츠', platform: '쿠팡', updated: '3일 전' },
+  ];
+
+  styleSetsData = [
+    { name: '테라코타 & 크림 기본', platform: '스마트스토어', mood: '미니멀', tone: '실용적', primary: '#cc785c', secondary: '#221c14', note: '텀블러·주방용품 라인에 사용하는 기본 세트', hiddenCount: 0 },
+    { name: '프리미엄 우드톤', platform: '쿠팡', mood: '프리미엄', tone: '신뢰감', primary: '#3d3833', secondary: '#b8845a', note: '단가가 높은 리빙 카테고리용', hiddenCount: 2 },
+    { name: '컬러풀 캠핑 라인', platform: '스마트스토어', mood: '컬러풀', tone: '감성적', primary: '#a85a2e', secondary: '#e2794a', note: '레저·아웃도어 상품 전용', hiddenCount: 1 },
+  ];
+
+  quickActions = [
+    { id: 'shorten', label: '짧게 줄이기' },
+    { id: 'calm', label: '차분한 톤으로' },
+    { id: 'premium', label: '프리미엄 톤으로' },
+    { id: 'review', label: '과장 표현 검토' },
+    { id: 'faq', label: 'FAQ 다시 쓰기' },
+    { id: 'cta', label: 'CTA 다시 쓰기' },
+  ];
+
+  // ---------- theme tokens ----------
+  tokens() {
+    if (this.state.theme === 'dark') {
+      return {
+        bg: '#181715', bgElevated: '#252320', bgElevated2: '#2c2a25', border: 'rgba(255,255,255,0.09)',
+        text: '#f2ede2', textMuted: '#a89d89', primary: '#dd8064', primaryHover: '#e69073', primaryFg: '#241208',
+        accent: '#e0916f', accentSoft: 'rgba(221,128,100,0.20)', inputBg: '#221f1b', chipBg: '#2f2c27',
+        chipActiveBg: 'rgba(221,128,100,0.20)', shadow: '0 10px 30px rgba(0,0,0,0.5)',
+      };
+    }
+    return {
+      bg: '#faf9f5', bgElevated: '#ffffff', bgElevated2: '#f5f0e8', border: '#ddd6c7',
+      text: '#221c14', textMuted: '#786e5c', primary: '#cc785c', primaryHover: '#b8654a', primaryFg: '#ffffff',
+      accent: '#b8654a', accentSoft: 'rgba(204,120,92,0.16)', inputBg: '#f5f0e8', chipBg: '#efe9de',
+      chipActiveBg: 'rgba(204,120,92,0.16)', shadow: '0 8px 28px rgba(35,28,18,0.10)',
+    };
+  }
+
+  componentDidMount() {
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        this._systemIsDark = true;
+      }
+    } catch (e) {}
+  }
+
+  // ---------- navigation ----------
+  goDashboard = () => this.setState({ screen: 'dashboard' });
+  goCreate = () => this.setState({ screen: 'create' });
+  goEditor = () => this.setState({ screen: 'editor' });
+  goStyles = () => this.setState({ screen: 'styles' });
+  toggleSignup = () => {};
+
+  setThemeLight = () => this.setState({ theme: 'light', themeMode: 'light' });
+  setThemeDark = () => this.setState({ theme: 'dark', themeMode: 'dark' });
+  setThemeSystem = () => this.setState({ theme: this._systemIsDark ? 'dark' : 'light', themeMode: 'system' });
+
+  setLayoutHorizontal = () => this.setState({ editorLayout: 'horizontal' });
+  setLayoutVertical = () => this.setState({ editorLayout: 'vertical' });
+  setTabSections = () => this.setState({ editorTab: 'sections' });
+  setTabEdit = () => this.setState({ editorTab: 'edit' });
+  setTabAi = () => this.setState({ editorTab: 'ai' });
+
+  openAi = () => this.setState({ aiOpen: true });
+  closeAi = () => this.setState({ aiOpen: false, aiPending: null, aiSelectedAction: null });
+
+  triggerExportToast = () => {
+    this.setState({ toastVisible: true, toastMessage: 'ZIP 다운로드가 완료되었습니다 (01.png · 02.png · 03.png)' });
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => this.setState({ toastVisible: false }), 2800);
+  };
+
+  // ---------- section helpers ----------
+  selectSection = (id) => this.setState({ selectedId: id });
+
+  toggleHide = (id) => {
+    this.setState((s) => ({
+      sections: s.sections.map((sec) => (sec.id === id ? { ...sec, hidden: !sec.hidden } : sec)),
+    }));
+  };
+
+  moveSelectedUp = () => this.moveSection(-1);
+  moveSelectedDown = () => this.moveSection(1);
+
+  moveSection(dir) {
+    this.setState((s) => {
+      const idx = s.sections.findIndex((sec) => sec.id === s.selectedId);
+      const newIdx = idx + dir;
+      if (newIdx < 0 || newIdx >= s.sections.length) return null;
+      const next = s.sections.slice();
+      const [item] = next.splice(idx, 1);
+      next.splice(newIdx, 0, item);
+      return { sections: next };
+    });
+  }
+
+  updateSelectedTitle = (e) => {
+    const val = e.target.value;
+    this.setState((s) => ({
+      sections: s.sections.map((sec) => (sec.id === s.selectedId ? { ...sec, title: val } : sec)),
+    }));
+  };
+
+  updateSelectedBody = (e) => {
+    const val = e.target.value;
+    this.setState((s) => ({
+      sections: s.sections.map((sec) => (sec.id === s.selectedId ? { ...sec, body: val } : sec)),
+    }));
+  };
+
+  toggleSelectedHide = () => this.toggleHide(this.state.selectedId);
+
+  flash(id) {
+    this.setState({ flashId: id });
+    clearTimeout(this._flashTimer);
+    this._flashTimer = setTimeout(() => this.setState({ flashId: null }), 900);
+  }
+
+  regenerateSelected = () => {
+    const t = this.tokens();
+    const sel = this.state.sections.find((s) => s.id === this.state.selectedId);
+    if (!sel) return;
+    const rewrites = [
+      '매일 쓰기 좋은 디테일까지 다시 다듬은 문장입니다.',
+      '더 담백하게, 그러나 장점은 분명하게 정리했습니다.',
+      '제품의 핵심 가치를 한 번 더 검토해 다시 썼습니다.',
+    ];
+    const newBody = rewrites[Math.floor(Math.random() * rewrites.length)];
+    this.setState((s) => ({
+      sections: s.sections.map((sec) => (sec.id === sel.id ? { ...sec, body: newBody } : sec)),
+    }));
+    this.flash(sel.id);
+  };
+
+  // ---------- AI helper actions ----------
+  selectAiAction = (id) => {
+    const sel = this.state.sections.find((s) => s.id === this.state.selectedId);
+    if (!sel) return;
+    let rewritten = sel.body;
+    if (id === 'shorten') rewritten = sel.body.split(/[.!?]/)[0].trim() + '.';
+    else if (id === 'calm') rewritten = sel.body.replace(/!/g, '.').replace(/최고|완벽|무조건/g, '만족스러운');
+    else if (id === 'premium') rewritten = '프리미엄 마감으로 완성한 ' + sel.body;
+    else if (id === 'review') rewritten = sel.body + ' (과장 표현 없음 · 사실 기반 문구로 확인됨)';
+    else if (id === 'faq') rewritten = 'Q. 자주 묻는 질문을 더 명확하게 정리했습니다. A. ' + sel.body;
+    else if (id === 'cta') rewritten = '지금 바로 확인하세요 — ' + sel.body;
+    this.setState({ aiSelectedAction: id, aiPending: rewritten });
+  };
+
+  applyAiPending = () => {
+    const { selectedId, aiPending } = this.state;
+    if (!aiPending) return;
+    this.setState((s) => ({
+      sections: s.sections.map((sec) => (sec.id === selectedId ? { ...sec, body: aiPending } : sec)),
+      aiPending: null,
+      aiSelectedAction: null,
+    }));
+    this.flash(selectedId);
+    this.setState({ toastVisible: true, toastMessage: 'AI 수정 결과가 섹션에 반영되었습니다' });
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => this.setState({ toastVisible: false }), 2200);
+  };
+
+  discardAiPending = () => this.setState({ aiPending: null, aiSelectedAction: null });
+
+  // ---------- create screen chip toggles ----------
+  toggleEmphasis = (key) => this.setState((s) => ({ emphasis: { ...s.emphasis, [key]: !s.emphasis[key] } }));
+  selectTone = (v) => this.setState({ tone: v });
+  selectMood = (v) => this.setState({ mood: v });
+  selectPlatform = (v) => this.setState({ platform: v });
+
+  renderVals() {
+    const t = this.tokens();
+    const s = this.state;
+    const screen = s.screen;
+
+    const sharedFont = "'Noto Sans KR','Manrope',ui-sans-serif,system-ui,sans-serif";
+
+    const rootStyle = {
+      minHeight: '100vh', width: '100%', background: t.bg, color: t.text,
+      fontFamily: sharedFont, transition: 'background 0.25s ease, color 0.25s ease',
+    };
+
+    // ---- login ----
+    const loginWrapStyle = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' };
+    const loginCardStyle = {
+      width: '100%', maxWidth: '380px', background: t.bgElevated, border: `1px solid ${t.border}`,
+      borderRadius: '16px', padding: '36px 32px', boxShadow: t.shadow,
+    };
+    const logoDotStyle = { width: '18px', height: '18px', borderRadius: '5px', background: t.primary };
+    const logoTextStyle = { fontWeight: 800, fontSize: '15px', letterSpacing: '-0.01em' };
+    const loginTitleStyle = { fontSize: '20px', fontWeight: 700, margin: '0 0 6px 0', letterSpacing: '-0.01em' };
+    const loginSubStyle = { fontSize: '13px', color: t.textMuted, margin: 0, lineHeight: 1.6 };
+    const fieldLabelStyle = { display: 'block', fontSize: '12.5px', fontWeight: 600, color: t.textMuted, marginBottom: '6px' };
+    const inputStyle = {
+      width: '100%', height: '40px', borderRadius: '9px', border: `1px solid ${t.border}`,
+      background: t.inputBg, color: t.text, padding: '0 12px', fontSize: '14px', outline: 'none',
+      fontFamily: sharedFont,
+    };
+    const textareaStyle = { ...inputStyle, height: 'auto', padding: '10px 12px', resize: 'vertical', lineHeight: 1.6 };
+    const selectStyle = { ...inputStyle };
+
+    const primaryBtnStyle = {
+      width: '100%', height: '42px', borderRadius: '9px', border: 'none', background: t.primary, color: t.primaryFg,
+      fontWeight: 700, fontSize: '14px', marginTop: '20px', cursor: 'pointer', transition: 'background 0.15s ease',
+    };
+    const primaryBtnHoverStyle = { background: t.primaryHover };
+    const ghostLinkBtnStyle = {
+      width: '100%', background: 'transparent', border: 'none', color: t.primary, fontSize: '13px', fontWeight: 600,
+      marginTop: '10px', cursor: 'pointer', padding: '4px',
+    };
+    const dividerRowStyle = { display: 'flex', alignItems: 'center', gap: '10px', margin: '22px 0' };
+    const dividerLineStyle = { flex: 1, height: '1px', background: t.border };
+    const dividerTextStyle = { fontSize: '11px', color: t.textMuted };
+    const demoBtnStyle = {
+      width: '100%', height: '40px', borderRadius: '9px', border: `1px solid ${t.border}`, background: t.bgElevated2,
+      color: t.text, fontWeight: 600, fontSize: '13px', cursor: 'pointer', transition: 'background 0.15s ease',
+    };
+    const demoBtnHoverStyle = { background: t.chipBg };
+
+    // ---- shell / nav ----
+    const shellStyle = screen === 'editor'
+      ? { height: '100vh', minHeight: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }
+      : { minHeight: '100vh', display: 'flex', flexDirection: 'column' };
+    const navStyle = {
+      height: '60px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '0 22px', borderBottom: `1px solid ${t.border}`, background: t.bgElevated, position: 'sticky', top: 0, zIndex: 20,
+    };
+    const navLinkStyleFor = (name) => ({
+      background: screen === name ? t.chipActiveBg : 'transparent', color: screen === name ? t.primary : t.textMuted,
+      border: 'none', borderRadius: '7px', padding: '7px 12px', fontSize: '13.5px', fontWeight: 600, cursor: 'pointer',
+    });
+    const themeSwitchStyle = { display: 'flex', gap: '2px', background: t.chipBg, borderRadius: '9px', padding: '3px' };
+    const themeBtnStyleFor = (m) => ({
+      width: '28px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px',
+      border: 'none', cursor: 'pointer', background: (s.themeMode || 'light') === m ? t.bgElevated : 'transparent',
+      color: (s.themeMode || 'light') === m ? t.text : t.textMuted,
+      boxShadow: (s.themeMode || 'light') === m ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+    });
+    const avatarStyle = {
+      width: '30px', height: '30px', borderRadius: '50%', background: t.primary, color: t.primaryFg,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700,
+    };
+
+    const pageWrapStyle = { flex: 1, width: '100%', maxWidth: '1180px', margin: '0 auto', padding: '32px 24px 60px' };
+    const h1Style = { fontSize: '24px', fontWeight: 800, margin: '0 0 4px 0', letterSpacing: '-0.01em' };
+    const mutedTextStyle = { fontSize: '13.5px', color: t.textMuted, margin: 0 };
+    const mutedColor = t.textMuted;
+    const smallMutedStyle = { fontSize: '12.5px', color: t.textMuted, lineHeight: 1.6, margin: '4px 0' };
+
+    const primaryBtnInlineStyle = {
+      display: 'inline-flex', alignItems: 'center', gap: '6px', height: '38px', padding: '0 16px',
+      borderRadius: '9px', border: 'none', background: t.primary, color: t.primaryFg, fontWeight: 700,
+      fontSize: '13.5px', cursor: 'pointer',
+    };
+
+    const searchBoxStyle = {
+      flex: 1, display: 'flex', alignItems: 'center', gap: '8px', height: '38px', padding: '0 12px',
+      borderRadius: '9px', border: `1px solid ${t.border}`, background: t.bgElevated, color: t.textMuted, maxWidth: '360px',
+    };
+    const searchInputStyle = { border: 'none', outline: 'none', background: 'transparent', fontSize: '13.5px', color: t.text, width: '100%', fontFamily: sharedFont };
+    const styleSetShortcutStyle = {
+      display: 'flex', alignItems: 'center', gap: '6px', height: '38px', padding: '0 14px', borderRadius: '9px',
+      border: `1px solid ${t.border}`, background: t.bgElevated2, color: t.text, fontSize: '13px', fontWeight: 600, cursor: 'pointer',
+    };
+
+    const tableCardStyle = { border: `1px solid ${t.border}`, borderRadius: '12px', overflow: 'hidden', background: t.bgElevated };
+    const tableHeadRowStyle = {
+      display: 'flex', padding: '11px 18px', fontSize: '12px', fontWeight: 700, color: t.textMuted,
+      background: t.bgElevated2, borderBottom: `1px solid ${t.border}`,
+    };
+    const tableRowStyle = {
+      display: 'flex', alignItems: 'center', padding: '14px 18px', fontSize: '13.5px', borderBottom: `1px solid ${t.border}`,
+    };
+    const tableOpenBtnStyle = {
+      border: `1px solid ${t.border}`, background: 'transparent', color: t.text, borderRadius: '7px',
+      padding: '5px 12px', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer',
+    };
+    const platformBadgeStyleFor = (p) => ({
+      display: 'inline-block', fontSize: '11.5px', fontWeight: 700, padding: '3px 9px', borderRadius: '999px',
+      background: t.accentSoft, color: t.accent,
+    });
+
+    // ---- create screen ----
+    const sectionCardStyle = { border: `1px solid ${t.border}`, borderRadius: '12px', padding: '18px', background: t.bgElevated };
+    const cardLabelStyle = { fontSize: '13px', fontWeight: 700, marginBottom: '12px', color: t.text };
+    const tagChipStyle = { fontSize: '12px', fontWeight: 600, padding: '4px 10px', borderRadius: '999px', background: t.chipBg, color: t.textMuted };
+
+    const chipBase = { fontSize: '13px', fontWeight: 600, padding: '7px 14px', borderRadius: '999px', border: `1px solid ${t.border}`, background: t.bgElevated2, color: t.text, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' };
+    const chipActive = { ...chipBase, background: t.chipActiveBg, borderColor: t.primary, color: t.primary };
+
+    const emphasisDefs = [
+      { key: 'warmth', label: '보온보냉력' }, { key: 'design', label: '디자인' }, { key: 'wash', label: '세척편의' },
+      { key: 'price', label: '가성비' }, { key: 'gift', label: '선물용' },
+    ];
+    const emphasisOptions = emphasisDefs.map((d) => ({
+      label: d.label, checked: !!s.emphasis[d.key], toggle: () => this.toggleEmphasis(d.key),
+      chipStyle: s.emphasis[d.key] ? chipActive : chipBase,
+    }));
+
+    const toneDefs = [{ v: 'practical', l: '실용적' }, { v: 'trust', l: '신뢰감' }, { v: 'premium', l: '프리미엄' }, { v: 'warm', l: '감성적' }];
+    const toneOptions = toneDefs.map((d) => ({ label: d.l, select: () => this.selectTone(d.v), chipStyle: s.tone === d.v ? chipActive : chipBase }));
+
+    const moodDefs = [{ v: 'minimal', l: '미니멀' }, { v: 'natural', l: '내추럴' }, { v: 'premium', l: '프리미엄' }, { v: 'colorful', l: '컬러풀' }];
+    const moodOptions = moodDefs.map((d) => ({ label: d.l, select: () => this.selectMood(d.v), chipStyle: s.mood === d.v ? chipActive : chipBase }));
+
+    const platformDefs = [{ v: 'smartstore', l: '스마트스토어' }, { v: 'coupang', l: '쿠팡' }, { v: 'ably', l: '에이블리' }, { v: 'zigzag', l: '지그재그' }];
+    const platformOptions = platformDefs.map((d) => ({ label: d.l, select: () => this.selectPlatform(d.v), chipStyle: s.platform === d.v ? chipActive : chipBase }));
+
+    const dropzoneStyle = {
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '26px 16px',
+      borderRadius: '10px', border: `1.5px dashed ${t.border}`, background: t.bgElevated2, color: t.textMuted, fontSize: '13px', textAlign: 'center',
+    };
+    const dropHintStyle = { fontSize: '11px', color: t.accent, fontWeight: 600 };
+    const refThumbStyle = {
+      height: '84px', borderRadius: '8px', background: t.chipBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: '11.5px', color: t.textMuted, border: `1px dashed ${t.border}`,
+    };
+    const promptPreviewStyle = { marginTop: '12px', padding: '12px', borderRadius: '9px', background: t.bgElevated2, border: `1px solid ${t.border}` };
+    const promptLabelStyle = { fontSize: '11px', fontWeight: 700, color: t.accent, marginBottom: '2px', marginTop: '8px' };
+    const promptTextStyle = { fontSize: '12.5px', color: t.textMuted, margin: '0 0 4px 0', lineHeight: 1.6 };
+
+    const bigGenerateBtnStyle = {
+      display: 'inline-flex', alignItems: 'center', gap: '8px', height: '46px', padding: '0 24px', borderRadius: '10px',
+      border: 'none', background: t.primary, color: t.primaryFg, fontWeight: 700, fontSize: '14.5px', cursor: 'pointer',
+    };
+
+    // ---- editor toolbar ----
+    const editorToolbarStyle = {
+      height: '58px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '0 20px', borderBottom: `1px solid ${t.border}`, background: t.bgElevated, position: 'sticky', top: '60px', zIndex: 15, gap: '16px',
+    };
+    const iconGhostBtnStyle = {
+      width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px',
+      border: `1px solid ${t.border}`, background: 'transparent', color: t.text, cursor: 'pointer',
+    };
+    const editorTitleStyle = { fontSize: '14px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+    const editorSubStyle = { fontSize: '11.5px', color: t.textMuted };
+    const layoutSwitchStyle = { display: 'flex', gap: '2px', background: t.chipBg, borderRadius: '9px', padding: '3px' };
+    const layoutBtnStyleFor = (v) => ({
+      display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, padding: '6px 12px',
+      borderRadius: '7px', border: 'none', cursor: 'pointer',
+      background: s.editorLayout === v ? t.bgElevated : 'transparent', color: s.editorLayout === v ? t.text : t.textMuted,
+      boxShadow: s.editorLayout === v ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+    });
+    const iconTextBtnStyle = {
+      display: 'flex', alignItems: 'center', gap: '6px', height: '34px', padding: '0 13px', borderRadius: '8px',
+      border: `1px solid ${t.border}`, background: 'transparent', color: t.text, fontSize: '12.5px', fontWeight: 600, cursor: 'pointer',
+    };
+    const primaryBtnSmallStyle = {
+      display: 'flex', alignItems: 'center', gap: '6px', height: '34px', padding: '0 14px', borderRadius: '8px',
+      border: 'none', background: t.primary, color: t.primaryFg, fontSize: '12.5px', fontWeight: 700, cursor: 'pointer',
+    };
+
+    // ---- editor: horizontal 3-col ----
+    const editorHorizontalGridStyle = {
+      display: 'grid', gridTemplateColumns: '230px minmax(0,1fr) 320px', flex: 1, minHeight: 0,
+      height: 'calc(100vh - 118px)',
+    };
+    const colHeaderStyle = {
+      padding: '13px 16px', fontSize: '12px', fontWeight: 700, color: t.textMuted, borderBottom: `1px solid ${t.border}`, flexShrink: 0,
+    };
+    const sectionListColStyle = { display: 'flex', flexDirection: 'column', borderRight: `1px solid ${t.border}`, minHeight: 0, overflowY: 'auto', background: t.bgElevated };
+    const canvasColStyle = { display: 'flex', flexDirection: 'column', minHeight: 0, background: t.bg };
+    const editPanelColStyle = { display: 'flex', flexDirection: 'column', borderLeft: `1px solid ${t.border}`, minHeight: 0, overflowY: 'auto', background: t.bgElevated };
+    const editPanelScrollStyle = { padding: '16px', overflowY: 'auto' };
+
+    const dragHandleStyle = { color: t.textMuted, fontSize: '13px', cursor: 'grab', lineHeight: 1 };
+    const sectionIndexStyle = { fontFamily: 'monospace', fontSize: '11px', color: t.textMuted, width: '18px', flexShrink: 0 };
+    const visIconBtnStyle = { border: 'none', background: 'transparent', color: t.textMuted, cursor: 'pointer', display: 'flex', padding: '2px' };
+
+    const sectionRows = s.sections.map((sec, i) => ({
+      title: sec.title,
+      indexLabel: String(i + 1).padStart(2, '0'),
+      hidden: sec.hidden,
+      visible: !sec.hidden,
+      hideGlyph: sec.hidden ? '＿' : '●',
+      select: () => this.selectSection(sec.id),
+      toggleHide: (e) => { e.stopPropagation && e.stopPropagation(); this.toggleHide(sec.id); },
+      rowStyle: {
+        display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 14px', cursor: 'pointer',
+        background: sec.id === s.selectedId ? t.chipActiveBg : 'transparent',
+        borderLeft: sec.id === s.selectedId ? `2.5px solid ${t.primary}` : '2.5px solid transparent',
+        opacity: sec.hidden ? 0.45 : 1,
+      },
+      titleStyle: { flex: 1, fontSize: '12.5px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: sec.id === s.selectedId ? t.primary : t.text },
+    }));
+
+    // ---- fixed-theme mobile canvas (independent of app theme) ----
+    const canvasFixed = { bg: '#ffffff', dark: '#221c14', muted: '#58635d', border: '#ded8cb', accent: '#cc5f33', primary: '#a85a2e', soft: '#fbfaf7' };
+    const phoneFrameStyle = {
+      width: '360px', maxWidth: '100%', background: canvasFixed.bg, borderRadius: '12px', border: `1px solid ${canvasFixed.border}`,
+      boxShadow: '0 10px 28px rgba(23,32,28,0.14)', overflow: 'hidden', flexShrink: 0,
+    };
+    const phoneNotchStyle = {
+      height: '34px', background: canvasFixed.soft, borderBottom: `1px solid ${canvasFixed.border}`, display: 'flex',
+      alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', fontSize: '11px', fontWeight: 700, color: canvasFixed.dark,
+    };
+    const canvasWidthTagStyle = { fontSize: '10.5px', fontWeight: 600, color: canvasFixed.muted };
+    const canvasScrollStyle = { flex: 1, minHeight: 0, overflowY: 'auto', padding: '26px 18px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' };
+    const canvasBodyStyle = { display: 'flex', flexDirection: 'column' };
+
+    const canvasSectionMaker = (cs, i) => {
+      const isSelected = cs.id === s.selectedId;
+      const isFlash = cs.id === s.flashId;
+      const isCta = cs.id === 's13';
+      const isIntro = cs.id === 's1';
+      return {
+        select: () => this.selectSection(cs.id),
+        kicker: cs.kicker,
+        title: cs.title,
+        body: cs.body,
+        wrapStyle: {
+          cursor: 'pointer',
+          borderBottom: i === s.sections.length - 1 ? 'none' : `1px solid ${canvasFixed.border}`,
+          display: cs.hidden ? 'none' : 'block',
+          background: isCta ? canvasFixed.primary : (isIntro ? canvasFixed.dark : (isSelected ? '#f6f1e9' : canvasFixed.bg)),
+          outline: isSelected ? `2px solid ${canvasFixed.accent}` : 'none',
+          outlineOffset: '-2px',
+          transition: 'background 0.2s ease, box-shadow 0.2s ease',
+          animation: isFlash ? 'flashHighlight 0.9s ease' : 'none',
+        },
+        innerStyle: { padding: (isIntro || isCta) ? '26px 20px' : '20px 20px' },
+        kickerStyle: { fontSize: '10px', fontWeight: 800, letterSpacing: '0.06em', color: (isIntro || isCta) ? 'rgba(255,255,255,0.75)' : canvasFixed.accent, marginBottom: '6px' },
+        titleStyle: { fontSize: (isIntro || isCta) ? '19px' : '15px', fontWeight: 700, color: (isIntro || isCta) ? '#ffffff' : canvasFixed.dark, marginBottom: '6px', letterSpacing: '-0.01em' },
+        bodyStyle: { fontSize: '13px', lineHeight: 1.65, color: (isIntro || isCta) ? 'rgba(255,255,255,0.85)' : canvasFixed.muted },
+      };
+    };
+    const canvasSections = s.sections.map((cs, i) => ({ id: cs.id, hidden: cs.hidden, ...canvasSectionMaker(cs, i) }));
+
+    // ---- selected section / helpers ----
+    const selectedSection = s.sections.find((sec) => sec.id === s.selectedId) || s.sections[0];
+    const selectedHideLabel = selectedSection.hidden ? '섹션 표시' : '섹션 숨기기';
+    const smallGhostBtnStyle = {
+      flex: 1, height: '32px', borderRadius: '7px', border: `1px solid ${t.border}`, background: 'transparent',
+      color: t.text, fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+    };
+    const regenBtnStyle = {
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', height: '38px', borderRadius: '8px',
+      border: `1px solid ${t.border}`, background: t.bgElevated2, color: t.accent, fontSize: '12.5px', fontWeight: 700, cursor: 'pointer', marginTop: '4px',
+    };
+
+    // ---- vertical layout ----
+    const editorVerticalWrapStyle = { display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: 'calc(100vh - 118px)' };
+    const verticalCanvasAreaStyle = { flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '20px 16px', background: t.bg };
+    const verticalTabPanelStyle = { height: '280px', flexShrink: 0, borderTop: `1px solid ${t.border}`, display: 'flex', flexDirection: 'column', background: t.bgElevated };
+    const verticalTabBarStyle = { display: 'flex', borderBottom: `1px solid ${t.border}`, flexShrink: 0 };
+    const tabBtnStyleFor = (v) => ({
+      flex: 1, padding: '11px 0', fontSize: '12.5px', fontWeight: 700, border: 'none', cursor: 'pointer',
+      background: 'transparent', color: s.editorTab === v ? t.primary : t.textMuted,
+      borderBottom: s.editorTab === v ? `2px solid ${t.primary}` : '2px solid transparent',
+    });
+    const verticalTabBodyStyle = { flex: 1, overflowY: 'auto', padding: '12px 16px' };
+
+    // ---- AI panel (shared content, floating + inline) ----
+    const aiFabStyle = {
+      position: 'fixed', right: '28px', bottom: '28px', width: '54px', height: '54px', borderRadius: '50%',
+      background: t.accent, color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      boxShadow: '0 10px 24px rgba(204,95,51,0.4)', cursor: 'pointer', zIndex: 40, animation: 'aiPulse 2.4s ease-in-out infinite',
+    };
+    const aiFloatingPanelStyle = {
+      position: 'fixed', right: '28px', bottom: '28px', width: '340px', maxHeight: '70vh', borderRadius: '16px',
+      background: t.bgElevated, border: `1px solid ${t.border}`, boxShadow: t.shadow, display: 'flex', flexDirection: 'column',
+      overflow: 'hidden', zIndex: 40, transformOrigin: 'bottom right', animation: 'aiPulse 0.001s',
+    };
+    const aiPanelHeaderStyle = {
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px',
+      borderBottom: `1px solid ${t.border}`, color: t.accent,
+    };
+    const aiPanelBodyStyle = { padding: '14px 16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' };
+    const inlineAiPanelStyle = { display: 'flex', flexDirection: 'column', gap: '12px' };
+
+    const quickActionBtnStyleFor = (id) => ({
+      fontSize: '12px', fontWeight: 600, padding: '7px 12px', borderRadius: '999px',
+      border: `1px solid ${s.aiSelectedAction === id ? t.accent : t.border}`,
+      background: s.aiSelectedAction === id ? t.accentSoft : t.bgElevated2,
+      color: s.aiSelectedAction === id ? t.accent : t.text, cursor: 'pointer',
+    });
+
+    const aiContextLabelStyle = { fontSize: '11.5px', color: t.textMuted };
+    const aiContextTitleStyle = { fontSize: '13px', fontWeight: 700 };
+    const aiQuickRowStyle = { display: 'flex', flexWrap: 'wrap', gap: '6px' };
+    const aiFreeInputStyle = { ...inputStyle, height: '36px' };
+    const aiCompareBoxStyle = { border: `1px solid ${t.border}`, borderRadius: '9px', padding: '10px', background: t.bgElevated2 };
+    const aiCompareLabelStyle = { fontSize: '10.5px', fontWeight: 700, color: t.textMuted, marginBottom: '3px' };
+    const aiCompareTextStyle = { fontSize: '12px', lineHeight: 1.6, margin: 0 };
+    const aiApplyBtnStyle = { flex: 1, height: '34px', borderRadius: '8px', border: 'none', background: t.primary, color: t.primaryFg, fontWeight: 700, fontSize: '12.5px', cursor: 'pointer' };
+    const aiDiscardBtnStyle = { flex: 1, height: '34px', borderRadius: '8px', border: `1px solid ${t.border}`, background: 'transparent', color: t.text, fontWeight: 600, fontSize: '12.5px', cursor: 'pointer' };
+
+    const quickActionsWithHandlers = this.quickActions.map((qa) => ({
+      label: qa.label,
+      select: () => this.selectAiAction(qa.id),
+      btnStyle: quickActionBtnStyleFor(qa.id),
+    }));
+    const aiCompareTextMutedStyle = { ...aiCompareTextStyle, color: t.textMuted };
+    const aiCompareBoxActiveStyle = { ...aiCompareBoxStyle, borderColor: t.primary, background: t.chipActiveBg };
+    const aiCompareLabelActiveStyle = { ...aiCompareLabelStyle, color: t.primary };
+    const aiHintTextStyle = { fontSize: '11.5px', color: t.textMuted, lineHeight: 1.6, margin: 0 };
+
+    const toastStyle = {
+      position: 'fixed', left: '50%', bottom: '28px', transform: 'translateX(-50%)', background: t.text, color: t.bg,
+      padding: '11px 18px', borderRadius: '10px', fontSize: '12.5px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px',
+      boxShadow: t.shadow, zIndex: 60, animation: 'toastIn 0.25s ease',
+    };
+
+    // ---- style sets ----
+    const styleSetCardStyle = { border: `1px solid ${t.border}`, borderRadius: '12px', padding: '18px', background: t.bgElevated };
+    const styleSetNameStyle = { fontSize: '14.5px', fontWeight: 700 };
+    const swatchRowStyle = { display: 'flex', alignItems: 'center', gap: '8px', margin: '12px 0 4px' };
+    const visibilityRowStyle = { display: 'flex', gap: '4px', marginTop: '10px' };
+
+    const styleSets = this.styleSetsData.map((ss) => ({
+      name: ss.name, platform: ss.platform, mood: ss.mood, tone: ss.tone, note: ss.note,
+      primarySwatchStyle: { width: '22px', height: '22px', borderRadius: '6px', background: ss.primary, border: `1px solid ${t.border}` },
+      secondarySwatchStyle: { width: '22px', height: '22px', borderRadius: '6px', background: ss.secondary, border: `1px solid ${t.border}` },
+      visibilityDots: Array.from({ length: 13 }, (_, i) => ({
+        dotStyle: {
+          width: '10px', height: '5px', borderRadius: '3px',
+          background: i < (13 - ss.hiddenCount) ? t.primary : t.border,
+        },
+      })),
+    }));
+
+    return {
+      isLogin: screen === 'login',
+      notLogin: screen !== 'login',
+      isDashboard: screen === 'dashboard',
+      isCreate: screen === 'create',
+      isEditor: screen === 'editor',
+      isStyles: screen === 'styles',
+      isLayoutHorizontal: s.editorLayout === 'horizontal',
+      isLayoutVertical: s.editorLayout === 'vertical',
+      isTabSections: s.editorTab === 'sections',
+      isTabEdit: s.editorTab === 'edit',
+      isTabAi: s.editorTab === 'ai',
+      showFloatingAi: s.editorLayout === 'horizontal',
+      aiOpen: s.aiOpen,
+      aiClosed: !s.aiOpen,
+      aiNoPending: !s.aiPending,
+      toastVisible: s.toastVisible,
+      toastMessage: s.toastMessage,
+
+      rootStyle, loginWrapStyle, loginCardStyle, logoDotStyle, logoTextStyle, loginTitleStyle, loginSubStyle,
+      loginHeading: '다시 만나서 반가워요', signupToggleLabel: '계정이 없으신가요? 회원가입', loginActionLabel: '로그인',
+      fieldLabelStyle, inputStyle, textareaStyle, selectStyle, primaryBtnStyle, primaryBtnHoverStyle, ghostLinkBtnStyle,
+      dividerRowStyle, dividerLineStyle, dividerTextStyle, demoBtnStyle, demoBtnHoverStyle,
+
+      shellStyle, navStyle, navLinkStyleFor, themeSwitchStyle, themeBtnStyleFor, avatarStyle,
+      pageWrapStyle, h1Style, mutedTextStyle, mutedColor, smallMutedStyle, primaryBtnInlineStyle,
+      searchBoxStyle, searchInputStyle, styleSetShortcutStyle,
+      tableCardStyle, tableHeadRowStyle, tableRowStyle, tableOpenBtnStyle, platformBadgeStyleFor,
+      projects: this.projects, product: this.product,
+
+      sectionCardStyle, cardLabelStyle, tagChipStyle, emphasisOptions, toneOptions, moodOptions, platformOptions,
+      dropzoneStyle, dropHintStyle, refThumbStyle, promptPreviewStyle, promptLabelStyle, promptTextStyle, bigGenerateBtnStyle,
+
+      editorToolbarStyle, iconGhostBtnStyle, editorTitleStyle, editorSubStyle, layoutSwitchStyle, layoutBtnStyleFor,
+      iconTextBtnStyle, primaryBtnSmallStyle, editorHorizontalGridStyle, colHeaderStyle, sectionListColStyle,
+      canvasColStyle, editPanelColStyle, editPanelScrollStyle, dragHandleStyle, sectionIndexStyle, visIconBtnStyle,
+      sectionRows, phoneFrameStyle, phoneNotchStyle, canvasWidthTagStyle, canvasScrollStyle, canvasBodyStyle, canvasSections,
+      selectedSection, selectedHideLabel, smallGhostBtnStyle, regenBtnStyle,
+      updateSelectedTitle: this.updateSelectedTitle, updateSelectedBody: this.updateSelectedBody,
+      moveSelectedUp: this.moveSelectedUp, moveSelectedDown: this.moveSelectedDown,
+      toggleSelectedHide: this.toggleSelectedHide, regenerateSelected: this.regenerateSelected,
+
+      editorVerticalWrapStyle, verticalCanvasAreaStyle, verticalTabPanelStyle, verticalTabBarStyle, tabBtnStyleFor, verticalTabBodyStyle,
+      inlineAiPanelStyle,
+
+      aiFabStyle, aiFloatingPanelStyle, aiPanelHeaderStyle, aiPanelBodyStyle, toastStyle,
+      openAi: this.openAi, closeAi: this.closeAi,
+
+      aiContextLabelStyle, aiContextTitleStyle, aiQuickRowStyle, aiFreeInputStyle,
+      aiCompareBoxStyle, aiCompareLabelStyle, aiCompareTextStyle, aiCompareTextMutedStyle,
+      aiCompareBoxActiveStyle, aiCompareLabelActiveStyle, aiApplyBtnStyle, aiDiscardBtnStyle, aiHintTextStyle,
+      quickActions: quickActionsWithHandlers, aiHasPending: !!s.aiPending, aiPending: s.aiPending,
+      applyAiPending: this.applyAiPending, discardAiPending: this.discardAiPending,
+
+      styleSetCardStyle, styleSetNameStyle, swatchRowStyle, visibilityRowStyle, styleSets,
+
+      goDashboard: this.goDashboard, goCreate: this.goCreate, goEditor: this.goEditor, goStyles: this.goStyles,
+      toggleSignup: this.toggleSignup, setThemeLight: this.setThemeLight, setThemeDark: this.setThemeDark, setThemeSystem: this.setThemeSystem,
+      setLayoutHorizontal: this.setLayoutHorizontal, setLayoutVertical: this.setLayoutVertical,
+      setTabSections: this.setTabSections, setTabEdit: this.setTabEdit, setTabAi: this.setTabAi,
+      triggerExportToast: this.triggerExportToast,
+    };
+  }
+}
+
+</script>
+</body>
+</html>

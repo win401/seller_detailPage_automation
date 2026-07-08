@@ -25,6 +25,13 @@
 - 디자인 무드:
 - 플랫폼:
 - 이미지 설명:
+- 추가 제작 요청:
+
+추가 제작 요청 처리 규칙:
+- 추가 제작 요청은 사용자의 방향성으로 참고하되, 상품 정보에 없는 사실을 만들기 위한 근거로 사용하지 않는다.
+- 요청이 모호하면 상품 정보와 톤앤매너를 우선한다.
+- 요청이 과장 광고, 허위 인증, 허위 효능을 요구하면 안전한 표현으로 완화한다.
+- 요청이 없으면 빈 값으로 처리하고 기본 규칙에 따라 작성한다.
 
 13개 섹션:
 1. Intro
@@ -43,6 +50,23 @@
 
 출력은 JSON 형식으로 한다.
 각 섹션은 id, title, headline, body, bullets, imageRole, alternatives를 포함한다.
+```
+
+입력 JSON 예시:
+
+```json
+{
+  "productName": "",
+  "category": "",
+  "keywords": [],
+  "targetCustomer": "",
+  "emphasisPoints": [],
+  "tone": "",
+  "designMood": "",
+  "platform": "",
+  "imageDescription": "",
+  "additionalInstruction": ""
+}
 ```
 
 ## 섹션 재생성 프롬프트
