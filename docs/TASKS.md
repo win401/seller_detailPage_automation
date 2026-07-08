@@ -8,12 +8,12 @@
 - [x] 로그인 (데모 계정 진입 포함) — mock, Supabase Auth 연동 전
 - [x] 새 프로젝트 생성 진입
 - [x] 상품 정보 입력 (최소 필드: 상품명, 카테고리, 키워드, 타깃, 톤앤매너, 무드, 플랫폼, 추가 제작 요청) — AI 생성 API 입력값으로 연결
-- [ ] 경쟁 상세페이지 URL/메모 입력 — 실제 크롤링 없음, 사용자 제공 정보 기반
-- [ ] 분석 에이전트 결과 표시 — mock 또는 structured output
-- [ ] 기획 에이전트 결과 표시 — mock 또는 structured output
+- [x] 경쟁 상세페이지 URL/메모 입력 — 실제 크롤링 없음, 사용자 제공 정보 기반
+- [x] 분석 에이전트 결과 표시 — mock 또는 structured output
+- [x] 기획 에이전트 결과 표시 — mock 또는 structured output
 - [x] 상품 이미지 업로드 (최적화 없이 원본 업로드만) — 브라우저 preview + 에디터 임시 전달
 - [x] 제작 에이전트 13섹션 생성 (mock fallback 허용) — Vercel AI SDK API + mock fallback
-- [ ] 검수 에이전트 결과 표시 — 과장 표현/누락/가독성 체크
+- [x] 검수 에이전트 결과 표시 — 과장 표현/누락/가독성 체크
 - [x] 모바일 캔버스에 13섹션 렌더링
 - [x] 섹션 1개 문구 직접 수정
 - [ ] 기획자 에이전트 수정 요청 → 재기획 → 새 시안 적용 — mock 우선
@@ -57,21 +57,21 @@
 - [ ] 스타일 세트 선택
 - [ ] 초안 생성 전 추가 제작 요청 입력
 - [ ] 추가 제작 요청 예시 칩 또는 placeholder 제공
-- [ ] 경쟁 상세페이지 URL 입력 필드
-- [ ] 경쟁 상세페이지 메모 입력 필드
-- [ ] 경쟁 URL 여러 개 추가/삭제 UI
-- [ ] "자동 크롤링하지 않음, 메모 기반 분석" 안내 문구
+- [x] 경쟁 상세페이지 URL 입력 필드
+- [x] 경쟁 상세페이지 메모 입력 필드
+- [x] 경쟁 URL 여러 개 추가/삭제 UI
+- [x] "자동 크롤링하지 않음, 메모 기반 분석" 안내 문구
 
 ## 3-1. 에이전트 워크플로우
 
-- [ ] 생성 화면에 분석 → 기획 → 제작 → 검수 단계 표시
-- [ ] 에이전트 단계별 진행 상태 UI
-- [ ] 분석 에이전트 output type 정의
-- [ ] 기획 에이전트 output type 정의
-- [ ] 검수 에이전트 output type 정의
-- [ ] 에이전트 결과를 프로젝트 draft에 저장
-- [ ] 에이전트 실패 시 다음 단계로 진행 가능한 mock fallback
-- [ ] 경쟁 URL은 참고 링크로만 저장하고 자동 크롤링하지 않는 정책 반영
+- [x] 생성 화면에 분석 → 기획 → 제작 → 검수 단계 표시
+- [x] 에이전트 단계별 진행 상태 UI
+- [x] 분석 에이전트 output type 정의 — AgentRunDraft mock output 기반
+- [x] 기획 에이전트 output type 정의 — AgentRunDraft mock output 기반
+- [x] 검수 에이전트 output type 정의 — AgentRunDraft mock output 기반
+- [x] 에이전트 결과를 프로젝트 draft에 저장 — localStorage `detail-page-agent-workflow:p1`
+- [x] 에이전트 실패 시 다음 단계로 진행 가능한 mock fallback
+- [x] 경쟁 URL은 참고 링크로만 저장하고 자동 크롤링하지 않는 정책 반영
 
 ## 4. 이미지 처리
 

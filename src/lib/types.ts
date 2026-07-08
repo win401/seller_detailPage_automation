@@ -137,6 +137,20 @@ export interface ProductInput {
   additionalInstruction?: string;
 }
 
+export type CompetitorReferenceType =
+  | "same_product"
+  | "similar_product"
+  | "design_reference"
+  | "copy_reference"
+  | "etc";
+
+export interface CompetitorReferenceInput {
+  id: string;
+  url: string;
+  memo: string;
+  referenceType: CompetitorReferenceType;
+}
+
 export const ADDITIONAL_INSTRUCTION_EXAMPLES = [
   "프리미엄 브랜드몰처럼",
   "공구 느낌은 줄이고 담백하게",
@@ -202,6 +216,35 @@ export interface GenerateDetailPageOutput {
   sections: DetailSection[];
   source?: "ai" | "mock";
   warnings?: string[];
+}
+
+// ---------- agent workflow draft contract (docs/MVP_PLAN.md data model) ----------
+
+export type AgentType =
+  | "analysis"
+  | "planning"
+  | "production"
+  | "review"
+  | "revision_planning"
+  | "style_signal_summary";
+
+export type AgentRunStatus = "pending" | "running" | "succeeded" | "failed" | "mocked";
+
+export interface AgentRunDraft {
+  id: string;
+  agentType: AgentType;
+  status: AgentRunStatus;
+  title: string;
+  summary: string;
+  output: Record<string, unknown>;
+  warnings: string[];
+  createdAt: string;
+}
+
+export interface AgentWorkflowDraft {
+  competitorReferences: CompetitorReferenceInput[];
+  runs: AgentRunDraft[];
+  revisionEnabled: boolean;
 }
 
 // ---------- AI editing assistant contract (docs/PROMPTS.md) ----------

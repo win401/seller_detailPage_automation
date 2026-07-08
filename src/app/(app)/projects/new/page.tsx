@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, Sparkles } from "lucide-react";
+import { ClipboardList, ImagePlus, LinkIcon, Plus, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,10 +16,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { mockGenerateDetailPage } from "@/lib/mock-ai";
+import { mockBuildAgentWorkflow, mockGenerateDetailPage } from "@/lib/mock-ai";
 import { mockEmphasisOptions, mockProductInput, mockStyleSets } from "@/lib/mock-data";
 import {
   ADDITIONAL_INSTRUCTION_EXAMPLES,
+  AgentWorkflowDraft,
+  CompetitorReferenceInput,
+  CompetitorReferenceType,
   DesignMood,
   GenerateDetailPageInput,
   GenerateDetailPageOutput,
@@ -33,6 +36,13 @@ import {
 const TONE_OPTIONS = Object.keys(TONE_LABELS) as Tone[];
 const MOOD_OPTIONS = Object.keys(MOOD_LABELS) as DesignMood[];
 const PLATFORM_OPTIONS = Object.keys(PLATFORM_LABELS) as Platform[];
+const REFERENCE_TYPE_LABELS: Record<CompetitorReferenceType, string> = {
+  same_product: "동일 상품",
+  similar_product: "유사 상품",
+  design_reference: "디자인 참고",
+  copy_reference: "카피 참고",
+  etc: "기타",
+};
 
 function Chip({
   active,
@@ -75,6 +85,15 @@ export default function CreateProjectPage() {
   const [platform, setPlatform] = useState<Platform>("smartstore");
   const [additionalInstruction, setAdditionalInstruction] = useState("");
   const [referenceMemo, setReferenceMemo] = useState("");
+  const [competitorReferences, setCompetitorReferences] = useState<CompetitorReferenceInput[]>([
+    {
+      id: "ref-1",
+      url: "",
+      memo: "",
+      referenceType: "same_product",
+    },
+  ]);
+  const [agentWorkflow, setAgentWorkflow] = useState<AgentWorkflowDraft | null>(null);
   const [productImage, setProductImage] = useState<{
     dataUrl: string;
     name: string;
@@ -88,9 +107,39 @@ export default function CreateProjectPage() {
     setEmphasis((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
+  function updateCompetitorReference(
+    id: string,
+    field: keyof Omit<CompetitorReferenceInput, "id">,
+    value: string
+  ) {
+    setCompetitorReferences((prev) =>
+      prev.map((reference) =>
+        reference.id === id ? { ...reference, [field]: value } : reference
+      )
+    );
+  }
+
+  function addCompetitorReference() {
+    setCompetitorReferences((prev) => [
+      ...prev,
+      {
+        id: `ref-${Date.now()}`,
+        url: "",
+        memo: "",
+        referenceType: "similar_product",
+      },
+    ]);
+  }
+
+  function removeCompetitorReference(id: string) {
+    setCompetitorReferences((prev) =>
+      prev.length === 1 ? prev : prev.filter((reference) => reference.id !== id)
+    );
+  }
+
   async function handleGenerate() {
     setIsGenerating(true);
-    setGenerationMessage("AI가 13섹션 초안을 생성하는 중입니다...");
+    setGenerationMessage("분석 → 기획 → 제작 → 검수 에이전트가 초안을 준비하는 중입니다...");
     const input: GenerateDetailPageInput = {
       productName,
       category,
@@ -108,10 +157,16 @@ export default function CreateProjectPage() {
       imageDescription: referenceMemo || productImage?.name || "",
       additionalInstruction,
     };
+    const normalizedCompetitorReferences = competitorReferences.filter(
+      (reference) => reference.url.trim() || reference.memo.trim()
+    );
+    const workflow = mockBuildAgentWorkflow(input, normalizedCompetitorReferences);
+    setAgentWorkflow(workflow);
 
     if (productImage) {
       window.localStorage.setItem("detail-page-draft-assets:p1", JSON.stringify({ productImage }));
     }
+    window.localStorage.setItem("detail-page-agent-workflow:p1", JSON.stringify(workflow));
 
     try {
       const response = await fetch("/api/generate-detail-page", {
@@ -127,10 +182,18 @@ export default function CreateProjectPage() {
       );
       window.localStorage.setItem(
         "detail-page-generation:p1",
-        JSON.stringify({ input, source: output.source ?? "ai", warnings: output.warnings ?? [] })
+        JSON.stringify({
+          input,
+          competitorReferences: normalizedCompetitorReferences,
+          agentWorkflow: workflow,
+          source: output.source ?? "ai",
+          warnings: output.warnings ?? [],
+        })
       );
       setGenerationMessage(
-        output.source === "mock" ? "mock 초안으로 에디터를 준비했습니다." : "AI 초안 생성 완료"
+        output.source === "mock"
+          ? "mock 제작 시안으로 에디터를 준비했습니다."
+          : "에이전트 시안 생성 완료"
       );
       router.push("/projects/p1/editor");
     } catch {
@@ -141,9 +204,15 @@ export default function CreateProjectPage() {
       );
       window.localStorage.setItem(
         "detail-page-generation:p1",
-        JSON.stringify({ input, source: "mock", warnings: output.warnings ?? [] })
+        JSON.stringify({
+          input,
+          competitorReferences: normalizedCompetitorReferences,
+          agentWorkflow: workflow,
+          source: "mock",
+          warnings: output.warnings ?? [],
+        })
       );
-      setGenerationMessage("AI 호출 실패로 mock 초안을 사용합니다.");
+      setGenerationMessage("AI 호출 실패로 mock 에이전트 시안을 사용합니다.");
       router.push("/projects/p1/editor");
     } finally {
       setIsGenerating(false);
@@ -290,9 +359,130 @@ export default function CreateProjectPage() {
               ))}
             </div>
           </section>
+
+          <section className="rounded-xl border border-border bg-card p-4.5">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[13px] font-bold">경쟁 상세페이지 참고</div>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  URL은 참고 링크로만 저장하고, 자동 크롤링 없이 메모 기반으로 분석합니다.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 px-2.5 text-xs"
+                onClick={addCompetitorReference}
+              >
+                <Plus className="size-3.5" />
+                추가
+              </Button>
+            </div>
+            <div className="flex flex-col gap-3">
+              {competitorReferences.map((reference, index) => (
+                <div key={reference.id} className="rounded-lg border border-border bg-card-soft p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+                      <LinkIcon className="size-3.5" />
+                      참고 {index + 1}
+                    </div>
+                    {competitorReferences.length > 1 && (
+                      <button
+                        type="button"
+                        className="text-[11.5px] font-semibold text-muted-foreground hover:text-destructive"
+                        onClick={() => removeCompetitorReference(reference.id)}
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid gap-2">
+                    <Input
+                      value={reference.url}
+                      onChange={(e) =>
+                        updateCompetitorReference(reference.id, "url", e.target.value)
+                      }
+                      placeholder="https://smartstore.naver.com/..."
+                    />
+                    <div className="grid gap-2 sm:grid-cols-[150px_1fr]">
+                      <Select
+                        value={reference.referenceType}
+                        onValueChange={(value) =>
+                          updateCompetitorReference(
+                            reference.id,
+                            "referenceType",
+                            value as CompetitorReferenceType
+                          )
+                        }
+                      >
+                        <SelectTrigger className="h-9 bg-transparent">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(REFERENCE_TYPE_LABELS).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        value={reference.memo}
+                        onChange={(e) =>
+                          updateCompetitorReference(reference.id, "memo", e.target.value)
+                        }
+                        placeholder="예: 첫 화면 구성 참고, FAQ 구성 좋음, 색감은 제외"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
 
         <div className="flex flex-col gap-5">
+          <section className="rounded-xl border border-border bg-card p-4.5">
+            <div className="mb-3 flex items-center gap-2 text-[13px] font-bold">
+              <ClipboardList className="size-4 text-primary" />
+              에이전트 워크플로우
+            </div>
+            <div className="grid gap-2">
+              {[
+                ["분석", "경쟁 URL/메모 기반 참고 포인트 정리"],
+                ["기획", "타깃·강조 순서·섹션 전략 설계"],
+                ["제작", "13개 섹션 상세페이지 시안 생성"],
+                ["검수", "과장 표현·근거 없는 수치·가독성 점검"],
+              ].map(([label, description], index) => {
+                const run = agentWorkflow?.runs[index];
+                return (
+                  <div
+                    key={label}
+                    className="flex items-start gap-3 rounded-lg border border-border bg-card-soft p-3"
+                  >
+                    <span
+                      className={cn(
+                        "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold",
+                        run
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {index + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="text-[12.5px] font-bold">{label} 에이전트</div>
+                      <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                        {run?.summary ?? description}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
           <section className="rounded-xl border border-border bg-card p-4.5">
             <div className="mb-3 text-[13px] font-bold">상품 이미지</div>
             <label className="flex cursor-pointer flex-col items-center gap-2 rounded-[10px] border border-dashed border-border bg-card-soft px-4 py-6 text-center text-muted-foreground transition-colors hover:border-primary/70 hover:bg-muted/60">
@@ -367,7 +557,7 @@ export default function CreateProjectPage() {
           className="h-[46px] gap-2 rounded-[10px] px-6 text-[14.5px] font-bold"
         >
           <Sparkles className="size-4.5" />
-          {isGenerating ? "생성 중..." : "AI로 13섹션 상세페이지 생성"}
+          {isGenerating ? "에이전트 실행 중..." : "에이전트로 상세페이지 시안 생성"}
         </Button>
       </div>
       {generationMessage && (
