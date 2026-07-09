@@ -28,6 +28,8 @@ import {
   PLATFORM_LABELS,
   SectionImageAsset,
   UploadedImageDraft,
+  UserStyleSignalDraft,
+  UserStyleSignalKind,
 } from "@/lib/types";
 
 interface Snapshot {
@@ -43,6 +45,7 @@ export default function DetailPageEditor() {
   const storageKey = `detail-page-project:${projectId}`;
   const draftAssetsKey = `detail-page-draft-assets:${projectId}`;
   const agentWorkflowKey = `detail-page-agent-workflow:${projectId}`;
+  const styleSignalsKey = `detail-page-style-signals:${projectId}`;
   const canvasWrapRef = useRef<HTMLDivElement>(null);
 
   const [sections, setSections] = useState<DetailSection[]>(mockSections);
@@ -58,6 +61,7 @@ export default function DetailPageEditor() {
   const [loadedFromStorage, setLoadedFromStorage] = useState(false);
   const [productImage, setProductImage] = useState<UploadedImageDraft | null>(null);
   const [agentWorkflow, setAgentWorkflow] = useState<AgentWorkflowDraft | null>(null);
+  const [styleSignals, setStyleSignals] = useState<UserStyleSignalDraft[]>([]);
 
   // Load a locally saved draft, if one exists (docs/MVP_PLAN.md Should Have:
   // localStorage fallback). Supabase persistence is a later phase.
@@ -103,6 +107,18 @@ export default function DetailPageEditor() {
     }
   }, [agentWorkflowKey]);
 
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(styleSignalsKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as UserStyleSignalDraft[];
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStyleSignals(parsed);
+    } catch {
+      // ignore corrupt style signal storage
+    }
+  }, [styleSignalsKey]);
+
   const selectedSection = sections.find((s) => s.id === selectedId) ?? sections[0];
 
   const pushHistory = useCallback(() => {
@@ -120,12 +136,64 @@ export default function DetailPageEditor() {
     setPendingSections(null);
   }
 
+  function summarizeStyleSignal(kind: UserStyleSignalKind, sectionTitle: string, after?: string) {
+    switch (kind) {
+      case "copy_manual_edit":
+        return `${sectionTitle} 문구를 사용자가 직접 수정했습니다. 다음 기획에서는 이 표현 톤을 우선 참고합니다.`;
+      case "section_reorder":
+        return `${sectionTitle} 섹션 순서를 사용자가 조정했습니다. 다음 기획에서는 섹션 우선순위를 참고합니다.`;
+      case "section_visibility":
+        return `${sectionTitle} 섹션 표시 상태를 사용자가 변경했습니다. 다음 기획에서는 섹션 필요도를 참고합니다.`;
+      case "section_image_choice":
+        return `${sectionTitle} 섹션 이미지 방향을 사용자가 선택했습니다. 다음 기획에서는 선호 비주얼을 참고합니다.`;
+      case "planner_revision_apply":
+        return `기획자 에이전트 시안을 사용자가 적용했습니다: ${after ?? "수정 요청 반영"}`;
+    }
+  }
+
+  function recordStyleSignal({
+    kind,
+    section = selectedSection,
+    before,
+    after,
+  }: {
+    kind: UserStyleSignalKind;
+    section?: DetailSection;
+    before?: string;
+    after?: string;
+  }) {
+    if (before !== undefined && after !== undefined && before.trim() === after.trim()) return;
+
+    const nextSignal: UserStyleSignalDraft = {
+      id: `style-signal-${Date.now()}`,
+      projectId,
+      sectionId: section.id,
+      sectionTitle: section.title,
+      kind,
+      before,
+      after,
+      summary: summarizeStyleSignal(kind, section.title, after),
+      createdAt: new Date().toISOString(),
+    };
+
+    setStyleSignals((prev) => {
+      const next = [nextSignal, ...prev].slice(0, 30);
+      window.localStorage.setItem(styleSignalsKey, JSON.stringify(next));
+      return next;
+    });
+  }
+
   function updateSelectedBody(value: string) {
     pushHistory();
     setSections((prev) => prev.map((s) => (s.id === selectedId ? { ...s, body: value } : s)));
   }
 
+  function commitSelectedBody(before: string, after: string) {
+    recordStyleSignal({ kind: "copy_manual_edit", before, after });
+  }
+
   function toggleHide(id: string) {
+    const target = sections.find((section) => section.id === id);
     pushHistory();
     setHiddenIds((prev) => {
       const next = new Set(prev);
@@ -133,18 +201,34 @@ export default function DetailPageEditor() {
       else next.add(id);
       return next;
     });
+    if (target) {
+      recordStyleSignal({
+        kind: "section_visibility",
+        section: target,
+        before: hiddenIds.has(id) ? "hidden" : "visible",
+        after: hiddenIds.has(id) ? "visible" : "hidden",
+      });
+    }
   }
 
   function moveSelected(dir: -1 | 1) {
+    const currentIndex = sections.findIndex((s) => s.id === selectedId);
+    const nextIndex = currentIndex + dir;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= sections.length) return;
+
     pushHistory();
     setSections((prev) => {
       const idx = prev.findIndex((s) => s.id === selectedId);
       const nextIdx = idx + dir;
-      if (nextIdx < 0 || nextIdx >= prev.length) return prev;
       const next = prev.slice();
       const [item] = next.splice(idx, 1);
       next.splice(nextIdx, 0, item);
       return next;
+    });
+    recordStyleSignal({
+      kind: "section_reorder",
+      before: `index:${currentIndex}`,
+      after: `index:${nextIndex}`,
     });
   }
 
@@ -163,6 +247,7 @@ export default function DetailPageEditor() {
   }
 
   function applySectionImage(asset: SectionImageAsset) {
+    const beforeImage = selectedSection.imageLabel ?? "이미지 없음";
     pushHistory();
     setSections((prev) =>
       prev.map((s) =>
@@ -179,6 +264,11 @@ export default function DetailPageEditor() {
       )
     );
     flash(selectedId);
+    recordStyleSignal({
+      kind: "section_image_choice",
+      before: beforeImage,
+      after: asset.label,
+    });
     toast("섹션 이미지가 반영되었습니다", { description: asset.label });
   }
 
@@ -238,6 +328,11 @@ export default function DetailPageEditor() {
     setSections(pendingSections);
     flash(selectedId);
     setPendingSections(null);
+    recordStyleSignal({
+      kind: "planner_revision_apply",
+      before: selectedSection.body,
+      after: revisionRequest.trim() || "기획자 에이전트 수정 시안 적용",
+    });
     toast("재기획 시안이 캔버스에 반영되었습니다");
   }
 
@@ -392,6 +487,17 @@ export default function DetailPageEditor() {
           />
           <div className="mt-auto border-t border-border p-3">
             <AgentWorkflowPanel workflow={agentWorkflow} compact />
+            <div className="mt-3 rounded-lg border border-border bg-card-soft p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold">스타일 신호</span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
+                  {styleSignals.length}
+                </span>
+              </div>
+              <p className="mt-1 line-clamp-2 text-[11.5px] leading-5 text-muted-foreground">
+                {styleSignals[0]?.summary ?? "수동 수정이 생기면 사용자 선호 신호로 저장됩니다."}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -421,6 +527,7 @@ export default function DetailPageEditor() {
               section={selectedSection}
               hidden={hiddenIds.has(selectedId)}
               onChangeBody={updateSelectedBody}
+              onCommitBody={commitSelectedBody}
               onMoveUp={() => moveSelected(-1)}
               onMoveDown={() => moveSelected(1)}
               onToggleHide={() => toggleHide(selectedId)}

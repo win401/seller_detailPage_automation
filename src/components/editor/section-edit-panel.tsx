@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { ImagePlus, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ export function SectionEditPanel({
   section,
   hidden,
   onChangeBody,
+  onCommitBody,
   onMoveUp,
   onMoveDown,
   onToggleHide,
@@ -23,6 +25,7 @@ export function SectionEditPanel({
   section: DetailSection;
   hidden: boolean;
   onChangeBody: (value: string) => void;
+  onCommitBody: (before: string, after: string) => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onToggleHide: () => void;
@@ -32,6 +35,7 @@ export function SectionEditPanel({
   onApplyImage: (asset: SectionImageAsset) => void;
   onUploadSectionImage: (file: File) => void;
 }) {
+  const bodyFocusValueRef = useRef(section.body);
   const currentImageStyle = section.imageUrl
     ? { backgroundImage: `url(${section.imageUrl})` }
     : section.imageGradient
@@ -42,7 +46,17 @@ export function SectionEditPanel({
     <div className="flex flex-col gap-3">
       <div className="grid gap-1.5">
         <Label>본문</Label>
-        <Textarea rows={5} value={section.body} onChange={(e) => onChangeBody(e.target.value)} />
+        <Textarea
+          rows={5}
+          value={section.body}
+          onFocus={() => {
+            bodyFocusValueRef.current = section.body;
+          }}
+          onBlur={() => {
+            onCommitBody(bodyFocusValueRef.current, section.body);
+          }}
+          onChange={(e) => onChangeBody(e.target.value)}
+        />
       </div>
       <div className="flex gap-2">
         <Button onClick={onMoveUp} variant="outline" className="h-8 flex-1 text-xs font-semibold">

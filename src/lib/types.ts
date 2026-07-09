@@ -247,6 +247,27 @@ export interface AgentWorkflowDraft {
   revisionEnabled: boolean;
 }
 
+// ---------- user style signal draft contract (localStorage now, Supabase later) ----------
+
+export type UserStyleSignalKind =
+  | "copy_manual_edit"
+  | "section_reorder"
+  | "section_visibility"
+  | "section_image_choice"
+  | "planner_revision_apply";
+
+export interface UserStyleSignalDraft {
+  id: string;
+  projectId: string;
+  sectionId?: string;
+  sectionTitle?: string;
+  kind: UserStyleSignalKind;
+  before?: string;
+  after?: string;
+  summary: string;
+  createdAt: string;
+}
+
 // ---------- AI editing assistant contract (docs/PROMPTS.md) ----------
 
 export type AiEditAction =
