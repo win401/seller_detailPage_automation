@@ -1,23 +1,97 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { mockProjectSummaries } from "@/lib/mock-data";
-import { PLATFORM_LABELS } from "@/lib/types";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { PLATFORM_LABELS, Platform, ProjectSummary } from "@/lib/types";
+
+function isPlatform(value: string | null): value is Platform {
+  return value === "coupang" || value === "smartstore" || value === "ably" || value === "zigzag";
+}
+
+function formatUpdatedAt(value: string | null) {
+  if (!value) return "-";
+  const updatedAt = new Date(value).getTime();
+  if (Number.isNaN(updatedAt)) return "-";
+  const diffMinutes = Math.max(0, Math.round((Date.now() - updatedAt) / 60000));
+  if (diffMinutes < 1) return "방금 전";
+  if (diffMinutes < 60) return `${diffMinutes}분 전`;
+  const diffHours = Math.round(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}시간 전`;
+  return `${Math.round(diffHours / 24)}일 전`;
+}
 
 export default function DashboardPage() {
   const [query, setQuery] = useState("");
+  const [projects, setProjects] = useState<ProjectSummary[]>(mockProjectSummaries);
+  const [projectSource, setProjectSource] = useState<"mock" | "supabase" | "loading">("loading");
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      // one-time fallback when Supabase env is not configured
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setProjectSource("mock");
+      return;
+    }
+    const client = supabase;
+    let cancelled = false;
+
+    async function loadProjects() {
+      const {
+        data: { user },
+      } = await client.auth.getUser();
+
+      if (!user) {
+        if (!cancelled) setProjectSource("mock");
+        return;
+      }
+
+      const { data, error } = await client
+        .from("detail_page_projects")
+        .select("id, title, category, selected_platform, updated_at")
+        .order("updated_at", { ascending: false })
+        .limit(50);
+
+      if (cancelled) return;
+
+      if (error) {
+        setProjectSource("mock");
+        return;
+      }
+
+      const remoteProjects: ProjectSummary[] = (data ?? []).map((project) => ({
+        id: project.id,
+        name: project.title,
+        category: project.category,
+        platform: isPlatform(project.selected_platform)
+          ? project.selected_platform
+          : "smartstore",
+        updatedAtLabel: formatUpdatedAt(project.updated_at),
+      }));
+
+      setProjects(remoteProjects.length ? remoteProjects : []);
+      setProjectSource("supabase");
+    }
+
+    void loadProjects();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim();
-    if (!q) return mockProjectSummaries;
-    return mockProjectSummaries.filter(
+    if (!q) return projects;
+    return projects.filter(
       (p) => p.name.includes(q) || p.category.includes(q)
     );
-  }, [query]);
+  }, [projects, query]);
 
   return (
     <div className="mx-auto w-full max-w-[1180px] flex-1 px-6 py-8 pb-16">
@@ -25,7 +99,11 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">프로젝트</h1>
           <p className="text-[13.5px] text-muted-foreground">
-            진행 중인 상세페이지 프로젝트를 관리하세요
+            {projectSource === "supabase"
+              ? "Supabase에 저장된 상세페이지 프로젝트를 관리하세요"
+              : projectSource === "loading"
+                ? "프로젝트 목록을 불러오는 중입니다"
+                : "진행 중인 상세페이지 프로젝트를 관리하세요"}
           </p>
         </div>
         <Button
@@ -53,6 +131,9 @@ export default function DashboardPage() {
         >
           스타일 세트 관리
         </Link>
+        <span className="flex h-[38px] items-center rounded-lg border border-border bg-card px-3 text-[12px] font-bold text-muted-foreground">
+          {projectSource === "supabase" ? "DB 동기화" : "mock 목록"}
+        </span>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -88,7 +169,9 @@ export default function DashboardPage() {
         ))}
         {filtered.length === 0 && (
           <div className="px-4.5 py-10 text-center text-sm text-muted-foreground">
-            검색 결과가 없습니다.
+            {projectSource === "supabase"
+              ? "아직 저장된 프로젝트가 없습니다."
+              : "검색 결과가 없습니다."}
           </div>
         )}
       </div>

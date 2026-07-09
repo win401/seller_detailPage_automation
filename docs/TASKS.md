@@ -41,7 +41,7 @@
 - [x] 데모 계정 로그인 진입
 - [x] 회원가입 화면 — 로그인 화면 내 회원가입 버튼
 - [ ] 로그아웃
-- [x] 프로젝트 대시보드 — mock data 기반
+- [x] 프로젝트 대시보드 — Supabase `detail_page_projects` 목록 우선, 미로그인/실패 시 mock fallback
 - [x] 새 프로젝트 생성 진입
 - [ ] 상단 네비게이션 테마 토글
 
@@ -195,7 +195,7 @@
 ## 14. 저장
 
 - [ ] 프로젝트 저장
-- [ ] 프로젝트 불러오기
+- [x] 프로젝트 불러오기 — 대시보드에서 Supabase 프로젝트 목록 조회
 - [ ] 프로젝트 수정 저장
 - [ ] localStorage 임시 저장
 - [x] 새 프로젝트 생성 시 Supabase `detail_page_projects` 저장 — 로그인 세션이 있으면 DB 저장, 실패 시 localStorage fallback
