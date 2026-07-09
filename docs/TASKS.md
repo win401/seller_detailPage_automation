@@ -14,12 +14,12 @@
 - [x] 상품 이미지 업로드 — 1200px 기준 클라이언트 최적화 + 브라우저 preview + 에디터 임시 전달
 - [x] 제작 에이전트 13섹션 생성 (mock fallback 허용) — Vercel AI SDK API + mock fallback
 - [x] 검수 에이전트 결과 표시 — 과장 표현/누락/가독성 체크
-- [x] 에디터에서 기존 분석/기획/제작/검수 결과 확인 — localStorage 기반
+- [x] 에디터에서 기존 분석/기획/제작/검수 결과 확인 — Supabase 우선, localStorage fallback
 - [x] 모바일 캔버스에 13섹션 렌더링
 - [x] 섹션 1개 문구 직접 수정
 - [x] 기획자 에이전트 수정 요청 → 재기획 → 새 시안 적용 — mock 우선
 - [x] 수동 수정 내용을 사용자 스타일 신호로 요약 저장 — localStorage 우선
-- [x] 프로젝트 저장 및 다시 불러오기 — localStorage 기반
+- [x] 프로젝트 저장 및 다시 불러오기 — Supabase 우선, localStorage fallback
 - [x] 플랫폼 기준 이미지 생성 + ZIP 다운로드 — 플랫폼 폭 적용, 2000px 단위 슬라이싱
 
 ## 1. 프로젝트 기본 구조
@@ -43,7 +43,7 @@
 - [x] 로그아웃 — 상단 계정 메뉴에서 Supabase signOut 후 `/login` 이동
 - [x] 상단 계정 메뉴 — 아바타 클릭 시 설정/로그아웃 표시
 - [x] 계정 설정 페이지 — `/settings`, 계정/인증/SMTP 예정 정보 표시
-- [x] 프로젝트 대시보드 — Supabase `detail_page_projects` 목록 우선, 미로그인/실패 시 mock fallback
+- [x] 프로젝트 대시보드 — Supabase `detail_page_projects` 목록 표시, 샘플 프로젝트 fallback 제거
 - [x] 새 프로젝트 생성 진입
 - [ ] 상단 네비게이션 테마 토글
 
@@ -197,11 +197,12 @@
 
 ## 14. 저장
 
-- [ ] 프로젝트 저장
+- [x] 프로젝트 저장 — 에디터 저장 시 Supabase `draft_versions` 새 버전 저장
 - [x] 프로젝트 불러오기 — 대시보드에서 Supabase 프로젝트 목록 조회
 - [x] 에디터 DB draft 복원 — `detail_page_projects` + `draft_versions` + `agent_runs` 조회 후 localStorage fallback 유지
-- [ ] 프로젝트 수정 저장
-- [ ] localStorage 임시 저장
+- [x] 프로젝트 수정 저장 — `current_draft_version_id` 최신 draft로 갱신
+- [x] localStorage 임시 저장
+- [x] 로컬 초안 DB 승격 저장 — `p1` fallback 초안도 저장 시 Supabase 프로젝트로 생성
 - [x] 새 프로젝트 생성 시 Supabase `detail_page_projects` 저장 — 로그인 세션이 있으면 DB 저장, 실패 시 localStorage fallback
 - [x] 에이전트 결과 저장 — 생성 시 `agent_runs` insert, localStorage fallback 유지
 - [x] 경쟁 상세페이지 URL/메모 저장 — 생성 시 `competitor_references` insert, localStorage fallback 유지
@@ -216,6 +217,7 @@
 - [x] 플랫폼 가로폭 적용
 - [x] 전체 상세페이지 이미지 생성
 - [x] 2000px 단위 슬라이싱
+- [x] ZIP 다운로드 전 현재 draft 저장 시도
 - [x] 파일명 자동 정리
 - [x] ZIP 다운로드
 - [x] 다운로드 상태 표시

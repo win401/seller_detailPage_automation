@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Download,
@@ -40,6 +40,19 @@ import {
 interface Snapshot {
   sections: DetailSection[];
   hiddenIds: string[];
+}
+
+interface LocalGeneration {
+  input?: {
+    productName?: string;
+    category?: string;
+    platform?: Platform;
+    tone?: string;
+    designMood?: string;
+    [key: string]: unknown;
+  };
+  source?: string;
+  warnings?: unknown[];
 }
 
 const EXPORT_SLICE_HEIGHT = 2000;
@@ -93,6 +106,7 @@ function isStringArray(value: unknown): value is string[] {
 
 export default function DetailPageEditor() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const projectId = params.id;
   const fallbackProjectSummary = useMemo<ProjectSummary>(
     () => ({
@@ -121,6 +135,7 @@ export default function DetailPageEditor() {
   const [flashId, setFlashId] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<Snapshot[]>([]);
   const [redoStack, setRedoStack] = useState<Snapshot[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [loadedFromStorage, setLoadedFromStorage] = useState(false);
   const [draftLoadSource, setDraftLoadSource] = useState<"mock" | "local" | "supabase">("mock");
@@ -501,6 +516,156 @@ export default function DetailPageEditor() {
     void persistStyleSignal(nextSignal);
   }
 
+  function readLocalGeneration(): LocalGeneration | null {
+    try {
+      const raw = window.localStorage.getItem(generationKey);
+      return raw ? (JSON.parse(raw) as LocalGeneration) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function copyLocalDraftKeys(nextProjectId: string) {
+    const keyPairs = [
+      [storageKey, `detail-page-project:${nextProjectId}`],
+      [draftAssetsKey, `detail-page-draft-assets:${nextProjectId}`],
+      [agentWorkflowKey, `detail-page-agent-workflow:${nextProjectId}`],
+      [generationKey, `detail-page-generation:${nextProjectId}`],
+      [styleSignalsKey, `detail-page-style-signals:${nextProjectId}`],
+    ];
+
+    keyPairs.forEach(([fromKey, toKey]) => {
+      const raw = window.localStorage.getItem(fromKey);
+      if (raw) window.localStorage.setItem(toKey, raw);
+    });
+  }
+
+  async function persistDraftToSupabase(snapshot: Snapshot) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return { saved: false, reason: "Supabase 환경변수가 없습니다." };
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return { saved: false, reason: "로그인 세션이 없습니다." };
+
+    const localGeneration = readLocalGeneration();
+    const input = localGeneration?.input ?? {};
+    const projectTitle = input.productName || projectSummary.name || "상세페이지 프로젝트";
+    const projectCategory = input.category || projectSummary.category || "카테고리 미설정";
+    const projectPlatform = isPlatform(input.platform) ? input.platform : projectSummary.platform;
+    const projectMood = typeof input.designMood === "string" ? input.designMood : "minimal";
+    const projectTone = typeof input.tone === "string" ? input.tone : "practical";
+
+    let remoteProjectId = isUuid(projectId) ? projectId : null;
+
+    if (!remoteProjectId) {
+      const { data: project, error: projectError } = await supabase
+        .from("detail_page_projects")
+        .insert({
+          user_id: user.id,
+          title: projectTitle,
+          category: projectCategory,
+          selected_platform: projectPlatform,
+          selected_mood: projectMood,
+          selected_tone: projectTone,
+          product_input: Object.keys(input).length
+            ? input
+            : {
+                productName: projectTitle,
+                category: projectCategory,
+                platform: projectPlatform,
+              },
+        })
+        .select("id")
+        .single();
+
+      if (projectError || !project?.id) throw projectError ?? new Error("Project create failed");
+      remoteProjectId = project.id as string;
+
+      if (agentWorkflow?.runs.length) {
+        const { error: runsError } = await supabase.from("agent_runs").insert(
+          agentWorkflow.runs.map((run) => ({
+            project_id: remoteProjectId,
+            user_id: user.id,
+            agent_type: run.agentType,
+            status: run.status,
+            title: run.title,
+            summary: run.summary,
+            input,
+            output: run.output,
+            warnings: run.warnings,
+            created_at: run.createdAt,
+          }))
+        );
+        if (runsError) throw runsError;
+      }
+    }
+
+    const { data: latestDraft } = await supabase
+      .from("draft_versions")
+      .select("version_no")
+      .eq("project_id", remoteProjectId)
+      .order("version_no", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const nextVersionNo =
+      typeof latestDraft?.version_no === "number" ? latestDraft.version_no + 1 : 1;
+
+    const { data: draft, error: draftError } = await supabase
+      .from("draft_versions")
+      .insert({
+        project_id: remoteProjectId,
+        user_id: user.id,
+        version_no: nextVersionNo,
+        source: "manual",
+        sections: snapshot.sections,
+        hidden_section_ids: snapshot.hiddenIds,
+        asset_paths: [],
+        review_summary: {
+          savedAt: new Date().toISOString(),
+          source: "editor_save",
+          warnings: localGeneration?.warnings ?? [],
+        },
+      })
+      .select("id")
+      .single();
+
+    if (draftError || !draft?.id) throw draftError ?? new Error("Draft save failed");
+
+    const { error: updateError } = await supabase
+      .from("detail_page_projects")
+      .update({
+        current_draft_version_id: draft.id,
+        title: projectTitle,
+        category: projectCategory,
+        selected_platform: projectPlatform,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", remoteProjectId);
+
+    if (updateError) throw updateError;
+
+    if (remoteProjectId !== projectId) {
+      copyLocalDraftKeys(remoteProjectId);
+      router.replace(`/projects/${remoteProjectId}/editor`);
+    }
+
+    setProjectSummary({
+      id: remoteProjectId,
+      name: projectTitle,
+      category: projectCategory,
+      platform: projectPlatform,
+      updatedAtLabel: "방금 전",
+    });
+    setLoadedFromStorage(false);
+    setDraftLoadSource("supabase");
+
+    return { saved: true, projectId: remoteProjectId };
+  }
+
   function updateSelectedBody(value: string) {
     pushHistory();
     setSections((prev) => prev.map((s) => (s.id === selectedId ? { ...s, body: value } : s)));
@@ -694,16 +859,42 @@ export default function DetailPageEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sections, hiddenIds, undoStack, redoStack]);
 
-  function handleSave() {
+  async function handleSave(options?: { silent?: boolean }) {
+    if (isSaving) return { saved: false, reason: "이미 저장 중입니다." };
+
     const snapshot: Snapshot = { sections, hiddenIds: Array.from(hiddenIds) };
     window.localStorage.setItem(storageKey, JSON.stringify(snapshot));
-    toast("저장되었습니다", { description: "이 브라우저에 임시 저장됨" });
+
+    setIsSaving(true);
+    try {
+      const result = await persistDraftToSupabase(snapshot);
+
+      if (!options?.silent) {
+        if (result.saved) {
+          toast("저장되었습니다", { description: "Supabase 프로젝트에 저장됨" });
+        } else {
+          toast("임시 저장되었습니다", { description: result.reason ?? "이 브라우저에 저장됨" });
+        }
+      }
+
+      return result;
+    } catch {
+      if (!options?.silent) {
+        toast("임시 저장되었습니다", {
+          description: "Supabase 저장 실패로 이 브라우저에 저장됨",
+        });
+      }
+      return { saved: false, reason: "Supabase 저장 실패" };
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   async function handleExport() {
     if (!canvasWrapRef.current) return;
     setIsExporting(true);
     try {
+      await handleSave({ silent: true });
       const { toCanvas } = await import("html-to-image");
       const JSZip = (await import("jszip")).default;
       const exportWidth = PLATFORM_EXPORT_WIDTH[projectSummary.platform];
@@ -829,13 +1020,18 @@ export default function DetailPageEditor() {
           <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11.5px] font-bold text-accent">
             {PLATFORM_LABELS[projectSummary.platform]}
           </span>
-          <Button onClick={handleSave} variant="outline" className="h-[34px] gap-1.5 text-[12.5px] font-semibold">
+          <Button
+            onClick={() => void handleSave()}
+            disabled={isSaving || isExporting}
+            variant="outline"
+            className="h-[34px] gap-1.5 text-[12.5px] font-semibold"
+          >
             <Save className="size-3.5" />
-            저장
+            {isSaving ? "저장 중..." : "저장"}
           </Button>
           <Button
             onClick={handleExport}
-            disabled={isExporting}
+            disabled={isSaving || isExporting}
             className="h-[34px] gap-1.5 text-[12.5px] font-bold"
           >
             <Download className="size-3.5" />
