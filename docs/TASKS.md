@@ -1,5 +1,11 @@
 # Tasks
 
+## 현재 작업 원칙
+
+- 실제 AI API 품질 테스트가 끝나기 전까지 AI 기능은 "구조 연결 완료"와 "실제 응답 검증 완료"를 분리해서 표시합니다.
+- 새 기능 확장보다 현재 MVP 흐름의 안정성, 문서 정합성, 데모 가능 상태를 우선합니다.
+- mock fallback은 데모 안정성을 위해 유지합니다.
+
 ## 0. 우선순위: 얇은 End-to-End 플로우 (1차 목표)
 
 아래 흐름을 mock/placeholder를 적극 활용해서 먼저 한 번 끝까지 통과시킵니다.
@@ -45,21 +51,21 @@
 - [x] 계정 설정 페이지 — `/settings`, 계정/인증/SMTP 예정 정보 표시
 - [x] 프로젝트 대시보드 — Supabase `detail_page_projects` 목록 표시, 샘플 프로젝트 fallback 제거
 - [x] 새 프로젝트 생성 진입
-- [ ] 상단 네비게이션 테마 토글
+- [x] 상단 네비게이션 테마 토글 — `ThemeSwitch`
 
 ## 3. 상품 입력
 
-- [ ] 상품명 입력
-- [ ] 카테고리 선택
-- [ ] 핵심 키워드 입력
-- [ ] 타깃 고객 입력
-- [ ] 강조 포인트 체크박스
-- [ ] 톤앤매너 선택
-- [ ] 디자인 무드 선택
-- [ ] 플랫폼 선택
-- [ ] 스타일 세트 선택
-- [ ] 초안 생성 전 추가 제작 요청 입력
-- [ ] 추가 제작 요청 예시 칩 또는 placeholder 제공
+- [x] 상품명 입력
+- [x] 카테고리 선택
+- [x] 핵심 키워드 입력
+- [x] 타깃 고객 입력
+- [x] 강조 포인트 체크박스
+- [x] 톤앤매너 선택
+- [x] 디자인 무드 선택
+- [x] 플랫폼 선택
+- [ ] 스타일 세트 선택 — 2차
+- [x] 초안 생성 전 추가 제작 요청 입력
+- [x] 추가 제작 요청 예시 칩 또는 placeholder 제공
 - [x] 경쟁 상세페이지 URL 입력 필드
 - [x] 경쟁 상세페이지 메모 입력 필드
 - [x] 경쟁 URL 여러 개 추가/삭제 UI
@@ -114,12 +120,13 @@
 - [x] 기획 결과를 제작 입력으로 연결 — `runProductionAgent(input, planningOutput)`
 - [x] 제작 결과를 검수 입력으로 연결 — `runReviewAgent(input, productionOutput, planningOutput)`
 - [x] 누락 섹션 검증 — `productionOutputSchema`의 `sections.length(13)` zod 검증 실패 시 mock 폴백
-- [ ] 기획자 에이전트 수정 요청 structured output schema 작성 — 재기획 루프는 다음 패스로 보류
+- [x] 기획자 에이전트 수정 요청 structured output schema 작성 — `revisionOutputSchema`
 - [x] 총괄 에이전트 tool 정의 (`runAnalysisAgent` / `runPlanningAgent` / `runProductionAgent` / `runReviewAgent`) — `src/lib/agents/orchestrator.ts`
 - [x] 총괄 에이전트 tool-calling route 작성 — `src/app/api/agent-workflow/generate/route.ts`
 - [x] 총괄 에이전트 실행 로그 저장 (`agent_type = "orchestrator"`, 하위 run `parent_run_id` 연결) — Supabase 실제 insert로 검증 완료
 - [x] 총괄 에이전트 비용 제한 (최대 tool 호출 횟수, 동일 tool 연속 재시도 제한) — `stepCountIs(8)` + 연속 동일 tool 3회 감지 가드
-- [x] API 키 없음/실패 시 총괄 에이전트 호출 생략하고 기존 mock 파이프라인 폴백 — 실제 Anthropic 크레딧 부족 오류로 폴백 동작까지 확인됨
+- [x] API 키 없음/실패 시 총괄 에이전트 호출 생략하고 기존 mock 파이프라인 폴백 — provider/model 호출 실패 시 데모가 끊기지 않도록 처리
+- [ ] 실제 AI API 응답 품질 검증 — API/모델 최종 테스트 전
 
 ## 7. 상세페이지 캔버스
 
@@ -162,15 +169,15 @@
 
 ## 11. 블록형 편집기
 
-- [ ] 섹션 문구 수정
+- [x] 섹션 문구 수정 — 사이드 패널 + 캔버스 inline 수정
 - [x] 섹션 이미지 교체 — 직접 업로드/상품 이미지/레퍼런스 mock 적용
-- [ ] 섹션 숨김/복구
-- [ ] dnd-kit 섹션 순서 변경
+- [x] 섹션 숨김/복구
+- [ ] dnd-kit 섹션 순서 변경 — 현재는 선택 섹션 위/아래 이동 중심
 - [ ] 카피 후보 선택
 - [ ] 특정 섹션 다시 생성
-- [ ] 편집 히스토리 상태 관리 (undo/redo 스택)
-- [ ] Ctrl+Z / Ctrl+Shift+Z 단축키
-- [ ] 상단 작업바 되돌리기/다시하기 버튼
+- [x] 편집 히스토리 상태 관리 (undo/redo 스택)
+- [x] Ctrl+Z / Ctrl+Shift+Z 단축키
+- [x] 상단 작업바 되돌리기/다시하기 버튼
 
 ## 12. 기획자 에이전트 수정 요청
 
@@ -178,17 +185,18 @@
 - [x] 빠른 액션 버튼
 - [x] 전체 시안 수정 요청
 - [x] 선택 섹션 중심 수정 요청
-- [ ] FAQ/CTA 축약 요청
-- [ ] 검수 경고 반영 요청
-- [ ] 재기획 전/후 비교
+- [ ] FAQ/CTA 축약 요청 — 전용 예시 칩 미제공(자유 입력으로는 가능)
+- [x] 검수 경고 반영 요청 — 예시 칩 + `priorReview` 컨텍스트 전달 구조 연결
+- [x] 재기획 전/후 비교 — `AiAssistantPanel` 적용 전/새 시안 후보 비교 UI
 - [x] 새 시안 적용하기
-- [ ] 수정 요청 API 호출
-- [ ] 총괄 에이전트가 수정 요청 범위(section / multi_section / full_draft) 판단
-- [ ] 총괄 에이전트를 통한 기획 → 제작 → 검수 루프 연결
-- [ ] 총괄 에이전트 tool 호출 상한과 연결된 호출 횟수 제한 상태
-- [x] mock fallback
-- [ ] 기존 분석/기획/제작/검수 결과를 기획자 에이전트 입력 맥락으로 전달
+- [x] 수정 요청 API 호출 — `src/app/api/agent-workflow/revise/route.ts`
+- [x] 총괄 에이전트가 수정 요청 범위(section / multi_section / full_draft) 판단 — `runRevisionAgent`의 `revisionScope` 출력 기준으로 병합
+- [x] 총괄 에이전트를 통한 기획 → 제작 → 검수 루프 연결 — `runOrchestratedRevision`(revision→production→review), 기존 `runProductionAgent`/`runReviewAgent` 재사용
+- [ ] 총괄 에이전트 tool 호출 상한과 연결된 호출 횟수 제한 상태 — 재기획은 결정론적 3단계 파이프라인이라 tool-calling 루프/상한 자체가 해당 없음
+- [x] mock fallback — API 키 없음/호출 실패 시 기존 `mockPlanRevision` 그대로 사용
+- [x] 기존 분석/기획/제작/검수 결과를 기획자 에이전트 입력 맥락으로 전달 — `agentWorkflow.runs`에서 추출해 프롬프트에 포함
 - [x] 수동 수정 전/후를 사용자 스타일 신호로 기록
+- [ ] 실제 AI API 재기획 응답 품질 검증 — API/모델 최종 테스트 전
 
 ## 13. 스타일 세트 (2차)
 
@@ -257,5 +265,5 @@
 - [ ] 주요 뷰포트 반응형 최종 점검
 - [ ] light/dark 시각 점검
 - [ ] 주요 모션이 작업 흐름을 방해하지 않는지 점검
-- [ ] lint/build 확인
+- [x] lint/build 확인 — 2026-07-09 `npm run lint`, `npx tsc --noEmit`, `npm run build` 통과
 - [ ] 발표 데모 흐름 정리

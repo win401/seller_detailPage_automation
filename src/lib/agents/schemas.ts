@@ -34,9 +34,11 @@ export const generateDetailPageInputSchema = z.object({
   keywords: z.array(z.string()).default([]),
   targetCustomer: z.string().default(""),
   emphasisPoints: z.array(z.string()).default([]),
-  tone: toneSchema,
-  designMood: moodSchema,
-  platform: platformSchema,
+  // Defaulted (not just required) because the revision endpoint may only have
+  // a best-effort reconstruction of the original creation-time input.
+  tone: toneSchema.default("practical"),
+  designMood: moodSchema.default("minimal"),
+  platform: platformSchema.default("smartstore"),
   imageDescription: z.string().optional(),
   additionalInstruction: z.string().optional(),
 });
@@ -125,10 +127,34 @@ export const reviewOutputSchema = z.object({
   warnings: z.array(z.string()),
 });
 
+// ---------- 기획자 에이전트 수정 요청 (docs/PROMPTS.md "기획자 에이전트 수정 요청 프롬프트") ----------
+
+export const revisionOutputSchema = z.object({
+  revisionSummary: z.string(),
+  revisionScope: z.enum(["section", "multi_section", "full_draft"]),
+  changedStrategy: z.string(),
+  targetSections: z.array(z.string()),
+  updatedToneGuide: z.string(),
+  updatedVisualGuide: z.string(),
+  updatedSectionPlan: z.array(
+    z.object({
+      kind: z.string(),
+      goal: z.string(),
+      keyMessage: z.string(),
+      imageRole: z.string(),
+      copyNotes: z.array(z.string()),
+    })
+  ),
+  mustAvoid: z.array(z.string()),
+  handoffToProduction: z.string(),
+  warnings: z.array(z.string()),
+});
+
 export type AnalysisOutput = z.infer<typeof analysisOutputSchema>;
 export type PlanningOutput = z.infer<typeof planningOutputSchema>;
 export type ProductionOutput = z.infer<typeof productionOutputSchema>;
 export type ReviewOutput = z.infer<typeof reviewOutputSchema>;
+export type RevisionOutput = z.infer<typeof revisionOutputSchema>;
 
 /** Common shape returned by the analysis/planning/review agent functions (docs/lib/agents). */
 export interface AgentRunResult {

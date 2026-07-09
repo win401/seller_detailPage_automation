@@ -25,9 +25,30 @@ This is a mini project for an AI-powered seller detail page creation tool. The c
 
 Do not mix this project with other topics such as traditional market review analysis, tourism, or hackathon ideas.
 
-## Most Important Current Issue
+## Current Status
 
-Saving currently fails on deployed Vercel because Supabase does not have the required tables yet.
+The MVP end-to-end flow is implemented locally:
+
+- product input
+- image upload/optimization
+- competitor URL/memo input without crawling
+- agent workflow UI with mock fallback
+- 13-section editor canvas
+- manual editing and style signal capture
+- planner revision request API route with mock fallback
+- Supabase/localStorage save structure
+- platform-width ZIP export
+
+Actual AI API response quality has not been fully tested yet. Keep AI work split into:
+
+- route/schema/workflow wiring
+- live model/API validation
+
+Do not mark live AI quality as complete until it has been tested with the intended API key/model.
+
+## Supabase Deployment Note
+
+If saving fails on deployed Vercel, first confirm whether Supabase has the required tables.
 
 Observed error:
 
@@ -139,13 +160,17 @@ Important file:
 ### AI
 
 - Vercel AI SDK is installed and route exists.
-- Current preferred provider direction: Claude/Anthropic. OpenAI is postponed.
-- Anthropic API testing was blocked earlier by API credit/billing state.
+- Current local code uses OpenAI SDK routes with mock fallback.
+- Actual live AI API quality testing is still pending.
 - Mock fallback is intentionally preserved so the MVP can demo without live AI.
 
 Important files:
 
 - `src/app/api/generate-detail-page/route.ts`
+- `src/app/api/agent-workflow/generate/route.ts`
+- `src/app/api/agent-workflow/revise/route.ts`
+- `src/lib/agents/orchestrator.ts`
+- `src/lib/agents/revision.ts`
 - `src/lib/mock-ai.ts`
 - `docs/PROMPTS.md`
 
@@ -181,16 +206,18 @@ Important files:
    - For now, manually create 3 team test accounts in Supabase Dashboard.
    - SMTP/Resend can be added later.
 
-4. AI live generation may not work until Anthropic API billing/credits are handled.
+4. AI live generation may not work until the intended API provider/model is confirmed.
+   - Current code path should be rechecked against the actual provider/model before marking AI quality complete.
    - Mock fallback keeps demo usable.
 
 5. Dashboard now shows only Supabase projects.
    - This is intentional.
    - If schema/env/session is missing, it will not show old hardcoded samples.
 
-6. ZIP slicing had a prior observation where bottom content looked cut in extracted PNGs.
-   - It was postponed for later verification.
-   - Re-test after main save flow works.
+6. Live AI revision behavior has not been quality-tested.
+   - `/api/agent-workflow/revise` is wired.
+   - If live AI fails, fallback now respects the selected section id.
+   - Re-test with the intended model before demo claims about AI quality.
 
 ## Recommended Next Steps
 
@@ -203,7 +230,8 @@ Important files:
 7. Return to dashboard and confirm the project appears.
 8. Test with a second account and confirm project isolation.
 9. Test ZIP download after save.
-10. If saving still fails, copy the exact toast message. The app now exposes detailed Supabase save errors.
+10. Test live AI only after API/model setup is confirmed.
+11. If saving still fails, copy the exact toast message. The app now exposes detailed Supabase save errors.
 
 ## Suggested Claude Work Items
 
@@ -247,7 +275,17 @@ After schema is applied:
 - Confirm bottom content is not cut.
 - If cropped, inspect `html-to-image` source height and slice height calculation.
 
-### E. Canvas/editor polish
+### E. Live AI smoke test
+
+Do this only after API/model setup is ready.
+
+- Generate a new project.
+- Confirm analysis/planning/production/review runs are `succeeded`, not `mocked`.
+- Send a selected-section revision request.
+- Confirm the changed section matches the selected section.
+- Confirm unsupported claims are not introduced.
+
+### F. Canvas/editor polish
 
 Postponed but useful:
 

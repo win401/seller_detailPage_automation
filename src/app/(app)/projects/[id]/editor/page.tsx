@@ -28,6 +28,7 @@ import {
   AgentRunDraft,
   AgentWorkflowDraft,
   DetailSection,
+  GenerateDetailPageInput,
   Platform,
   PLATFORM_EXPORT_WIDTH,
   PLATFORM_LABELS,
@@ -167,6 +168,7 @@ export default function DetailPageEditor() {
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isRevising, setIsRevising] = useState(false);
   const [loadedFromStorage, setLoadedFromStorage] = useState(false);
   const [draftLoadSource, setDraftLoadSource] = useState<"mock" | "local" | "supabase">("mock");
   const [productImage, setProductImage] = useState<UploadedImageDraft | null>(null);
@@ -915,37 +917,93 @@ export default function DetailPageEditor() {
     }
   }
 
-  function generateRevisionDraft(request: string) {
-    const nextSections = mockPlanRevision(sections, selectedSection, request);
-    const now = new Date().toISOString();
-    setPendingSections(nextSections);
+  /** Best-effort reconstruction of the original generation input for the
+   * revision agent — full detail lives in the localStorage generation blob
+   * (same-browser case); falls back to summary fields + server-side defaults
+   * (docs/TASKS.md §12) when that isn't available (e.g. cross-device). */
+  function buildRevisionInput(): GenerateDetailPageInput {
+    const local = readLocalGeneration()?.input as Partial<GenerateDetailPageInput> | undefined;
+    return {
+      productName: local?.productName || projectSummary.name,
+      category: local?.category || projectSummary.category,
+      keywords: local?.keywords ?? [],
+      targetCustomer: local?.targetCustomer ?? "",
+      emphasisPoints: local?.emphasisPoints ?? [],
+      tone: local?.tone ?? "practical",
+      designMood: local?.designMood ?? "minimal",
+      platform: local?.platform ?? projectSummary.platform,
+      additionalInstruction: local?.additionalInstruction,
+    };
+  }
+
+  function appendAgentWorkflowRuns(newRuns: AgentRunDraft[]) {
     setAgentWorkflow((prev) => {
-      if (!prev) return prev;
-      const nextWorkflow: AgentWorkflowDraft = {
-        ...prev,
-        runs: [
-          ...prev.runs,
-          {
-            id: `agent-revision-${Date.now()}`,
-            agentType: "revision_planning",
-            status: "mocked",
-            title: "기획자 에이전트 수정 요청",
-            summary: `"${request.trim()}" 요청을 바탕으로 새 시안 후보를 만들었습니다.`,
-            output: {
-              selectedSection: selectedSection.title,
-              revisedSectionCount: nextSections.filter(
-                (section, index) => section.body !== sections[index]?.body
-              ).length,
-            },
-            warnings: ["MVP에서는 mock 재기획 결과이며, 실제 Claude API 연결은 후속 작업입니다."],
-            createdAt: now,
-          },
-        ],
-      };
+      const nextWorkflow: AgentWorkflowDraft = prev
+        ? { ...prev, runs: [...prev.runs, ...newRuns] }
+        : { competitorReferences: [], revisionEnabled: true, runs: newRuns };
       window.localStorage.setItem(agentWorkflowKey, JSON.stringify(nextWorkflow));
       return nextWorkflow;
     });
-    toast("재기획 시안이 생성되었습니다", { description: "적용 전/후를 확인해보세요" });
+  }
+
+  async function generateRevisionDraft(request: string) {
+    if (isRevising) return;
+    setIsRevising(true);
+
+    try {
+      const response = await fetch("/api/agent-workflow/revise", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          input: buildRevisionInput(),
+          currentSections: sections,
+          selectedSectionId: selectedSection.id,
+          request,
+          analysisOutput: agentWorkflow?.runs.find((run) => run.agentType === "analysis")?.output,
+          planningOutput: agentWorkflow?.runs.find((run) => run.agentType === "planning")?.output,
+          reviewOutput: agentWorkflow?.runs.find((run) => run.agentType === "review")?.output,
+        }),
+      });
+      if (!response.ok) throw new Error("Revision request failed");
+
+      const result = (await response.json()) as {
+        sections: DetailSection[];
+        revisionSummary: string;
+        revisionScope: string;
+        runs: AgentRunDraft[];
+      };
+
+      setPendingSections(result.sections);
+      appendAgentWorkflowRuns(result.runs);
+      toast("재기획 시안이 생성되었습니다", {
+        description: result.revisionSummary || "적용 전/후를 확인해보세요",
+      });
+    } catch {
+      // Network/route failure — fall back to the original client-only mock
+      // path so the panel still produces a usable candidate.
+      const nextSections = mockPlanRevision(sections, selectedSection, request);
+      appendAgentWorkflowRuns([
+        {
+          id: `agent-revision-${Date.now()}`,
+          agentType: "revision_planning",
+          status: "mocked",
+          title: "기획자 에이전트 수정 요청",
+          summary: `"${request.trim()}" 요청을 바탕으로 새 시안 후보를 만들었습니다.`,
+          output: {
+            selectedSection: selectedSection.title,
+            revisedSectionCount: nextSections.filter(
+              (section, index) => section.body !== sections[index]?.body
+            ).length,
+          },
+          warnings: ["네트워크 오류로 mock 재기획 결과를 사용했습니다."],
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+      setPendingSections(nextSections);
+      toast("재기획 시안이 생성되었습니다", { description: "네트워크 오류로 mock 결과를 사용했습니다" });
+    } finally {
+      setIsRevising(false);
+    }
   }
 
   function applyAiPending() {
@@ -1375,6 +1433,7 @@ export default function DetailPageEditor() {
                 onGenerate={generateRevisionDraft}
                 onApply={applyAiPending}
                 onDiscard={discardAiPending}
+                isRevising={isRevising}
               />
             </div>
           </div>

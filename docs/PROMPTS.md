@@ -18,6 +18,8 @@ MVP의 AI 흐름은 총괄 에이전트가 아래 4개 하위 에이전트를 to
 - 경쟁 상세페이지 URL은 사용자가 제공한 참고 링크로만 사용한다.
 - 분석 에이전트는 URL 자체를 열람했다고 가정하지 않는다.
 - 사용자가 제공한 메모, 캡처 설명, 상품 정보에서 확인되지 않은 경쟁사 내용은 단정하지 않는다.
+- 실제 AI API 테스트 전에는 prompt/schema 변경과 실제 응답 품질 검증을 분리한다.
+- API 호출 실패, 모델 오류, 키 미설정 상황에서는 mock fallback을 사용한다.
 
 ## 총괄 에이전트 프롬프트
 
@@ -171,8 +173,8 @@ MVP의 AI 흐름은 총괄 에이전트가 아래 4개 하위 에이전트를 to
 - 사용자의 요청을 기획 변경 사항으로 해석한다.
 - 상품 정보에 없는 효능, 인증, 수치, 원산지, 수상 이력은 만들지 않는다.
 - 검수 에이전트가 지적한 위험 표현은 우선적으로 완화한다.
-- 수정 요청이 특정 섹션에만 해당하면 영향 범위를 해당 섹션 중심으로 제한한다.
-- 수정 요청이 전체 톤/구성에 해당하면 전체 sectionPlan을 조정한다.
+- 수정 요청이 특정 섹션에만 해당하면 targetSections를 해당 섹션 kind로 제한하고 revisionScope를 "section" 또는 "multi_section"으로 한다.
+- 수정 요청이 전체 톤/구성에 해당하면 revisionScope를 "full_draft"로 하고 전체 updatedSectionPlan을 조정한다.
 - 새 기획안은 제작 에이전트가 다시 상세페이지 시안을 만들 수 있게 구조화한다.
 
 입력:
@@ -207,6 +209,13 @@ MVP의 AI 흐름은 총괄 에이전트가 아래 4개 하위 에이전트를 to
   "warnings": []
 }
 ```
+
+현재 구현 메모:
+
+- schema: `src/lib/agents/schemas.ts`의 `revisionOutputSchema`
+- route: `src/app/api/agent-workflow/revise/route.ts`
+- orchestrator: `runOrchestratedRevision`
+- 실제 AI API 실패 시 선택 섹션 기준 `mockPlanRevision`으로 fallback
 
 ## AI 상세페이지 생성 프롬프트
 

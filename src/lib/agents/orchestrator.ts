@@ -9,6 +9,7 @@ import {
   mockBuildAgentWorkflow,
   mockGenerateDetailPage,
   mockPlanningAgent,
+  mockPlanRevision,
   mockProductionAgentSummary,
   mockReviewAgent,
 } from "@/lib/mock-ai";
@@ -16,6 +17,7 @@ import {
   AgentRunDraft,
   AgentWorkflowDraft,
   CompetitorReferenceInput,
+  DetailSection,
   GenerateDetailPageInput,
   GenerateDetailPageOutput,
 } from "@/lib/types";
@@ -23,7 +25,8 @@ import { runAnalysisAgent } from "./analysis";
 import { runPlanningAgent } from "./planning";
 import { runProductionAgent } from "./production";
 import { runReviewAgent } from "./review";
-import { AgentRunResult, AnalysisOutput, PlanningOutput } from "./schemas";
+import { runRevisionAgent } from "./revision";
+import { AgentRunResult, AnalysisOutput, PlanningOutput, ReviewOutput } from "./schemas";
 
 const MAX_STEPS = 8;
 
@@ -297,5 +300,155 @@ export async function runOrchestratedGeneration(
       workflow: mockBuildAgentWorkflow(input, competitorReferences),
       output: mockGenerateDetailPage(input),
     };
+  }
+}
+
+export interface RevisionResult {
+  sections: DetailSection[];
+  revisionSummary: string;
+  revisionScope: string;
+  runs: AgentRunDraft[];
+}
+
+/** Instant, deterministic fallback used both when OPENAI_API_KEY is absent and
+ * when the real revision pipeline throws — mirrors the pre-orchestrator
+ * client-side mock behavior exactly (docs/TASKS.md §12). */
+function mockRevisionResult(
+  currentSections: DetailSection[],
+  request: string,
+  selectedSectionId?: string,
+  reason?: string
+): RevisionResult {
+  const target = currentSections.find((section) => section.id === selectedSectionId) ?? currentSections[0];
+  const revisedSections = mockPlanRevision(currentSections, target, request);
+  const summary = `"${request}" 요청을 mock으로 반영했습니다.`;
+  const run: AgentRunDraft = {
+    id: randomUUID(),
+    agentType: "revision_planning",
+    status: "mocked",
+    title: "기획자 에이전트 수정 요청",
+    summary,
+    output: { targetSection: target.title },
+    warnings: reason ? [reason] : [],
+    createdAt: new Date().toISOString(),
+  };
+  return { sections: revisedSections, revisionSummary: summary, revisionScope: "section", runs: [run] };
+}
+
+/**
+ * Real revision loop (docs/TASKS.md §12): runs the revision agent, adapts its
+ * output into a PlanningOutput shape (same fields as updatedSectionPlan) so
+ * the existing production/review agents can be reused unchanged, then merges
+ * only the sections the revision scope actually targets back into
+ * currentSections — image fields are always carried forward since production
+ * has no concept of them.
+ */
+export async function runOrchestratedRevision(
+  input: GenerateDetailPageInput,
+  currentSections: DetailSection[],
+  request: string,
+  selectedSectionId?: string,
+  priorAnalysis?: AnalysisOutput,
+  priorPlanning?: PlanningOutput,
+  priorReview?: ReviewOutput
+): Promise<RevisionResult> {
+  if (!process.env.OPENAI_API_KEY) {
+    return mockRevisionResult(currentSections, request, selectedSectionId, "OPENAI_API_KEY가 없어 mock 재기획 결과를 사용했습니다.");
+  }
+
+  try {
+    const revisionResult = await runRevisionAgent(
+      input,
+      currentSections,
+      request,
+      priorAnalysis,
+      priorPlanning,
+      priorReview,
+      selectedSectionId
+    );
+    const revisionOutput = revisionResult.output as {
+      revisionScope?: "section" | "multi_section" | "full_draft";
+      targetSections?: string[];
+      updatedToneGuide?: string;
+      updatedVisualGuide?: string;
+      updatedSectionPlan?: PlanningOutput["sectionPlan"];
+      mustAvoid?: string[];
+    };
+
+    const revisionRunId = randomUUID();
+    const revisionRun: AgentRunDraft = {
+      id: revisionRunId,
+      agentType: "revision_planning",
+      status: revisionResult.source === "ai" ? "succeeded" : "mocked",
+      title: revisionResult.title,
+      summary: revisionResult.summary,
+      output: revisionResult.output,
+      warnings: revisionResult.warnings,
+      createdAt: new Date().toISOString(),
+    };
+    const runs: AgentRunDraft[] = [revisionRun];
+
+    if (revisionResult.source !== "ai") {
+      return mockRevisionResult(currentSections, request, selectedSectionId, revisionResult.warnings[0]);
+    }
+
+    const adaptedPlanning: PlanningOutput = {
+      strategySummary: revisionResult.summary,
+      targetAngle: "",
+      primarySellingPoint: "",
+      toneGuide: revisionOutput.updatedToneGuide || input.tone,
+      visualGuide: revisionOutput.updatedVisualGuide || input.designMood,
+      sectionPlan: revisionOutput.updatedSectionPlan ?? [],
+      mustAvoid: revisionOutput.mustAvoid ?? [],
+      warnings: [],
+    };
+
+    const productionResult = await runProductionAgent(input, adaptedPlanning);
+    runs.push(
+      toRunDraft(
+        "production",
+        {
+          title: "제작 에이전트",
+          summary: `${productionResult.sections.length}개 섹션을 재생성했습니다.`,
+          output: { sectionCount: productionResult.sections.length },
+          warnings: productionResult.warnings ?? [],
+          source: productionResult.source === "mock" ? "mock" : "ai",
+        },
+        revisionRunId
+      )
+    );
+
+    const reviewResult = await runReviewAgent(input, productionResult, adaptedPlanning);
+    runs.push(toRunDraft("review", reviewResult, revisionRunId));
+
+    const scope = revisionOutput.revisionScope ?? "full_draft";
+    const targetKinds = new Set(revisionOutput.targetSections ?? []);
+
+    const mergedSections: DetailSection[] = currentSections.map((original) => {
+      const shouldReplace = scope === "full_draft" || targetKinds.has(original.kind);
+      if (!shouldReplace) return original;
+
+      const replacement = productionResult.sections.find((section) => section.kind === original.kind);
+      if (!replacement) return original;
+
+      return {
+        ...replacement,
+        // Production has no concept of section images — always keep the existing ones.
+        imageUrl: original.imageUrl,
+        imageGradient: original.imageGradient,
+        imageLabel: original.imageLabel,
+        imageSource: original.imageSource,
+      };
+    });
+
+    return {
+      sections: mergedSections,
+      revisionSummary: revisionResult.summary,
+      revisionScope: scope,
+      runs,
+    };
+  } catch (error) {
+    console.error("revision orchestration failed", error);
+    return mockRevisionResult(currentSections, request, selectedSectionId, "재기획 파이프라인 호출 실패로 mock 결과를 사용했습니다.");
   }
 }

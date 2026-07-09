@@ -18,6 +18,7 @@ export function AiAssistantPanel({
   onGenerate,
   onApply,
   onDiscard,
+  isRevising,
 }: {
   section: DetailSection;
   request: string;
@@ -26,6 +27,7 @@ export function AiAssistantPanel({
   onGenerate: (request: string) => void;
   onApply: () => void;
   onDiscard: () => void;
+  isRevising: boolean;
 }) {
   const pendingSection = pendingSections?.find((item) => item.id === section.id);
 
@@ -61,9 +63,9 @@ export function AiAssistantPanel({
       <Button
         onClick={() => onGenerate(request)}
         className="h-[36px] text-[12.5px] font-bold"
-        disabled={!request.trim()}
+        disabled={!request.trim() || isRevising}
       >
-        재기획 시안 만들기
+        {isRevising ? "재기획 중..." : "재기획 시안 만들기"}
       </Button>
 
       {pendingSection ? (
