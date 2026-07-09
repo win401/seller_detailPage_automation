@@ -28,6 +28,7 @@ import {
   DetailSection,
   PLATFORM_EXPORT_WIDTH,
   PLATFORM_LABELS,
+  ProjectSummary,
   SectionImageAsset,
   UploadedImageDraft,
   UserStyleSignalDraft,
@@ -68,14 +69,16 @@ function isUuid(value: string) {
 export default function DetailPageEditor() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
-  const projectSummary =
+  const fallbackProjectSummary =
     mockProjectSummaries.find((p) => p.id === projectId) ?? mockProjectSummaries[0];
   const storageKey = `detail-page-project:${projectId}`;
   const draftAssetsKey = `detail-page-draft-assets:${projectId}`;
   const agentWorkflowKey = `detail-page-agent-workflow:${projectId}`;
+  const generationKey = `detail-page-generation:${projectId}`;
   const styleSignalsKey = `detail-page-style-signals:${projectId}`;
   const canvasWrapRef = useRef<HTMLDivElement>(null);
 
+  const [projectSummary, setProjectSummary] = useState<ProjectSummary>(fallbackProjectSummary);
   const [sections, setSections] = useState<DetailSection[]>(mockSections);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string>(mockSections[0].id);
@@ -135,6 +138,32 @@ export default function DetailPageEditor() {
       // ignore corrupt agent workflow storage
     }
   }, [agentWorkflowKey]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(generationKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        input?: {
+          productName?: string;
+          category?: string;
+          platform?: ProjectSummary["platform"];
+        };
+      };
+      if (!parsed.input) return;
+      // one-time metadata hydration from localStorage after route mount
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setProjectSummary({
+        id: projectId,
+        name: parsed.input.productName || fallbackProjectSummary.name,
+        category: parsed.input.category || fallbackProjectSummary.category,
+        platform: parsed.input.platform || fallbackProjectSummary.platform,
+        updatedAtLabel: "방금 전",
+      });
+    } catch {
+      // ignore corrupt generation storage
+    }
+  }, [fallbackProjectSummary, generationKey, projectId]);
 
   useEffect(() => {
     try {

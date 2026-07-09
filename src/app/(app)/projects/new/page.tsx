@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { mockBuildAgentWorkflow, mockGenerateDetailPage } from "@/lib/mock-ai";
 import { mockEmphasisOptions, mockProductInput, mockStyleSets } from "@/lib/mock-data";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   ADDITIONAL_INSTRUCTION_EXAMPLES,
   AgentWorkflowDraft,
@@ -141,6 +142,7 @@ export default function CreateProjectPage() {
   const [tone, setTone] = useState<Tone>("practical");
   const [mood, setMood] = useState<DesignMood>("minimal");
   const [platform, setPlatform] = useState<Platform>("smartstore");
+  const [styleSetId, setStyleSetId] = useState(mockStyleSets[0]?.id ?? "");
   const [additionalInstruction, setAdditionalInstruction] = useState("");
   const [referenceMemo, setReferenceMemo] = useState("");
   const [competitorReferences, setCompetitorReferences] = useState<CompetitorReferenceInput[]>([
@@ -157,6 +159,138 @@ export default function CreateProjectPage() {
   const [isOptimizingImage, setIsOptimizingImage] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
+
+  async function persistGeneratedProject({
+    input,
+    competitorReferences,
+    workflow,
+    output,
+  }: {
+    input: GenerateDetailPageInput;
+    competitorReferences: CompetitorReferenceInput[];
+    workflow: AgentWorkflowDraft;
+    output: GenerateDetailPageOutput;
+  }) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return null;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data: project, error: projectError } = await supabase
+      .from("detail_page_projects")
+      .insert({
+        user_id: user.id,
+        title: input.productName,
+        category: input.category,
+        selected_platform: input.platform,
+        selected_mood: input.designMood,
+        selected_tone: input.tone,
+        product_input: input,
+      })
+      .select("id")
+      .single();
+
+    if (projectError || !project?.id) throw projectError ?? new Error("Project create failed");
+
+    const projectId = project.id as string;
+
+    if (competitorReferences.length) {
+      const { error } = await supabase.from("competitor_references").insert(
+        competitorReferences.map((reference) => ({
+          project_id: projectId,
+          user_id: user.id,
+          url: reference.url.trim() || null,
+          memo: reference.memo.trim() || null,
+          reference_type: reference.referenceType,
+        }))
+      );
+      if (error) throw error;
+    }
+
+    const { error: agentRunsError } = await supabase.from("agent_runs").insert(
+      workflow.runs.map((run) => ({
+        project_id: projectId,
+        user_id: user.id,
+        agent_type: run.agentType,
+        status: run.status,
+        title: run.title,
+        summary: run.summary,
+        input,
+        output: run.output,
+        warnings: run.warnings,
+        created_at: run.createdAt,
+      }))
+    );
+    if (agentRunsError) throw agentRunsError;
+
+    const { data: draft, error: draftError } = await supabase
+      .from("draft_versions")
+      .insert({
+        project_id: projectId,
+        user_id: user.id,
+        version_no: 1,
+        source: output.source ?? "ai",
+        sections: output.sections,
+        hidden_section_ids: [],
+        asset_paths: [],
+        review_summary: {
+          warnings: output.warnings ?? [],
+          reviewAgent: workflow.runs.find((run) => run.agentType === "review")?.output ?? {},
+        },
+      })
+      .select("id")
+      .single();
+
+    if (draftError || !draft?.id) throw draftError ?? new Error("Draft create failed");
+
+    const { error: updateError } = await supabase
+      .from("detail_page_projects")
+      .update({ current_draft_version_id: draft.id })
+      .eq("id", projectId);
+
+    if (updateError) throw updateError;
+
+    return projectId;
+  }
+
+  function saveGeneratedDraftLocally({
+    projectId,
+    input,
+    competitorReferences,
+    workflow,
+    output,
+  }: {
+    projectId: string;
+    input: GenerateDetailPageInput;
+    competitorReferences: CompetitorReferenceInput[];
+    workflow: AgentWorkflowDraft;
+    output: GenerateDetailPageOutput;
+  }) {
+    if (productImage) {
+      window.localStorage.setItem(
+        `detail-page-draft-assets:${projectId}`,
+        JSON.stringify({ productImage })
+      );
+    }
+    window.localStorage.setItem(`detail-page-agent-workflow:${projectId}`, JSON.stringify(workflow));
+    window.localStorage.setItem(
+      `detail-page-project:${projectId}`,
+      JSON.stringify({ sections: output.sections, hiddenIds: [] })
+    );
+    window.localStorage.setItem(
+      `detail-page-generation:${projectId}`,
+      JSON.stringify({
+        input,
+        competitorReferences,
+        agentWorkflow: workflow,
+        source: output.source ?? "ai",
+        warnings: output.warnings ?? [],
+      })
+    );
+  }
 
   function toggleEmphasis(key: string) {
     setEmphasis((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -218,11 +352,6 @@ export default function CreateProjectPage() {
     const workflow = mockBuildAgentWorkflow(input, normalizedCompetitorReferences);
     setAgentWorkflow(workflow);
 
-    if (productImage) {
-      window.localStorage.setItem("detail-page-draft-assets:p1", JSON.stringify({ productImage }));
-    }
-    window.localStorage.setItem("detail-page-agent-workflow:p1", JSON.stringify(workflow));
-
     try {
       const response = await fetch("/api/generate-detail-page", {
         method: "POST",
@@ -231,44 +360,54 @@ export default function CreateProjectPage() {
       });
       if (!response.ok) throw new Error("AI generation request failed");
       const output = (await response.json()) as GenerateDetailPageOutput;
-      window.localStorage.setItem(
-        "detail-page-project:p1",
-        JSON.stringify({ sections: output.sections, hiddenIds: [] })
-      );
-      window.localStorage.setItem(
-        "detail-page-generation:p1",
-        JSON.stringify({
-          input,
-          competitorReferences: normalizedCompetitorReferences,
-          agentWorkflow: workflow,
-          source: output.source ?? "ai",
-          warnings: output.warnings ?? [],
-        })
-      );
+      let projectId = "p1";
+      try {
+        projectId =
+          (await persistGeneratedProject({
+            input,
+            competitorReferences: normalizedCompetitorReferences,
+            workflow,
+            output,
+          })) ?? "p1";
+      } catch {
+        setGenerationMessage("Supabase 저장 실패로 브라우저 임시 저장을 사용합니다.");
+      }
+      saveGeneratedDraftLocally({
+        projectId,
+        input,
+        competitorReferences: normalizedCompetitorReferences,
+        workflow,
+        output,
+      });
       setGenerationMessage(
         output.source === "mock"
           ? "mock 제작 시안으로 에디터를 준비했습니다."
           : "에이전트 시안 생성 완료"
       );
-      router.push("/projects/p1/editor");
+      router.push(`/projects/${projectId}/editor`);
     } catch {
       const output = mockGenerateDetailPage(input);
-      window.localStorage.setItem(
-        "detail-page-project:p1",
-        JSON.stringify({ sections: output.sections, hiddenIds: [] })
-      );
-      window.localStorage.setItem(
-        "detail-page-generation:p1",
-        JSON.stringify({
-          input,
-          competitorReferences: normalizedCompetitorReferences,
-          agentWorkflow: workflow,
-          source: "mock",
-          warnings: output.warnings ?? [],
-        })
-      );
+      let projectId = "p1";
+      try {
+        projectId =
+          (await persistGeneratedProject({
+            input,
+            competitorReferences: normalizedCompetitorReferences,
+            workflow,
+            output,
+          })) ?? "p1";
+      } catch {
+        setGenerationMessage("Supabase 저장 실패로 브라우저 임시 저장을 사용합니다.");
+      }
+      saveGeneratedDraftLocally({
+        projectId,
+        input,
+        competitorReferences: normalizedCompetitorReferences,
+        workflow,
+        output,
+      });
       setGenerationMessage("AI 호출 실패로 mock 에이전트 시안을 사용합니다.");
-      router.push("/projects/p1/editor");
+      router.push(`/projects/${projectId}/editor`);
     } finally {
       setIsGenerating(false);
     }
@@ -382,7 +521,12 @@ export default function CreateProjectPage() {
                 </Chip>
               ))}
             </div>
-            <Select defaultValue={mockStyleSets[0]?.id}>
+            <Select
+              value={styleSetId}
+              onValueChange={(value) => {
+                if (value) setStyleSetId(value);
+              }}
+            >
               <SelectTrigger className="h-9 w-full bg-transparent">
                 <SelectValue />
               </SelectTrigger>

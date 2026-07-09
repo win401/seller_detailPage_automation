@@ -198,8 +198,10 @@
 - [ ] 프로젝트 불러오기
 - [ ] 프로젝트 수정 저장
 - [ ] localStorage 임시 저장
-- [ ] 에이전트 결과 저장
-- [ ] 경쟁 상세페이지 URL/메모 저장
+- [x] 새 프로젝트 생성 시 Supabase `detail_page_projects` 저장 — 로그인 세션이 있으면 DB 저장, 실패 시 localStorage fallback
+- [x] 에이전트 결과 저장 — 생성 시 `agent_runs` insert, localStorage fallback 유지
+- [x] 경쟁 상세페이지 URL/메모 저장 — 생성 시 `competitor_references` insert, localStorage fallback 유지
+- [x] 초안 버전 저장 — 생성 시 `draft_versions` insert 후 `current_draft_version_id` 연결
 - [x] 사용자 스타일 신호 저장 — localStorage `detail-page-style-signals:{projectId}`
 - [x] 사용자 스타일 신호 Supabase 저장 연결 — 로그인 세션이 있으면 `user_style_signals` insert, 실패 시 localStorage fallback
 - [x] Supabase PostgreSQL/RLS 스키마 초안 작성 — `docs/supabase/schema.sql`
