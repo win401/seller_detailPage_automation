@@ -23,6 +23,7 @@ import { AgentWorkflowPanel } from "@/components/editor/agent-workflow-panel";
 import { getMockReferencesForSection, mockSections } from "@/lib/mock-data";
 import { mockPlanRevision } from "@/lib/mock-ai";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 import {
   AgentRunDraft,
   AgentWorkflowDraft,
@@ -77,6 +78,9 @@ function getErrorMessage(error: unknown) {
 }
 
 const EXPORT_SLICE_HEIGHT = 2000;
+const CANVAS_ZOOM_MIN = 0.5;
+const CANVAS_ZOOM_MAX = 1.5;
+const CANVAS_ZOOM_STEP = 0.1;
 
 function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -145,6 +149,10 @@ export default function DetailPageEditor() {
   const generationKey = `detail-page-generation:${projectId}`;
   const styleSignalsKey = `detail-page-style-signals:${projectId}`;
   const canvasWrapRef = useRef<HTMLDivElement>(null);
+  const canvasScrollRef = useRef<HTMLDivElement>(null);
+  const panStateRef = useRef<{ startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(
+    null
+  );
 
   const [projectSummary, setProjectSummary] = useState<ProjectSummary>(fallbackProjectSummary);
   const [sections, setSections] = useState<DetailSection[]>(mockSections);
@@ -164,6 +172,9 @@ export default function DetailPageEditor() {
   const [agentWorkflow, setAgentWorkflow] = useState<AgentWorkflowDraft | null>(null);
   const [styleSignals, setStyleSignals] = useState<UserStyleSignalDraft[]>([]);
   const [styleSignalSync, setStyleSignalSync] = useState<"local" | "remote" | "idle">("idle");
+  const [canvasZoom, setCanvasZoom] = useState(1);
+  const [isSpaceDown, setIsSpaceDown] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
 
   // Load a locally saved draft, if one exists (docs/MVP_PLAN.md Should Have:
   // localStorage fallback). Draft persistence is still local; style signals sync to Supabase below.
@@ -714,6 +725,59 @@ export default function DetailPageEditor() {
     recordStyleSignal({ kind: "copy_manual_edit", before, after });
   }
 
+  /** Canvas double-click inline edit commit for either headline or body (docs/TASKS.md §7). */
+  function handleCanvasTextCommit(
+    sectionId: string,
+    field: "headline" | "body",
+    before: string,
+    after: string
+  ) {
+    if (before === after) return;
+    const target = sections.find((s) => s.id === sectionId);
+    pushHistory();
+    setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, [field]: after } : s)));
+    if (target) {
+      recordStyleSignal({ kind: "copy_manual_edit", section: target, before, after });
+    }
+  }
+
+  function zoomIn() {
+    setCanvasZoom((z) => Math.min(CANVAS_ZOOM_MAX, Math.round((z + CANVAS_ZOOM_STEP) * 100) / 100));
+  }
+
+  function zoomOut() {
+    setCanvasZoom((z) => Math.max(CANVAS_ZOOM_MIN, Math.round((z - CANVAS_ZOOM_STEP) * 100) / 100));
+  }
+
+  function resetZoom() {
+    setCanvasZoom(1);
+  }
+
+  function handleCanvasMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    if (!isSpaceDown || !canvasScrollRef.current) return;
+    e.preventDefault();
+    panStateRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      scrollLeft: canvasScrollRef.current.scrollLeft,
+      scrollTop: canvasScrollRef.current.scrollTop,
+    };
+    setIsPanning(true);
+  }
+
+  function handleCanvasMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (!panStateRef.current || !canvasScrollRef.current) return;
+    const dx = e.clientX - panStateRef.current.startX;
+    const dy = e.clientY - panStateRef.current.startY;
+    canvasScrollRef.current.scrollLeft = panStateRef.current.scrollLeft - dx;
+    canvasScrollRef.current.scrollTop = panStateRef.current.scrollTop - dy;
+  }
+
+  function stopPanning() {
+    panStateRef.current = null;
+    setIsPanning(false);
+  }
+
   function toggleHide(id: string) {
     const target = sections.find((section) => section.id === id);
     pushHistory();
@@ -897,6 +961,37 @@ export default function DetailPageEditor() {
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sections, hiddenIds, undoStack, redoStack]);
+
+  // Space + drag canvas panning (docs/TASKS.md §7). Ignored while the user is
+  // typing (inline canvas edit, side-panel textarea, etc.) so Space still
+  // types a literal space there instead of arming pan mode.
+  useEffect(() => {
+    function isTypingTarget(target: EventTarget | null) {
+      if (!(target instanceof HTMLElement)) return false;
+      return (
+        target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable
+      );
+    }
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.code !== "Space" || isTypingTarget(e.target)) return;
+      e.preventDefault();
+      setIsSpaceDown(true);
+    }
+
+    function onKeyUp(e: KeyboardEvent) {
+      if (e.code !== "Space") return;
+      setIsSpaceDown(false);
+      stopPanning();
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, []);
 
   async function handleSave(options?: { silent?: boolean }) {
     if (isSaving) return { saved: false, reason: "이미 저장 중입니다." };
@@ -1116,18 +1211,60 @@ export default function DetailPageEditor() {
         </div>
 
         <div className="flex min-h-0 flex-col bg-background">
-          <div className="border-b border-border px-4 py-3 text-xs font-bold text-muted-foreground">
-            상세페이지 캔버스
+          <div className="flex items-center justify-between border-b border-border px-4 py-3 text-xs font-bold text-muted-foreground">
+            <span>상세페이지 캔버스 · Space+드래그로 이동</span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={zoomOut}
+                disabled={canvasZoom <= CANVAS_ZOOM_MIN}
+                className="flex size-6 items-center justify-center rounded-md border border-border text-sm font-bold disabled:opacity-40"
+                aria-label="캔버스 축소"
+              >
+                −
+              </button>
+              <button
+                type="button"
+                onClick={resetZoom}
+                className="min-w-11 rounded-md border border-border px-1.5 py-0.5 text-center text-[11px] font-bold"
+                aria-label="캔버스 확대/축소 초기화"
+              >
+                {Math.round(canvasZoom * 100)}%
+              </button>
+              <button
+                type="button"
+                onClick={zoomIn}
+                disabled={canvasZoom >= CANVAS_ZOOM_MAX}
+                className="flex size-6 items-center justify-center rounded-md border border-border text-sm font-bold disabled:opacity-40"
+                aria-label="캔버스 확대"
+              >
+                +
+              </button>
+            </div>
           </div>
-          <div className="flex flex-1 justify-center overflow-y-auto px-4.5 py-6.5">
-            <div ref={canvasWrapRef}>
-              <SectionCanvas
-                sections={visibleSections}
-                selectedId={selectedId}
-                flashId={flashId}
-                platform={projectSummary.platform}
-                onSelect={selectSection}
-              />
+          <div
+            ref={canvasScrollRef}
+            onMouseDown={handleCanvasMouseDown}
+            onMouseMove={handleCanvasMouseMove}
+            onMouseUp={stopPanning}
+            onMouseLeave={stopPanning}
+            className={cn(
+              "flex flex-1 justify-center overflow-auto px-4.5 py-6.5",
+              isSpaceDown && "cursor-grab",
+              isPanning && "cursor-grabbing select-none"
+            )}
+          >
+            <div style={{ transform: `scale(${canvasZoom})`, transformOrigin: "top center" }}>
+              <div ref={canvasWrapRef}>
+                <SectionCanvas
+                  sections={visibleSections}
+                  selectedId={selectedId}
+                  flashId={flashId}
+                  platform={projectSummary.platform}
+                  onSelect={selectSection}
+                  onCommitText={handleCanvasTextCommit}
+                />
+              </div>
             </div>
           </div>
         </div>

@@ -163,7 +163,7 @@ Important files:
 - Real crawling is not part of MVP. The app accepts competitor URLs and user notes as references.
 - Pinterest API integration is not in MVP. Pinterest-like references are mocked.
 - Free-form Figma-like design editing is not the MVP direction. The editor should remain block/section-based so the service has value beyond “just use Figma.”
-- Canvas advanced controls such as zoom, pan, and spacebar drag are postponed.
+- Canvas advanced controls (zoom in/out buttons, Space+drag pan, double-click inline text edit) were implemented in the editor canvas. ZIP export deliberately captures an unscaled node so on-screen zoom never affects export dimensions.
 - Vertical monitor-specific layout is postponed after real usage showed horizontal work mode is better even on a vertical monitor.
 - Business expansion/sourcing automation ideas were intentionally removed from mini-project docs. Keep this project focused on the mini-project MVP.
 
@@ -255,7 +255,6 @@ Postponed but useful:
 - Better selected section controls
 - Better empty/loading/error states
 - Save status feedback
-- Canvas zoom/pan later, not now
 
 ## Verification Commands
 
