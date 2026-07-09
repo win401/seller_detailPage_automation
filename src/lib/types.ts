@@ -221,6 +221,7 @@ export interface GenerateDetailPageOutput {
 // ---------- agent workflow draft contract (docs/MVP_PLAN.md data model) ----------
 
 export type AgentType =
+  | "orchestrator"
   | "analysis"
   | "planning"
   | "production"
@@ -239,6 +240,8 @@ export interface AgentRunDraft {
   output: Record<string, unknown>;
   warnings: string[];
   createdAt: string;
+  /** agent_runs.id of the orchestrator run that invoked this run, if any (docs/supabase/schema.sql). */
+  parentRunId?: string;
 }
 
 export interface AgentWorkflowDraft {

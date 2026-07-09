@@ -115,6 +115,11 @@
 - [ ] 제작 결과를 검수 입력으로 연결
 - [ ] 누락 섹션 검증
 - [ ] 기획자 에이전트 수정 요청 structured output schema 작성
+- [ ] 총괄 에이전트 tool 정의 (`runAnalysisAgent` / `runPlanningAgent` / `runProductionAgent` / `runReviewAgent`)
+- [ ] 총괄 에이전트 tool-calling route 작성
+- [ ] 총괄 에이전트 실행 로그 저장 (`agent_type = "orchestrator"`, 하위 run `parent_run_id` 연결)
+- [ ] 총괄 에이전트 비용 제한 (최대 tool 호출 횟수, 동일 tool 연속 재시도 제한)
+- [ ] API 키 없음/실패 시 총괄 에이전트 호출 생략하고 기존 mock 파이프라인 폴백
 
 ## 7. 상세페이지 캔버스
 
@@ -178,8 +183,9 @@
 - [ ] 재기획 전/후 비교
 - [x] 새 시안 적용하기
 - [ ] 수정 요청 API 호출
-- [ ] 기획 → 제작 → 검수 루프 연결
-- [ ] 호출 횟수 제한 상태
+- [ ] 총괄 에이전트가 수정 요청 범위(section / multi_section / full_draft) 판단
+- [ ] 총괄 에이전트를 통한 기획 → 제작 → 검수 루프 연결
+- [ ] 총괄 에이전트 tool 호출 상한과 연결된 호출 횟수 제한 상태
 - [x] mock fallback
 - [ ] 기존 분석/기획/제작/검수 결과를 기획자 에이전트 입력 맥락으로 전달
 - [x] 수동 수정 전/후를 사용자 스타일 신호로 기록
@@ -210,7 +216,7 @@
 - [x] 사용자 스타일 신호 저장 — localStorage `detail-page-style-signals:{projectId}`
 - [x] 사용자 스타일 신호 Supabase 저장 연결 — 로그인 세션이 있으면 `user_style_signals` insert, 실패 시 localStorage fallback
 - [x] Supabase PostgreSQL/RLS 스키마 초안 작성 — `docs/supabase/schema.sql`
-- [ ] RLS 정책 Supabase 프로젝트에 실제 적용
+- [ ] RLS 정책 Supabase 프로젝트에 실제 적용 (`agent_runs.parent_run_id` 컬럼 포함)
 
 ## 15. Export
 

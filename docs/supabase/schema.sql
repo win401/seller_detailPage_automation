@@ -56,6 +56,7 @@ create table if not exists public.agent_runs (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references public.detail_page_projects(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
+  parent_run_id uuid references public.agent_runs(id) on delete set null,
   agent_type text not null,
   status text not null default 'pending',
   title text,
@@ -65,6 +66,15 @@ create table if not exists public.agent_runs (
   warnings jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
+
+-- Groups sub-agent runs (analysis/planning/production/review) under the
+-- orchestrator run that invoked them, so a single workflow execution can be
+-- traced as a tree instead of independent rows. Added via ALTER so it also
+-- applies to an already-created agent_runs table, not just fresh installs.
+alter table public.agent_runs
+  add column if not exists parent_run_id uuid references public.agent_runs(id) on delete set null;
+
+create index if not exists agent_runs_parent_run_id_idx on public.agent_runs (parent_run_id);
 
 create table if not exists public.draft_versions (
   id uuid primary key default gen_random_uuid(),
