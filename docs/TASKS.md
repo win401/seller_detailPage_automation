@@ -198,6 +198,7 @@
 
 - [ ] 프로젝트 저장
 - [x] 프로젝트 불러오기 — 대시보드에서 Supabase 프로젝트 목록 조회
+- [x] 에디터 DB draft 복원 — `detail_page_projects` + `draft_versions` + `agent_runs` 조회 후 localStorage fallback 유지
 - [ ] 프로젝트 수정 저장
 - [ ] localStorage 임시 저장
 - [x] 새 프로젝트 생성 시 Supabase `detail_page_projects` 저장 — 로그인 세션이 있으면 DB 저장, 실패 시 localStorage fallback

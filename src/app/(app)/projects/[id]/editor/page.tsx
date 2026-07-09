@@ -24,8 +24,10 @@ import { getMockReferencesForSection, mockProjectSummaries, mockSections } from 
 import { mockPlanRevision } from "@/lib/mock-ai";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
+  AgentRunDraft,
   AgentWorkflowDraft,
   DetailSection,
+  Platform,
   PLATFORM_EXPORT_WIDTH,
   PLATFORM_LABELS,
   ProjectSummary,
@@ -66,6 +68,29 @@ function isUuid(value: string) {
   );
 }
 
+function isPlatform(value: string | null | undefined): value is Platform {
+  return value === "coupang" || value === "smartstore" || value === "ably" || value === "zigzag";
+}
+
+function isDetailSectionArray(value: unknown): value is DetailSection[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (section) =>
+        typeof section === "object" &&
+        section !== null &&
+        "id" in section &&
+        "kind" in section &&
+        "headline" in section &&
+        "body" in section
+    )
+  );
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
 export default function DetailPageEditor() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
@@ -90,6 +115,7 @@ export default function DetailPageEditor() {
   const [redoStack, setRedoStack] = useState<Snapshot[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [loadedFromStorage, setLoadedFromStorage] = useState(false);
+  const [draftLoadSource, setDraftLoadSource] = useState<"mock" | "local" | "supabase">("mock");
   const [productImage, setProductImage] = useState<UploadedImageDraft | null>(null);
   const [agentWorkflow, setAgentWorkflow] = useState<AgentWorkflowDraft | null>(null);
   const [styleSignals, setStyleSignals] = useState<UserStyleSignalDraft[]>([]);
@@ -107,6 +133,7 @@ export default function DetailPageEditor() {
         setSections(parsed.sections);
         setHiddenIds(new Set(parsed.hiddenIds));
         setLoadedFromStorage(true);
+        setDraftLoadSource("local");
       }
     } catch {
       // ignore corrupt local storage
@@ -176,6 +203,140 @@ export default function DetailPageEditor() {
       // ignore corrupt style signal storage
     }
   }, [styleSignalsKey]);
+
+  useEffect(() => {
+    if (!isUuid(projectId)) return;
+
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    const client = supabase;
+    let cancelled = false;
+
+    async function loadRemoteDraft() {
+      const { data: project, error: projectError } = await client
+        .from("detail_page_projects")
+        .select(
+          "id, title, category, selected_platform, current_draft_version_id, product_input, updated_at"
+        )
+        .eq("id", projectId)
+        .single();
+
+      if (cancelled || projectError || !project) return;
+
+      const platform = isPlatform(project.selected_platform)
+        ? project.selected_platform
+        : fallbackProjectSummary.platform;
+
+      const nextSummary: ProjectSummary = {
+        id: project.id,
+        name: project.title || fallbackProjectSummary.name,
+        category: project.category || fallbackProjectSummary.category,
+        platform,
+        updatedAtLabel: "DB 저장본",
+      };
+
+      let draftQuery = client
+        .from("draft_versions")
+        .select("id, sections, hidden_section_ids, source, review_summary, created_at")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (project.current_draft_version_id) {
+        draftQuery = client
+          .from("draft_versions")
+          .select("id, sections, hidden_section_ids, source, review_summary, created_at")
+          .eq("id", project.current_draft_version_id)
+          .limit(1);
+      }
+
+      const { data: drafts, error: draftError } = await draftQuery;
+      if (cancelled || draftError) return;
+
+      const draft = drafts?.[0];
+      const remoteSections = isDetailSectionArray(draft?.sections) ? draft.sections : null;
+      const remoteHiddenIds = isStringArray(draft?.hidden_section_ids)
+        ? draft.hidden_section_ids
+        : [];
+
+      const { data: runs } = await client
+        .from("agent_runs")
+        .select("id, agent_type, status, title, summary, output, warnings, created_at")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: true });
+
+      if (cancelled) return;
+
+      const remoteWorkflow: AgentWorkflowDraft | null = runs?.length
+        ? {
+            competitorReferences: [],
+            revisionEnabled: true,
+            runs: runs.map(
+              (run): AgentRunDraft => ({
+                id: run.id,
+                agentType: run.agent_type as AgentRunDraft["agentType"],
+                status: run.status as AgentRunDraft["status"],
+                title: run.title ?? "에이전트 실행",
+                summary: run.summary ?? "",
+                output:
+                  typeof run.output === "object" && run.output !== null
+                    ? (run.output as Record<string, unknown>)
+                    : {},
+                warnings: isStringArray(run.warnings) ? run.warnings : [],
+                createdAt: run.created_at,
+              })
+            ),
+          }
+        : null;
+
+      // One-time hydration from Supabase when opening a persisted project.
+      setProjectSummary(nextSummary);
+      if (remoteSections) {
+        setSections(remoteSections);
+        setHiddenIds(new Set(remoteHiddenIds));
+        setSelectedId(remoteSections[0]?.id ?? selectedId);
+        setLoadedFromStorage(false);
+        setDraftLoadSource("supabase");
+        window.localStorage.setItem(
+          storageKey,
+          JSON.stringify({ sections: remoteSections, hiddenIds: remoteHiddenIds })
+        );
+      }
+      if (remoteWorkflow) {
+        setAgentWorkflow(remoteWorkflow);
+        window.localStorage.setItem(agentWorkflowKey, JSON.stringify(remoteWorkflow));
+      }
+
+      const localGeneration = {
+        input: {
+          productName: nextSummary.name,
+          category: nextSummary.category,
+          platform: nextSummary.platform,
+        },
+        source: draft?.source ?? "mock",
+        warnings:
+          typeof draft?.review_summary === "object" && draft.review_summary !== null
+            ? (draft.review_summary as { warnings?: unknown }).warnings
+            : [],
+      };
+      window.localStorage.setItem(generationKey, JSON.stringify(localGeneration));
+    }
+
+    void loadRemoteDraft();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    agentWorkflowKey,
+    fallbackProjectSummary.category,
+    fallbackProjectSummary.name,
+    fallbackProjectSummary.platform,
+    generationKey,
+    projectId,
+    selectedId,
+    storageKey,
+  ]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -629,7 +790,11 @@ export default function DetailPageEditor() {
             <div className="truncate text-sm font-bold">{projectSummary.name}</div>
             <div className="text-[11.5px] text-muted-foreground">
               {PLATFORM_LABELS[projectSummary.platform]} ·{" "}
-              {loadedFromStorage ? "저장된 draft 불러옴" : "새 초안"}
+              {draftLoadSource === "supabase"
+                ? "DB draft 불러옴"
+                : loadedFromStorage
+                  ? "저장된 draft 불러옴"
+                  : "새 초안"}
             </div>
           </div>
         </div>
