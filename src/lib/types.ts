@@ -326,7 +326,7 @@ export interface SectionImageAsset {
 // ---------- editor UI state ----------
 
 export type EditorLayout = "horizontal" | "vertical";
-export type EditorTab = "sections" | "edit" | "ai";
+export type EditorTab = "sections" | "edit" | "agents" | "ai";
 
 // ---------- dashboard summary ----------
 

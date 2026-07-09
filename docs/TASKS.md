@@ -14,6 +14,7 @@
 - [x] 상품 이미지 업로드 (최적화 없이 원본 업로드만) — 브라우저 preview + 에디터 임시 전달
 - [x] 제작 에이전트 13섹션 생성 (mock fallback 허용) — Vercel AI SDK API + mock fallback
 - [x] 검수 에이전트 결과 표시 — 과장 표현/누락/가독성 체크
+- [x] 에디터에서 기존 분석/기획/제작/검수 결과 확인 — localStorage 기반
 - [x] 모바일 캔버스에 13섹션 렌더링
 - [x] 섹션 1개 문구 직접 수정
 - [ ] 기획자 에이전트 수정 요청 → 재기획 → 새 시안 적용 — mock 우선
@@ -70,6 +71,7 @@
 - [x] 기획 에이전트 output type 정의 — AgentRunDraft mock output 기반
 - [x] 검수 에이전트 output type 정의 — AgentRunDraft mock output 기반
 - [x] 에이전트 결과를 프로젝트 draft에 저장 — localStorage `detail-page-agent-workflow:p1`
+- [x] 에이전트 결과를 편집 화면에서 다시 확인
 - [x] 에이전트 실패 시 다음 단계로 진행 가능한 mock fallback
 - [x] 경쟁 URL은 참고 링크로만 저장하고 자동 크롤링하지 않는 정책 반영
 

@@ -21,9 +21,11 @@ import { SectionCanvas } from "@/components/editor/section-canvas";
 import { SectionList } from "@/components/editor/section-list";
 import { SectionEditPanel } from "@/components/editor/section-edit-panel";
 import { AiAssistantPanel } from "@/components/editor/ai-assistant-panel";
+import { AgentWorkflowPanel } from "@/components/editor/agent-workflow-panel";
 import { getMockReferencesForSection, mockProjectSummaries, mockSections } from "@/lib/mock-data";
 import { mockAiRewrite } from "@/lib/mock-ai";
 import {
+  AgentWorkflowDraft,
   AiEditAction,
   DetailSection,
   EditorLayout,
@@ -45,6 +47,7 @@ export default function DetailPageEditor() {
     mockProjectSummaries.find((p) => p.id === projectId) ?? mockProjectSummaries[0];
   const storageKey = `detail-page-project:${projectId}`;
   const draftAssetsKey = `detail-page-draft-assets:${projectId}`;
+  const agentWorkflowKey = `detail-page-agent-workflow:${projectId}`;
   const canvasWrapRef = useRef<HTMLDivElement>(null);
 
   const [sections, setSections] = useState<DetailSection[]>(mockSections);
@@ -61,6 +64,7 @@ export default function DetailPageEditor() {
   const [isExporting, setIsExporting] = useState(false);
   const [loadedFromStorage, setLoadedFromStorage] = useState(false);
   const [productImage, setProductImage] = useState<UploadedImageDraft | null>(null);
+  const [agentWorkflow, setAgentWorkflow] = useState<AgentWorkflowDraft | null>(null);
 
   // Load a locally saved draft, if one exists (docs/MVP_PLAN.md Should Have:
   // localStorage fallback). Supabase persistence is a later phase.
@@ -93,6 +97,18 @@ export default function DetailPageEditor() {
       // ignore corrupt asset storage
     }
   }, [draftAssetsKey]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(agentWorkflowKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as AgentWorkflowDraft;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAgentWorkflow(parsed);
+    } catch {
+      // ignore corrupt agent workflow storage
+    }
+  }, [agentWorkflowKey]);
 
   const selectedSection = sections.find((s) => s.id === selectedId) ?? sections[0];
 
@@ -382,6 +398,9 @@ export default function DetailPageEditor() {
               onSelect={selectSection}
               onToggleHide={toggleHide}
             />
+            <div className="mt-auto border-t border-border p-3">
+              <AgentWorkflowPanel workflow={agentWorkflow} compact />
+            </div>
           </div>
 
           <div className="flex min-h-0 flex-col bg-background">
@@ -441,6 +460,7 @@ export default function DetailPageEditor() {
                 [
                   { id: "sections", label: "섹션" },
                   { id: "edit", label: "편집" },
+                  { id: "agents", label: "에이전트" },
                   { id: "ai", label: "AI 도우미" },
                 ] as { id: EditorTab; label: string }[]
               ).map((t) => (
@@ -480,6 +500,7 @@ export default function DetailPageEditor() {
                   onUploadSectionImage={uploadSectionImage}
                 />
               )}
+              {tab === "agents" && <AgentWorkflowPanel workflow={agentWorkflow} />}
               {tab === "ai" && (
                 <AiAssistantPanel
                   section={selectedSection}
