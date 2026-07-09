@@ -83,6 +83,8 @@ const EXPORT_SLICE_HEIGHT = 2000;
 const CANVAS_ZOOM_MIN = 0.5;
 const CANVAS_ZOOM_MAX = 1.5;
 const CANVAS_ZOOM_STEP = 0.1;
+const AI_FAB_SIZE = 54;
+const AI_PANEL_OFFSET = 28;
 
 function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -131,6 +133,10 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 export default function DetailPageEditor() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -154,6 +160,7 @@ export default function DetailPageEditor() {
   const canvasScrollRef = useRef<HTMLDivElement>(null);
   const aiPanelRef = useRef<HTMLDivElement>(null);
   const aiFabRef = useRef<HTMLButtonElement>(null);
+  const aiMorphRef = useRef<HTMLDivElement>(null);
   const exportSuccessRef = useRef<HTMLDivElement>(null);
   const panStateRef = useRef<{ startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(
     null
@@ -164,6 +171,7 @@ export default function DetailPageEditor() {
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string>(mockSections[0].id);
   const [aiOpen, setAiOpen] = useState(false);
+  const [isAiTransitioning, setIsAiTransitioning] = useState(false);
   const [revisionRequest, setRevisionRequest] = useState("");
   const [pendingSections, setPendingSections] = useState<DetailSection[] | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
@@ -185,29 +193,8 @@ export default function DetailPageEditor() {
   const [isPanning, setIsPanning] = useState(false);
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    if (aiOpen && aiPanelRef.current) {
-      gsap.fromTo(
-        aiPanelRef.current,
-        { autoAlpha: 0, y: 18, scale: 0.96, transformOrigin: "bottom right" },
-        { autoAlpha: 1, y: 0, scale: 1, duration: 0.36, ease: "back.out(1.45)" }
-      );
-      return;
-    }
-
-    if (!aiOpen && aiFabRef.current) {
-      gsap.fromTo(
-        aiFabRef.current,
-        { autoAlpha: 0, y: 10, scale: 0.82 },
-        { autoAlpha: 1, y: 0, scale: 1, duration: 0.28, ease: "back.out(1.8)" }
-      );
-    }
-  }, [aiOpen]);
-
-  useEffect(() => {
     const node = exportSuccessRef.current;
-    if (!node || exportSuccessKey === 0 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!node || exportSuccessKey === 0 || prefersReducedMotion()) return;
 
     const timeline = gsap.timeline();
     timeline
@@ -503,6 +490,146 @@ export default function DetailPageEditor() {
   function flash(id: string) {
     setFlashId(id);
     window.setTimeout(() => setFlashId((current) => (current === id ? null : current)), 900);
+  }
+
+  function getFallbackFabRect() {
+    return {
+      left: window.innerWidth - AI_PANEL_OFFSET - AI_FAB_SIZE,
+      top: window.innerHeight - AI_PANEL_OFFSET - AI_FAB_SIZE,
+      width: AI_FAB_SIZE,
+      height: AI_FAB_SIZE,
+    };
+  }
+
+  function openAiPanel() {
+    if (aiOpen || isAiTransitioning) return;
+
+    if (prefersReducedMotion()) {
+      setAiOpen(true);
+      return;
+    }
+
+    const morph = aiMorphRef.current;
+    const fabRect = aiFabRef.current?.getBoundingClientRect() ?? getFallbackFabRect();
+    setIsAiTransitioning(true);
+    setAiOpen(true);
+
+    window.requestAnimationFrame(() => {
+      const panel = aiPanelRef.current;
+      if (!morph || !panel) {
+        setIsAiTransitioning(false);
+        return;
+      }
+
+      const panelRect = panel.getBoundingClientRect();
+      gsap.killTweensOf([morph, panel]);
+      gsap.set(panel, {
+        autoAlpha: 0,
+        y: 14,
+        scale: 0.985,
+        transformOrigin: "bottom right",
+      });
+      gsap.set(morph, {
+        autoAlpha: 1,
+        left: fabRect.left,
+        top: fabRect.top,
+        width: fabRect.width,
+        height: fabRect.height,
+        borderRadius: 999,
+        scale: 1,
+      });
+
+      const timeline = gsap.timeline({
+        defaults: { ease: "power3.out" },
+        onComplete: () => {
+          gsap.set(morph, { autoAlpha: 0 });
+          setIsAiTransitioning(false);
+        },
+      });
+
+      timeline
+        .to(morph, {
+          left: panelRect.left,
+          top: panelRect.top,
+          width: panelRect.width,
+          height: panelRect.height,
+          borderRadius: 16,
+          duration: 0.34,
+          ease: "expo.out",
+        })
+        .fromTo(
+          panel,
+          { autoAlpha: 0, y: 12, scale: 0.985 },
+          { autoAlpha: 1, y: 0, scale: 1, duration: 0.24, ease: "power3.out" },
+          "-=0.13"
+        )
+        .to(morph, { autoAlpha: 0, duration: 0.12 }, "-=0.08");
+    });
+  }
+
+  function closeAiPanel() {
+    if (!aiOpen || isAiTransitioning) return;
+
+    if (prefersReducedMotion()) {
+      setAiOpen(false);
+      return;
+    }
+
+    const panel = aiPanelRef.current;
+    const morph = aiMorphRef.current;
+    const fabRect = getFallbackFabRect();
+
+    if (!panel || !morph) {
+      setAiOpen(false);
+      return;
+    }
+
+    const panelRect = panel.getBoundingClientRect();
+    setIsAiTransitioning(true);
+    gsap.killTweensOf([morph, panel]);
+    gsap.set(morph, {
+      autoAlpha: 1,
+      left: panelRect.left,
+      top: panelRect.top,
+      width: panelRect.width,
+      height: panelRect.height,
+      borderRadius: 16,
+      scale: 1,
+    });
+
+    const timeline = gsap.timeline({
+      defaults: { ease: "power3.inOut" },
+      onComplete: () => {
+        gsap.set(morph, { autoAlpha: 0 });
+        setAiOpen(false);
+        setIsAiTransitioning(false);
+        window.requestAnimationFrame(() => {
+          if (!aiFabRef.current || prefersReducedMotion()) return;
+          gsap.fromTo(
+            aiFabRef.current,
+            { autoAlpha: 0, y: 8, scale: 0.86 },
+            { autoAlpha: 1, y: 0, scale: 1, duration: 0.22, ease: "back.out(1.8)" }
+          );
+        });
+      },
+    });
+
+    timeline
+      .to(panel, { autoAlpha: 0, y: 8, scale: 0.98, duration: 0.14, ease: "power2.in" })
+      .to(
+        morph,
+        {
+          left: fabRect.left,
+          top: fabRect.top,
+          width: fabRect.width,
+          height: fabRect.height,
+          borderRadius: 999,
+          duration: 0.28,
+          ease: "expo.inOut",
+        },
+        "-=0.04"
+      )
+      .to(morph, { autoAlpha: 0, duration: 0.08 });
   }
 
   function selectSection(id: string) {
@@ -1458,17 +1585,26 @@ export default function DetailPageEditor() {
         </div>
       </div>
 
+      <div
+        ref={aiMorphRef}
+        aria-hidden="true"
+        className="pointer-events-none fixed z-40 rounded-full border border-border bg-card opacity-0 shadow-[0_18px_48px_rgba(23,32,28,0.22)]"
+      />
+
       {aiOpen ? (
           <div
             ref={aiPanelRef}
-            className="fixed right-7 bottom-7 z-40 flex max-h-[70vh] w-[340px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-elevated)]"
+            className={cn(
+              "fixed right-7 bottom-7 z-50 flex max-h-[70vh] w-[340px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-elevated)]",
+              isAiTransitioning && "opacity-0"
+            )}
           >
             <div className="flex items-center justify-between border-b border-border px-4 py-3.5 text-accent">
               <div className="flex items-center gap-2">
                 <Sparkles className="size-4" />
                 <span className="font-bold">기획자 에이전트</span>
               </div>
-              <button onClick={() => setAiOpen(false)} className="rounded-md p-0.5">
+              <button onClick={closeAiPanel} className="rounded-md p-0.5">
                 <X className="size-3.5" />
               </button>
             </div>
@@ -1488,8 +1624,10 @@ export default function DetailPageEditor() {
         ) : (
           <button
             ref={aiFabRef}
-            onClick={() => setAiOpen(true)}
+            onClick={openAiPanel}
+            disabled={isAiTransitioning}
             className="fixed right-7 bottom-7 z-40 flex size-[54px] items-center justify-center rounded-full bg-accent text-white shadow-[0_10px_24px_rgba(204,95,51,0.4)] motion-safe:animate-[aiPulse_2.4s_ease-in-out_infinite]"
+            aria-label="기획자 에이전트 열기"
           >
             <Sparkles className="size-5.5" />
           </button>
