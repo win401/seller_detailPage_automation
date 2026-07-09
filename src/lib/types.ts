@@ -331,6 +331,12 @@ export interface UploadedImageDraft {
   name: string;
   size: number;
   type: string;
+  originalSize?: number;
+  originalWidth?: number;
+  originalHeight?: number;
+  optimizedWidth?: number;
+  optimizedHeight?: number;
+  optimized?: boolean;
 }
 
 export interface SectionImageAsset {

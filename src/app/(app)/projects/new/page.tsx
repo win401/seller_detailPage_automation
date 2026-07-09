@@ -31,7 +31,12 @@ import {
   Platform,
   TONE_LABELS,
   Tone,
+  UploadedImageDraft,
 } from "@/lib/types";
+
+const IMAGE_MAX_WIDTH = 1200;
+const IMAGE_QUALITY = 0.85;
+const IMAGE_OUTPUT_TYPE = "image/webp";
 
 const TONE_OPTIONS = Object.keys(TONE_LABELS) as Tone[];
 const MOOD_OPTIONS = Object.keys(MOOD_LABELS) as DesignMood[];
@@ -69,6 +74,59 @@ function Chip({
   );
 }
 
+function loadImage(dataUrl: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = dataUrl;
+  });
+}
+
+function canvasToDataUrl(canvas: HTMLCanvasElement, type: string, quality: number) {
+  return canvas.toDataURL(type, quality);
+}
+
+async function optimizeImageFile(file: File): Promise<UploadedImageDraft> {
+  const originalDataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("Image read failed"));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Image read failed"));
+    reader.readAsDataURL(file);
+  });
+
+  const image = await loadImage(originalDataUrl);
+  const scale = Math.min(1, IMAGE_MAX_WIDTH / image.naturalWidth);
+  const optimizedWidth = Math.max(1, Math.round(image.naturalWidth * scale));
+  const optimizedHeight = Math.max(1, Math.round(image.naturalHeight * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = optimizedWidth;
+  canvas.height = optimizedHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas context is not available");
+  ctx.drawImage(image, 0, 0, optimizedWidth, optimizedHeight);
+
+  const optimizedDataUrl = canvasToDataUrl(canvas, IMAGE_OUTPUT_TYPE, IMAGE_QUALITY);
+  const estimatedSize = Math.round((optimizedDataUrl.length * 3) / 4);
+  const optimized = scale < 1 || estimatedSize < file.size;
+
+  return {
+    dataUrl: optimizedDataUrl,
+    name: file.name.replace(/\.[^.]+$/, ".webp"),
+    size: estimatedSize,
+    type: IMAGE_OUTPUT_TYPE,
+    originalSize: file.size,
+    originalWidth: image.naturalWidth,
+    originalHeight: image.naturalHeight,
+    optimizedWidth,
+    optimizedHeight,
+    optimized,
+  };
+}
+
 export default function CreateProjectPage() {
   const router = useRouter();
   const [productName, setProductName] = useState(mockProductInput.productName);
@@ -94,12 +152,9 @@ export default function CreateProjectPage() {
     },
   ]);
   const [agentWorkflow, setAgentWorkflow] = useState<AgentWorkflowDraft | null>(null);
-  const [productImage, setProductImage] = useState<{
-    dataUrl: string;
-    name: string;
-    size: number;
-    type: string;
-  } | null>(null);
+  const [productImage, setProductImage] = useState<UploadedImageDraft | null>(null);
+  const [imageOptimizationMessage, setImageOptimizationMessage] = useState<string | null>(null);
+  const [isOptimizingImage, setIsOptimizingImage] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
 
@@ -219,19 +274,25 @@ export default function CreateProjectPage() {
     }
   }
 
-  function handleProductImageChange(file: File | undefined) {
+  async function handleProductImageChange(file: File | undefined) {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== "string") return;
-      setProductImage({
-        dataUrl: reader.result,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-      });
-    };
-    reader.readAsDataURL(file);
+    setIsOptimizingImage(true);
+    setImageOptimizationMessage("이미지를 최적화하는 중입니다...");
+    try {
+      const optimized = await optimizeImageFile(file);
+      setProductImage(optimized);
+      const originalKb = optimized.originalSize
+        ? `${(optimized.originalSize / 1024).toFixed(0)}KB`
+        : "원본";
+      const optimizedKb = `${(optimized.size / 1024).toFixed(0)}KB`;
+      setImageOptimizationMessage(
+        `이미지를 최적화했습니다. ${originalKb} → ${optimizedKb}, ${optimized.optimizedWidth}px 폭`
+      );
+    } catch {
+      setImageOptimizationMessage("이미지 최적화에 실패했습니다. 다른 이미지를 업로드해주세요.");
+    } finally {
+      setIsOptimizingImage(false);
+    }
   }
 
   return (
@@ -503,7 +564,9 @@ export default function CreateProjectPage() {
                     {productImage.name}
                   </span>
                   <span className="text-[11px] font-semibold text-accent">
-                    {(productImage.size / 1024).toFixed(0)}KB · 에디터에서 섹션 이미지로 사용 가능
+                    {(productImage.size / 1024).toFixed(0)}KB ·{" "}
+                    {productImage.optimizedWidth ?? 0}×{productImage.optimizedHeight ?? 0}px ·{" "}
+                    에디터에서 섹션 이미지로 사용 가능
                   </span>
                 </>
               ) : (
@@ -511,11 +574,18 @@ export default function CreateProjectPage() {
                   <ImagePlus className="size-5.5" />
                   <span className="text-[13px]">도매 원본 상품 사진 업로드</span>
                   <span className="text-[11px] font-semibold text-accent">
-                    이번 단계에서는 브라우저 preview로 먼저 연결
+                    {isOptimizingImage
+                      ? "최적화 중..."
+                      : "1200px 폭 기준 WebP/JPEG 품질 0.85로 최적화"}
                   </span>
                 </>
               )}
             </label>
+            {imageOptimizationMessage && (
+              <div className="mt-2 rounded-lg bg-accent-soft px-3 py-2 text-[11.5px] font-semibold text-accent">
+                {imageOptimizationMessage}
+              </div>
+            )}
           </section>
 
           <section className="rounded-xl border border-border bg-card p-4.5">
@@ -553,11 +623,15 @@ export default function CreateProjectPage() {
       <div className="mt-6 flex justify-end">
         <Button
           onClick={handleGenerate}
-          disabled={isGenerating}
+          disabled={isGenerating || isOptimizingImage}
           className="h-[46px] gap-2 rounded-[10px] px-6 text-[14.5px] font-bold"
         >
           <Sparkles className="size-4.5" />
-          {isGenerating ? "에이전트 실행 중..." : "에이전트로 상세페이지 시안 생성"}
+          {isGenerating
+            ? "에이전트 실행 중..."
+            : isOptimizingImage
+              ? "이미지 최적화 중..."
+              : "에이전트로 상세페이지 시안 생성"}
         </Button>
       </div>
       {generationMessage && (

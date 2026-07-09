@@ -11,7 +11,7 @@
 - [x] 경쟁 상세페이지 URL/메모 입력 — 실제 크롤링 없음, 사용자 제공 정보 기반
 - [x] 분석 에이전트 결과 표시 — mock 또는 structured output
 - [x] 기획 에이전트 결과 표시 — mock 또는 structured output
-- [x] 상품 이미지 업로드 (최적화 없이 원본 업로드만) — 브라우저 preview + 에디터 임시 전달
+- [x] 상품 이미지 업로드 — 1200px 기준 클라이언트 최적화 + 브라우저 preview + 에디터 임시 전달
 - [x] 제작 에이전트 13섹션 생성 (mock fallback 허용) — Vercel AI SDK API + mock fallback
 - [x] 검수 에이전트 결과 표시 — 과장 표현/누락/가독성 체크
 - [x] 에디터에서 기존 분석/기획/제작/검수 결과 확인 — localStorage 기반
@@ -79,9 +79,9 @@
 
 - [x] 이미지 업로드 — local preview
 - [ ] 레퍼런스 이미지 업로드 또는 메모 입력
-- [ ] 클라이언트 리사이즈
-- [ ] WebP/JPEG 압축
-- [ ] 최적화 전/후 용량 표시
+- [x] 클라이언트 리사이즈
+- [x] WebP/JPEG 압축
+- [x] 최적화 전/후 용량 표시
 - [ ] Supabase Storage 저장
 - [x] 원본/레퍼런스/개선 결과 이미지 비교 UI — 생성 화면 preview + 에디터 mock reference 카드
 
