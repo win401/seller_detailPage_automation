@@ -36,13 +36,13 @@
 
 ## 2. 인증과 대시보드
 
-- [ ] Supabase Auth 설정
-- [ ] 로그인 화면
-- [ ] 데모 계정 로그인 진입
-- [ ] 회원가입 화면
+- [x] Supabase Auth 설정 — browser client + env 연결 준비
+- [x] 로그인 화면
+- [x] 데모 계정 로그인 진입
+- [x] 회원가입 화면 — 로그인 화면 내 회원가입 버튼
 - [ ] 로그아웃
-- [ ] 프로젝트 대시보드
-- [ ] 새 프로젝트 생성 진입
+- [x] 프로젝트 대시보드 — mock data 기반
+- [x] 새 프로젝트 생성 진입
 - [ ] 상단 네비게이션 테마 토글
 
 ## 3. 상품 입력
@@ -201,7 +201,8 @@
 - [ ] 에이전트 결과 저장
 - [ ] 경쟁 상세페이지 URL/메모 저장
 - [x] 사용자 스타일 신호 저장 — localStorage `detail-page-style-signals:{projectId}`
-- [ ] RLS 정책 적용
+- [x] Supabase PostgreSQL/RLS 스키마 초안 작성 — `docs/supabase/schema.sql`
+- [ ] RLS 정책 Supabase 프로젝트에 실제 적용
 
 ## 15. Export
 

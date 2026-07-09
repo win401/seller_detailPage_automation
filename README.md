@@ -51,7 +51,36 @@
 - Storage: local state first, SQLite or Supabase later
 - Export: html-to-image or Playwright
 
+## Supabase Setup
+
+Supabase is used as the main backend for Auth, PostgreSQL, Storage, and RLS.
+
+Developer setup:
+
+1. Create a Supabase project.
+2. In Supabase Dashboard, go to Project Settings → API.
+3. Copy the Project URL and anon public key.
+4. Add these values to `.env.local`.
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=your_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+```
+
+5. Open Supabase SQL Editor.
+6. Run `docs/supabase/schema.sql`.
+7. In Authentication settings, choose whether email confirmation is required.
+8. Restart the local dev server after editing `.env.local`.
+
+Never put the Supabase service role key in frontend code or any `NEXT_PUBLIC_*` variable.
+
+Current implementation status:
+
+- Login and signup page can call Supabase Auth when env vars exist.
+- Demo account button still enters the mock dashboard without Supabase.
+- Database/RLS schema draft lives in `docs/supabase/schema.sql`.
+- Project/draft persistence is still localStorage first and will be moved table by table.
+
 ## Presentation Message
 
 > 초보 셀러에게 상세페이지 제작은 판매보다 먼저 만나는 큰 장벽입니다. 이 서비스는 상품 정보와 사진만 입력하면 AI가 판매 문구, 구성, 디자인 초안까지 자동으로 만들어주는 상세페이지 제작 자동화 툴입니다.
-
