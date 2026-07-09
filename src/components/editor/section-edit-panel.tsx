@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { ImagePlus, RefreshCw } from "lucide-react";
+import { ImagePlus, RefreshCw, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,8 @@ export function SectionEditPanel({
   references,
   onApplyImage,
   onUploadSectionImage,
+  onGenerateImage,
+  isGeneratingImage,
 }: {
   section: DetailSection;
   hidden: boolean;
@@ -34,6 +36,9 @@ export function SectionEditPanel({
   references: SectionImageAsset[];
   onApplyImage: (asset: SectionImageAsset) => void;
   onUploadSectionImage: (file: File) => void;
+  /** Gemini("Nano Banana")로 실제 이미지를 생성 (docs/MVP_PLAN.md §5). */
+  onGenerateImage: () => void;
+  isGeneratingImage: boolean;
 }) {
   const bodyFocusValueRef = useRef(section.body);
   const currentImageStyle = section.imageUrl
@@ -132,6 +137,16 @@ export function SectionEditPanel({
             상품 이미지 적용
           </Button>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-2 h-8 w-full gap-1.5 text-xs font-semibold text-accent"
+          disabled={isGeneratingImage}
+          onClick={onGenerateImage}
+        >
+          <Sparkles className="size-3.5" />
+          {isGeneratingImage ? "생성 중..." : "AI로 이미지 생성"}
+        </Button>
       </div>
 
       <div className="grid gap-2">

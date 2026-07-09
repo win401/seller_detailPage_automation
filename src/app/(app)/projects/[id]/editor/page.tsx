@@ -166,6 +166,7 @@ export default function DetailPageEditor() {
   const [redoStack, setRedoStack] = useState<Snapshot[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [loadedFromStorage, setLoadedFromStorage] = useState(false);
   const [draftLoadSource, setDraftLoadSource] = useState<"mock" | "local" | "supabase">("mock");
   const [productImage, setProductImage] = useState<UploadedImageDraft | null>(null);
@@ -878,6 +879,42 @@ export default function DetailPageEditor() {
     reader.readAsDataURL(file);
   }
 
+  async function generateSectionImage() {
+    if (isGeneratingImage) return;
+    setIsGeneratingImage(true);
+    const prompt =
+      selectedSection.imagePrompt ||
+      `${selectedSection.title} 섹션, ${selectedSection.imageRole} 연출, 커머스 상세페이지용 이미지`;
+
+    try {
+      const response = await fetch("/api/agent-workflow/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, referenceImageDataUrl: productImage?.dataUrl }),
+      });
+      const result = (await response.json()) as { dataUrl?: string; error?: string };
+
+      if (!response.ok || !result.dataUrl) {
+        toast("이미지 생성 실패", { description: result.error ?? "알 수 없는 오류가 발생했습니다." });
+        return;
+      }
+
+      applySectionImage({
+        id: `ai-generated-${selectedId}-${Date.now()}`,
+        label: "AI 생성 이미지",
+        description: prompt.slice(0, 60),
+        source: "generated",
+        dataUrl: result.dataUrl,
+        promptHint: prompt,
+        tags: ["generated", selectedSection.kind],
+      });
+    } catch {
+      toast("이미지 생성 실패", { description: "네트워크 오류로 요청을 완료하지 못했습니다." });
+    } finally {
+      setIsGeneratingImage(false);
+    }
+  }
+
   function generateRevisionDraft(request: string) {
     const nextSections = mockPlanRevision(sections, selectedSection, request);
     const now = new Date().toISOString();
@@ -1311,6 +1348,8 @@ export default function DetailPageEditor() {
               references={selectedReferences}
               onApplyImage={applySectionImage}
               onUploadSectionImage={uploadSectionImage}
+              onGenerateImage={generateSectionImage}
+              isGeneratingImage={isGeneratingImage}
             />
           </div>
         </div>
