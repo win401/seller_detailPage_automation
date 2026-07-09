@@ -1,5 +1,5 @@
 import { generateText, Output } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 
 import { mockGenerateDetailPage } from "@/lib/mock-ai";
@@ -128,14 +128,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      return fallback(input, "OPENAI_API_KEY가 없어 mock 초안을 사용했습니다.");
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return fallback(input, "ANTHROPIC_API_KEY가 없어 mock 초안을 사용했습니다.");
     }
 
-    const modelId = process.env.AI_MODEL ?? "gpt-5.4-mini";
+    const modelId = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-5";
     const { output } = await generateText({
-      model: openai(modelId),
+      model: anthropic(modelId),
       maxRetries: 0,
+      maxOutputTokens: 4000,
       temperature: 0.35,
       output: Output.object({ schema: generatedOutputSchema }),
       prompt: buildPrompt(input),
@@ -164,6 +165,6 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("generate-detail-page failed", error);
-    return fallback(input, "AI 호출 실패로 mock 초안을 사용했습니다.");
+    return fallback(input, "Claude 호출 실패로 mock 초안을 사용했습니다.");
   }
 }

@@ -59,7 +59,7 @@ export function mockGenerateDetailPage(input: GenerateDetailPageInput): Generate
   return {
     sections,
     source: "mock",
-    warnings: ["AI Gateway/API 키가 없거나 호출에 실패하면 mock 초안을 사용합니다."],
+    warnings: ["Claude API 키가 없거나 호출에 실패하면 mock 초안을 사용합니다."],
   };
 }
 
