@@ -288,6 +288,62 @@ API 비용 제어:
 - 별도의 편집 에이전트를 만들지 않습니다.
 - 사용자가 직접 수동 수정한 내용은 다음 프로젝트에서 기획자 에이전트가 참고할 스타일 신호로 저장합니다.
 
+### 12-1. 백엔드와 데이터 저장 구조
+
+MVP의 메인 백엔드 구조는 Next.js와 Supabase를 기준으로 설계합니다.
+
+#### Supabase 역할
+
+- Auth: 이메일/비밀번호 회원가입, 로그인, 세션 관리
+- PostgreSQL: 프로젝트, draft version, agent run, competitor reference, style set, user style signal 저장
+- Storage: 업로드 상품 이미지, 레퍼런스 이미지, 생성/개선 이미지 저장
+- RLS: 로그인한 사용자 기준으로 자기 데이터만 접근하게 제한
+- Dashboard: 개발 중 데이터 확인 및 수동 점검
+
+#### Next.js 역할
+
+- 화면과 사용자 플로우
+- Claude API 및 Vercel AI SDK 호출
+- Supabase client/server 연동
+- 상세페이지 export, 이미지 클라이언트 최적화, 가벼운 route handler
+- localStorage mock fallback에서 Supabase 저장으로 점진 전환
+
+#### PostgreSQL 사용 방식
+
+- 정형 데이터는 컬럼으로 저장합니다.
+- AI 출력, 13섹션 상세페이지 JSON, agent output처럼 구조가 유동적인 데이터는 `jsonb`로 저장합니다.
+- 모든 사용자 소유 테이블에는 `user_id`를 두고 `auth.uid()` 기반 RLS를 적용합니다.
+- 이미지 파일 자체는 DB에 넣지 않고 Supabase Storage path 또는 public/signed URL만 저장합니다.
+
+#### Python/FastAPI 고도화 원칙
+
+FastAPI/Python 백엔드는 지금 MVP의 메인 백엔드로 만들지 않습니다. 다만 고도화 단계에서 Python 생태계가 꼭 필요한 기능은 별도 worker/service로 추가할 수 있습니다.
+
+추가 후보:
+
+- 누끼 제거
+- OpenCV 기반 이미지 복잡도/여백 분석
+- 레퍼런스 기반 이미지 합성
+- 대량 이미지 전처리
+- 대량 상품/경쟁 데이터 분석 배치
+- 외부 수집 파이프라인
+
+역할 분리 원칙:
+
+- Supabase가 Auth, PostgreSQL, Storage의 중심입니다.
+- FastAPI는 자체 JWT, 별도 SQLite, 별도 파일 저장소를 새로 소유하지 않습니다.
+- FastAPI는 이미지 URL 또는 입력 데이터를 받아 무거운 처리를 수행하고, 결과를 Supabase Storage 또는 Next.js API 응답으로 돌려줍니다.
+- 프론트엔드는 `enhanceProductImage`, `removeBackground`, `analyzeReferenceImage` 같은 함수 경계를 통해 내부 구현을 교체할 수 있게 둡니다.
+
+예상 흐름:
+
+1. 사용자가 상품 이미지를 업로드합니다.
+2. Next.js가 이미지를 최적화한 뒤 Supabase Storage에 저장합니다.
+3. 고도화 기능이 필요하면 Next.js가 FastAPI worker에 Storage URL과 작업 옵션을 전달합니다.
+4. FastAPI가 Python/OpenCV/ML 작업을 수행합니다.
+5. 결과 이미지는 Supabase Storage에 저장하거나 Next.js로 반환합니다.
+6. Next.js가 결과 URL을 draft version 또는 section asset에 반영합니다.
+
 ### 13. 스타일 세트
 
 - 사용자별 스타일 세트 저장

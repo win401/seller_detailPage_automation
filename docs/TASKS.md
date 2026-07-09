@@ -221,6 +221,17 @@
 - [ ] ZIP 다운로드 횟수 표시
 - [ ] 최근 프로젝트 메타데이터 표시
 
+## 16-1. Python/FastAPI 고도화 후보
+
+현재 MVP의 메인 백엔드는 Next.js + Supabase로 유지합니다. FastAPI/Python은 아래처럼 Python 생태계가 꼭 필요한 기능이 생길 때만 별도 worker/service로 추가합니다.
+
+- [ ] 이미지 누끼 제거 worker 검토
+- [ ] OpenCV 기반 이미지 여백/복잡도 분석 worker 검토
+- [ ] 레퍼런스 기반 이미지 합성 worker 검토
+- [ ] 대량 상품/경쟁 데이터 분석 배치 검토
+- [ ] FastAPI가 Auth/DB/Storage를 소유하지 않도록 Supabase 중심 연동 규칙 유지
+- [ ] `enhanceProductImage`, `removeBackground`, `analyzeReferenceImage` 함수 경계 설계
+
 ## 17. 마무리
 
 - [ ] 샘플 상품 데이터

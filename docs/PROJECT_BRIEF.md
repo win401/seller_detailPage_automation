@@ -91,12 +91,36 @@ Seller Detail Page Automation
 - TypeScript
 - Tailwind CSS
 - shadcn/ui
-- Supabase
+- Supabase Auth
+- Supabase PostgreSQL
+- Supabase Storage
 - Vercel AI SDK
 - zod
 - dnd-kit
 - JSZip
 - GSAP
+
+## 백엔드 구조 원칙
+
+이 프로젝트의 메인 백엔드는 Next.js와 Supabase를 중심으로 구성합니다.
+
+- Supabase Auth: 회원가입, 로그인, 세션 관리
+- Supabase PostgreSQL: 프로젝트, draft, 에이전트 실행 결과, 사용자 스타일 신호 저장
+- Supabase Storage: 상품 이미지, 레퍼런스 이미지, 생성/개선 이미지 저장
+- Next.js Route Handler: Claude API 호출, 가벼운 서버 로직, Supabase 연동
+
+Python/FastAPI 백엔드는 현재 MVP의 필수 구조로 두지 않습니다. 다만 고도화 단계에서 Python 생태계가 꼭 필요한 기능이 생기면 별도 보조 서비스로 추가할 수 있습니다.
+
+FastAPI/Python을 추가할 수 있는 후보:
+
+- AI 누끼 제거
+- OpenCV 기반 이미지 분석
+- 레퍼런스 기반 이미지 합성
+- 대량 이미지 전처리
+- 데이터 분석/집계 배치
+- 외부 수집 파이프라인
+
+중요한 원칙은 FastAPI가 Auth, 메인 DB, 파일 저장의 중심을 다시 소유하지 않는 것입니다. 사용자, 프로젝트, draft, 에이전트 실행 결과, 이미지 파일의 기준 저장소는 Supabase로 유지합니다. FastAPI는 필요한 작업을 수행한 뒤 결과 URL이나 분석 결과를 Next.js 또는 Supabase에 돌려주는 보조 worker 역할로 둡니다.
 
 ## 성공 기준
 
