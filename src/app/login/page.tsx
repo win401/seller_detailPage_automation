@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -41,37 +42,6 @@ export default function LoginPage() {
 
     toast("로그인되었습니다");
     router.push("/dashboard");
-  }
-
-  async function signUp() {
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) {
-      toast("Supabase 환경변수가 없습니다", {
-        description: "Supabase 프로젝트 생성 후 .env.local에 공개 URL과 anon key를 넣어주세요.",
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          display_name: email.split("@")[0],
-        },
-      },
-    });
-    setIsSubmitting(false);
-
-    if (error) {
-      toast("회원가입에 실패했습니다", { description: error.message });
-      return;
-    }
-
-    toast("회원가입 요청이 완료되었습니다", {
-      description: "Supabase 이메일 확인 설정에 따라 바로 로그인되거나 확인 메일이 발송됩니다.",
-    });
   }
 
   return (
@@ -120,14 +90,12 @@ export default function LoginPage() {
         >
           {isSubmitting ? "처리 중..." : "로그인"}
         </Button>
-        <button
-          type="button"
-          onClick={signUp}
-          disabled={isSubmitting}
-          className="mt-2.5 w-full rounded-md p-1 text-[13px] font-semibold text-primary"
+        <Link
+          href="/signup"
+          className="mt-2.5 block w-full rounded-md p-1 text-center text-[13px] font-semibold text-primary"
         >
           계정이 없으신가요? 회원가입
-        </button>
+        </Link>
 
         <div className="my-5 flex items-center gap-2.5">
           <div className="h-px flex-1 bg-border" />

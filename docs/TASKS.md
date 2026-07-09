@@ -39,7 +39,7 @@
 - [x] Supabase Auth 설정 — browser client + env 연결 준비
 - [x] 로그인 화면
 - [x] 데모 계정 로그인 진입
-- [x] 회원가입 화면 — 로그인 화면 내 회원가입 버튼
+- [x] 회원가입 전용 페이지 — `/signup`, display name/email/password 입력 후 Supabase Auth 가입
 - [ ] 로그아웃
 - [x] 프로젝트 대시보드 — Supabase `detail_page_projects` 목록 우선, 미로그인/실패 시 mock fallback
 - [x] 새 프로젝트 생성 진입
