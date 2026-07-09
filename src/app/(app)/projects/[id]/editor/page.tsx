@@ -996,6 +996,27 @@ export default function DetailPageEditor() {
     };
   }, []);
 
+  // Ctrl/Cmd + mouse wheel canvas zoom (docs/TASKS.md §7, Figma-style). React's
+  // onWheel listener is attached passively by default, so calling
+  // preventDefault() there would not actually stop the browser's native
+  // page-zoom — a manually attached, non-passive native listener is required.
+  useEffect(() => {
+    const container = canvasScrollRef.current;
+    if (!container) return;
+
+    function onWheel(e: WheelEvent) {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      setCanvasZoom((z) => {
+        const next = z - e.deltaY * 0.002;
+        return Math.min(CANVAS_ZOOM_MAX, Math.max(CANVAS_ZOOM_MIN, Math.round(next * 100) / 100));
+      });
+    }
+
+    container.addEventListener("wheel", onWheel, { passive: false });
+    return () => container.removeEventListener("wheel", onWheel);
+  }, []);
+
   async function handleSave(options?: { silent?: boolean }) {
     if (isSaving) return { saved: false, reason: "이미 저장 중입니다." };
 
@@ -1252,7 +1273,7 @@ export default function DetailPageEditor() {
             onMouseUp={stopPanning}
             onMouseLeave={stopPanning}
             className={cn(
-              "flex flex-1 justify-center overflow-auto px-4.5 py-6.5",
+              "flex flex-1 justify-center overflow-auto px-[220px] py-[160px]",
               isSpaceDown && "cursor-grab",
               isPanning && "cursor-grabbing select-none"
             )}
