@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { gsap } from "gsap";
 import {
   ArrowLeft,
   Download,
@@ -151,6 +152,9 @@ export default function DetailPageEditor() {
   const styleSignalsKey = `detail-page-style-signals:${projectId}`;
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const canvasScrollRef = useRef<HTMLDivElement>(null);
+  const aiPanelRef = useRef<HTMLDivElement>(null);
+  const aiFabRef = useRef<HTMLButtonElement>(null);
+  const exportSuccessRef = useRef<HTMLDivElement>(null);
   const panStateRef = useRef<{ startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(
     null
   );
@@ -169,6 +173,7 @@ export default function DetailPageEditor() {
   const [isExporting, setIsExporting] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [isRevising, setIsRevising] = useState(false);
+  const [exportSuccessKey, setExportSuccessKey] = useState(0);
   const [loadedFromStorage, setLoadedFromStorage] = useState(false);
   const [draftLoadSource, setDraftLoadSource] = useState<"mock" | "local" | "supabase">("mock");
   const [productImage, setProductImage] = useState<UploadedImageDraft | null>(null);
@@ -178,6 +183,45 @@ export default function DetailPageEditor() {
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [isSpaceDown, setIsSpaceDown] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    if (aiOpen && aiPanelRef.current) {
+      gsap.fromTo(
+        aiPanelRef.current,
+        { autoAlpha: 0, y: 18, scale: 0.96, transformOrigin: "bottom right" },
+        { autoAlpha: 1, y: 0, scale: 1, duration: 0.36, ease: "back.out(1.45)" }
+      );
+      return;
+    }
+
+    if (!aiOpen && aiFabRef.current) {
+      gsap.fromTo(
+        aiFabRef.current,
+        { autoAlpha: 0, y: 10, scale: 0.82 },
+        { autoAlpha: 1, y: 0, scale: 1, duration: 0.28, ease: "back.out(1.8)" }
+      );
+    }
+  }, [aiOpen]);
+
+  useEffect(() => {
+    const node = exportSuccessRef.current;
+    if (!node || exportSuccessKey === 0 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const timeline = gsap.timeline();
+    timeline
+      .fromTo(
+        node,
+        { autoAlpha: 0, y: 12, scale: 0.92 },
+        { autoAlpha: 1, y: 0, scale: 1, duration: 0.3, ease: "back.out(1.6)" }
+      )
+      .to(node, { autoAlpha: 0, y: -8, duration: 0.28, delay: 1.15, ease: "power2.in" });
+
+    return () => {
+      timeline.kill();
+    };
+  }, [exportSuccessKey]);
 
   // Load a locally saved draft, if one exists (docs/MVP_PLAN.md Should Have:
   // localStorage fallback). Draft persistence is still local; style signals sync to Supabase below.
@@ -1215,6 +1259,7 @@ export default function DetailPageEditor() {
       toast("ZIP 다운로드가 완료되었습니다", {
         description: `${exportWidth}px 폭 · ${sliceCount}개 PNG`,
       });
+      setExportSuccessKey((key) => key + 1);
     } finally {
       setIsExporting(false);
     }
@@ -1414,7 +1459,10 @@ export default function DetailPageEditor() {
       </div>
 
       {aiOpen ? (
-          <div className="fixed right-7 bottom-7 z-40 flex max-h-[70vh] w-[340px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-elevated)]">
+          <div
+            ref={aiPanelRef}
+            className="fixed right-7 bottom-7 z-40 flex max-h-[70vh] w-[340px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-elevated)]"
+          >
             <div className="flex items-center justify-between border-b border-border px-4 py-3.5 text-accent">
               <div className="flex items-center gap-2">
                 <Sparkles className="size-4" />
@@ -1439,12 +1487,21 @@ export default function DetailPageEditor() {
           </div>
         ) : (
           <button
+            ref={aiFabRef}
             onClick={() => setAiOpen(true)}
             className="fixed right-7 bottom-7 z-40 flex size-[54px] items-center justify-center rounded-full bg-accent text-white shadow-[0_10px_24px_rgba(204,95,51,0.4)] motion-safe:animate-[aiPulse_2.4s_ease-in-out_infinite]"
           >
             <Sparkles className="size-5.5" />
           </button>
         )}
+      <div
+        key={exportSuccessKey}
+        ref={exportSuccessRef}
+        className="pointer-events-none fixed right-7 top-[78px] z-50 flex items-center gap-2 rounded-full border border-primary/30 bg-card px-3.5 py-2 text-[12px] font-bold text-primary opacity-0 shadow-[var(--shadow-elevated)]"
+      >
+        <Download className="size-3.5" />
+        ZIP 생성 완료
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { gsap } from "gsap";
 
 import { cn } from "@/lib/utils";
 import { DetailSection, PLATFORM_EXPORT_WIDTH, Platform } from "@/lib/types";
@@ -31,8 +32,28 @@ export function SectionCanvas({
    * caller decide whether anything actually changed. */
   onCommitText: (sectionId: string, field: EditableField, before: string, after: string) => void;
 }) {
+  const canvasRef = useRef<HTMLDivElement>(null);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [draftValue, setDraftValue] = useState("");
+
+  useEffect(() => {
+    if (!flashId || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const target = canvasRef.current?.querySelector<HTMLElement>(
+      `[data-section-id="${CSS.escape(flashId)}"]`
+    );
+    if (!target) return;
+
+    gsap.fromTo(
+      target,
+      { y: -4, boxShadow: "0 0 0 0 rgba(204, 95, 51, 0.45)" },
+      {
+        y: 0,
+        boxShadow: "0 0 0 12px rgba(204, 95, 51, 0)",
+        duration: 0.72,
+        ease: "power3.out",
+      }
+    );
+  }, [flashId]);
 
   function startEdit(sec: DetailSection, field: EditableField) {
     onSelect(sec.id);
@@ -52,7 +73,10 @@ export function SectionCanvas({
   }
 
   return (
-    <div className="w-[360px] max-w-full shrink-0 overflow-hidden rounded-xl border border-canvas-border bg-canvas-bg shadow-[0_10px_28px_rgba(23,32,28,0.14)]">
+    <div
+      ref={canvasRef}
+      className="w-[360px] max-w-full shrink-0 overflow-hidden rounded-xl border border-canvas-border bg-canvas-bg shadow-[0_10px_28px_rgba(23,32,28,0.14)]"
+    >
       <div className="flex h-[34px] items-center justify-between border-b border-canvas-border bg-canvas-soft px-3.5 text-[11px] font-bold text-canvas-dark">
         <span>상세페이지 캔버스</span>
         <span className="font-semibold text-canvas-muted">
@@ -69,6 +93,7 @@ export function SectionCanvas({
           return (
             <div
               key={sec.id}
+              data-section-id={sec.id}
               onClick={() => onSelect(sec.id)}
               className={cn(
                 "cursor-pointer outline-offset-[-2px] transition-colors",

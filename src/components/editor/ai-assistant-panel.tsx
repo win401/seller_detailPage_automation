@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+import { gsap } from "gsap";
+
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { DetailSection } from "@/lib/types";
@@ -29,11 +32,36 @@ export function AiAssistantPanel({
   onDiscard: () => void;
   isRevising: boolean;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const pendingRef = useRef<HTMLDivElement>(null);
   const pendingSection = pendingSections?.find((item) => item.id === section.id);
 
+  useEffect(() => {
+    const root = panelRef.current;
+    if (!root || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const controls = root.querySelectorAll("[data-ai-control]");
+    gsap.fromTo(
+      controls,
+      { autoAlpha: 0, y: 8 },
+      { autoAlpha: 1, y: 0, duration: 0.36, ease: "power3.out", stagger: 0.045 }
+    );
+  }, []);
+
+  useEffect(() => {
+    const pending = pendingRef.current;
+    if (!pending || !pendingSection || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    gsap.fromTo(
+      pending,
+      { autoAlpha: 0, y: 14, scale: 0.98 },
+      { autoAlpha: 1, y: 0, scale: 1, duration: 0.42, ease: "back.out(1.35)" }
+    );
+  }, [pendingSection?.body, pendingSection]);
+
   return (
-    <div className="flex flex-col gap-3">
-      <div>
+    <div ref={panelRef} className="flex flex-col gap-3">
+      <div data-ai-control>
         <div className="text-[11.5px] text-muted-foreground">기획자 에이전트</div>
         <div className="text-[13px] font-bold">{section.title} 중심으로 수정 요청</div>
         <p className="mt-1 text-[11.5px] leading-5 text-muted-foreground">
@@ -41,7 +69,7 @@ export function AiAssistantPanel({
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div data-ai-control className="flex flex-wrap gap-1.5">
         {REVISION_EXAMPLES.map((example) => (
           <button
             key={example}
@@ -55,12 +83,14 @@ export function AiAssistantPanel({
       </div>
 
       <Textarea
+        data-ai-control
         rows={3}
         value={request}
         onChange={(event) => onChangeRequest(event.target.value)}
         placeholder="예: 첫 화면은 더 감성적으로, FAQ는 짧게, 전체적으로 공구 느낌은 줄여줘"
       />
       <Button
+        data-ai-control
         onClick={() => onGenerate(request)}
         className="h-[36px] text-[12.5px] font-bold"
         disabled={!request.trim() || isRevising}
@@ -69,7 +99,7 @@ export function AiAssistantPanel({
       </Button>
 
       {pendingSection ? (
-        <div className="flex flex-col gap-2">
+        <div ref={pendingRef} className="flex flex-col gap-2">
           <div className="rounded-lg border border-border bg-card-soft p-2.5">
             <div className="mb-0.5 text-[10.5px] font-bold text-muted-foreground">적용 전</div>
             <p className="text-xs leading-6 text-muted-foreground">{section.body}</p>
@@ -92,7 +122,7 @@ export function AiAssistantPanel({
           </div>
         </div>
       ) : (
-        <p className="text-[11.5px] leading-6 text-muted-foreground">
+        <p data-ai-control className="text-[11.5px] leading-6 text-muted-foreground">
           아직 생성된 수정 시안이 없습니다. 요청을 입력한 뒤 재기획 시안을 만들어보세요.
         </p>
       )}

@@ -160,12 +160,13 @@
 
 ## 10. GSAP 인터랙션 (2차)
 
-- [ ] GSAP/@gsap/react 설치
-- [ ] floating AI 도우미 버튼
-- [ ] AI 도우미 버튼에서 패널로 확장되는 모션
-- [ ] AI 결과 적용 시 섹션 하이라이트 모션
-- [ ] export 완료 success motion
-- [ ] prefers-reduced-motion 대응
+- [x] GSAP/@gsap/react 설치
+- [x] floating AI 도우미 버튼 — 기존 pulse 유지 + GSAP entrance
+- [x] AI 도우미 버튼에서 패널로 확장되는 모션 — `aiPanelRef`/`aiFabRef`
+- [x] AI 결과 생성 시 후보 카드 reveal 모션 — `AiAssistantPanel`
+- [x] AI 결과 적용 시 섹션 하이라이트 모션 — `SectionCanvas` GSAP flash
+- [x] export 완료 success motion — ZIP 생성 완료 badge
+- [x] prefers-reduced-motion 대응
 
 ## 11. 블록형 편집기
 
