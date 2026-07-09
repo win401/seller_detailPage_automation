@@ -55,6 +55,27 @@ interface LocalGeneration {
   warnings?: unknown[];
 }
 
+class SupabaseSaveError extends Error {
+  constructor(
+    public readonly step: string,
+    cause: unknown
+  ) {
+    super(`${step}: ${getErrorMessage(cause)}`);
+    this.name = "SupabaseSaveError";
+  }
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null) {
+    const maybeMessage = "message" in error ? error.message : undefined;
+    const maybeDetails = "details" in error ? error.details : undefined;
+    const maybeHint = "hint" in error ? error.hint : undefined;
+    return [maybeMessage, maybeDetails, maybeHint].filter(Boolean).join(" / ") || "알 수 없는 오류";
+  }
+  return String(error || "알 수 없는 오류");
+}
+
 const EXPORT_SLICE_HEIGHT = 2000;
 
 function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -581,7 +602,12 @@ export default function DetailPageEditor() {
         .select("id")
         .single();
 
-      if (projectError || !project?.id) throw projectError ?? new Error("Project create failed");
+      if (projectError || !project?.id) {
+        throw new SupabaseSaveError(
+          "프로젝트 생성 실패",
+          projectError ?? new Error("Project create failed")
+        );
+      }
       remoteProjectId = project.id as string;
 
       if (agentWorkflow?.runs.length) {
@@ -599,17 +625,23 @@ export default function DetailPageEditor() {
             created_at: run.createdAt,
           }))
         );
-        if (runsError) throw runsError;
+        if (runsError) {
+          console.warn("Agent run save skipped:", runsError);
+        }
       }
     }
 
-    const { data: latestDraft } = await supabase
+    const { data: latestDraft, error: latestDraftError } = await supabase
       .from("draft_versions")
       .select("version_no")
       .eq("project_id", remoteProjectId)
       .order("version_no", { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    if (latestDraftError) {
+      console.warn("Latest draft lookup skipped:", latestDraftError);
+    }
 
     const nextVersionNo =
       typeof latestDraft?.version_no === "number" ? latestDraft.version_no + 1 : 1;
@@ -633,7 +665,12 @@ export default function DetailPageEditor() {
       .select("id")
       .single();
 
-    if (draftError || !draft?.id) throw draftError ?? new Error("Draft save failed");
+    if (draftError || !draft?.id) {
+      throw new SupabaseSaveError(
+        "초안 저장 실패",
+        draftError ?? new Error("Draft save failed")
+      );
+    }
 
     const { error: updateError } = await supabase
       .from("detail_page_projects")
@@ -646,7 +683,9 @@ export default function DetailPageEditor() {
       })
       .eq("id", remoteProjectId);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.warn("Current draft pointer update skipped:", updateError);
+    }
 
     if (remoteProjectId !== projectId) {
       copyLocalDraftKeys(remoteProjectId);
@@ -878,13 +917,14 @@ export default function DetailPageEditor() {
       }
 
       return result;
-    } catch {
+    } catch (error) {
+      console.error("Supabase draft save failed:", error);
       if (!options?.silent) {
         toast("임시 저장되었습니다", {
-          description: "Supabase 저장 실패로 이 브라우저에 저장됨",
+          description: `${getErrorMessage(error)} · 이 브라우저에 저장됨`,
         });
       }
-      return { saved: false, reason: "Supabase 저장 실패" };
+      return { saved: false, reason: getErrorMessage(error) };
     } finally {
       setIsSaving(false);
     }
