@@ -40,7 +40,9 @@
 - [x] 로그인 화면
 - [x] 데모 계정 로그인 진입
 - [x] 회원가입 전용 페이지 — `/signup`, display name/email/password 입력 후 Supabase Auth 가입
-- [ ] 로그아웃
+- [x] 로그아웃 — 상단 계정 메뉴에서 Supabase signOut 후 `/login` 이동
+- [x] 상단 계정 메뉴 — 아바타 클릭 시 설정/로그아웃 표시
+- [x] 계정 설정 페이지 — `/settings`, 계정/인증/SMTP 예정 정보 표시
 - [x] 프로젝트 대시보드 — Supabase `detail_page_projects` 목록 우선, 미로그인/실패 시 mock fallback
 - [x] 새 프로젝트 생성 진입
 - [ ] 상단 네비게이션 테마 토글
