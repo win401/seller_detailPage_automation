@@ -22,6 +22,7 @@ import { AiAssistantPanel } from "@/components/editor/ai-assistant-panel";
 import { AgentWorkflowPanel } from "@/components/editor/agent-workflow-panel";
 import { getMockReferencesForSection, mockProjectSummaries, mockSections } from "@/lib/mock-data";
 import { mockPlanRevision } from "@/lib/mock-ai";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   AgentWorkflowDraft,
   DetailSection,
@@ -58,6 +59,12 @@ function safeFileName(value: string) {
     .slice(0, 60);
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
 export default function DetailPageEditor() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
@@ -83,9 +90,10 @@ export default function DetailPageEditor() {
   const [productImage, setProductImage] = useState<UploadedImageDraft | null>(null);
   const [agentWorkflow, setAgentWorkflow] = useState<AgentWorkflowDraft | null>(null);
   const [styleSignals, setStyleSignals] = useState<UserStyleSignalDraft[]>([]);
+  const [styleSignalSync, setStyleSignalSync] = useState<"local" | "remote" | "idle">("idle");
 
   // Load a locally saved draft, if one exists (docs/MVP_PLAN.md Should Have:
-  // localStorage fallback). Supabase persistence is a later phase.
+  // localStorage fallback). Draft persistence is still local; style signals sync to Supabase below.
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(storageKey);
@@ -140,6 +148,56 @@ export default function DetailPageEditor() {
     }
   }, [styleSignalsKey]);
 
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    const client = supabase;
+
+    let cancelled = false;
+
+    async function loadRemoteStyleSignals() {
+      const {
+        data: { user },
+      } = await client.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await client
+        .from("user_style_signals")
+        .select("id, project_id, section_id, section_title, kind, before, after, summary, created_at")
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      if (cancelled || error || !data?.length) return;
+
+      const remoteSignals: UserStyleSignalDraft[] = data.map((signal) => ({
+        id: signal.id,
+        projectId: signal.project_id ?? projectId,
+        sectionId: signal.section_id ?? undefined,
+        sectionTitle: signal.section_title ?? undefined,
+        kind: signal.kind as UserStyleSignalKind,
+        before: signal.before ?? undefined,
+        after: signal.after ?? undefined,
+        summary: signal.summary,
+        createdAt: signal.created_at,
+      }));
+
+      setStyleSignals((prev) => {
+        const byId = new Map<string, UserStyleSignalDraft>();
+        [...remoteSignals, ...prev].forEach((signal) => byId.set(signal.id, signal));
+        const next = Array.from(byId.values()).slice(0, 30);
+        window.localStorage.setItem(styleSignalsKey, JSON.stringify(next));
+        return next;
+      });
+      setStyleSignalSync("remote");
+    }
+
+    void loadRemoteStyleSignals();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, styleSignalsKey]);
+
   const selectedSection = sections.find((s) => s.id === selectedId) ?? sections[0];
 
   const pushHistory = useCallback(() => {
@@ -172,6 +230,45 @@ export default function DetailPageEditor() {
     }
   }
 
+  async function persistStyleSignal(signal: UserStyleSignalDraft) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setStyleSignalSync("local");
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setStyleSignalSync("local");
+      return;
+    }
+
+    const { error } = await supabase.from("user_style_signals").insert({
+      user_id: user.id,
+      project_id: isUuid(signal.projectId) ? signal.projectId : null,
+      section_id: signal.sectionId,
+      section_title: signal.sectionTitle,
+      kind: signal.kind,
+      before: signal.before,
+      after: signal.after,
+      summary: signal.summary,
+      created_at: signal.createdAt,
+    });
+
+    if (error) {
+      setStyleSignalSync("local");
+      toast("스타일 신호는 로컬에 저장되었습니다", {
+        description: "Supabase 저장은 스키마 적용 또는 로그인 상태 확인 후 다시 연결됩니다.",
+      });
+      return;
+    }
+
+    setStyleSignalSync("remote");
+  }
+
   function recordStyleSignal({
     kind,
     section = selectedSection,
@@ -202,6 +299,8 @@ export default function DetailPageEditor() {
       window.localStorage.setItem(styleSignalsKey, JSON.stringify(next));
       return next;
     });
+
+    void persistStyleSignal(nextSignal);
   }
 
   function updateSelectedBody(value: string) {
@@ -563,6 +662,13 @@ export default function DetailPageEditor() {
                 <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
                   {styleSignals.length}
                 </span>
+              </div>
+              <div className="mt-1 text-[10.5px] font-bold text-muted-foreground">
+                {styleSignalSync === "remote"
+                  ? "Supabase 동기화됨"
+                  : styleSignalSync === "local"
+                    ? "로컬 저장 중"
+                    : "저장 대기"}
               </div>
               <p className="mt-1 line-clamp-2 text-[11.5px] leading-5 text-muted-foreground">
                 {styleSignals[0]?.summary ?? "수동 수정이 생기면 사용자 선호 신호로 저장됩니다."}

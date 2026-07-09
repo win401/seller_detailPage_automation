@@ -201,6 +201,7 @@
 - [ ] 에이전트 결과 저장
 - [ ] 경쟁 상세페이지 URL/메모 저장
 - [x] 사용자 스타일 신호 저장 — localStorage `detail-page-style-signals:{projectId}`
+- [x] 사용자 스타일 신호 Supabase 저장 연결 — 로그인 세션이 있으면 `user_style_signals` insert, 실패 시 localStorage fallback
 - [x] Supabase PostgreSQL/RLS 스키마 초안 작성 — `docs/supabase/schema.sql`
 - [ ] RLS 정책 Supabase 프로젝트에 실제 적용
 
