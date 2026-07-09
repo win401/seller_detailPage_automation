@@ -182,3 +182,19 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- RLS policies alone are not enough: Postgres also requires table-level
+-- GRANTs for a role before RLS is even evaluated. Without these, every
+-- query from the `authenticated` role fails with
+-- "permission denied for table ..." even though the RLS policy would
+-- otherwise allow it.
+grant usage on schema public to authenticated;
+
+grant select, insert, update, delete on public.profiles to authenticated;
+grant select, insert, update, delete on public.style_sets to authenticated;
+grant select, insert, update, delete on public.detail_page_projects to authenticated;
+grant select, insert, update, delete on public.competitor_references to authenticated;
+grant select, insert, update, delete on public.agent_runs to authenticated;
+grant select, insert, update, delete on public.draft_versions to authenticated;
+grant select, insert, update, delete on public.user_style_signals to authenticated;
+grant select, insert, update, delete on public.usage_events to authenticated;
