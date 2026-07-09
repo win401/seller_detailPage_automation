@@ -108,6 +108,7 @@ export default function DashboardPage() {
         </div>
         <Button
           render={<Link href="/projects/new" />}
+          nativeButton={false}
           className="h-[38px] gap-1.5 px-4 text-[13.5px] font-bold"
         >
           <Plus className="size-4" />

@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -93,12 +94,14 @@ export function NavBar() {
             </Avatar>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>
-              <span className="block text-xs font-bold text-foreground">계정</span>
-              <span className="mt-0.5 block truncate text-[11px] font-medium text-muted-foreground">
-                {email ?? "데모 사용자"}
-              </span>
-            </DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>
+                <span className="block text-xs font-bold text-foreground">계정</span>
+                <span className="mt-0.5 block truncate text-[11px] font-medium text-muted-foreground">
+                  {email ?? "데모 사용자"}
+                </span>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => router.push("/settings")}
