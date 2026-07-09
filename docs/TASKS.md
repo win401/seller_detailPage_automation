@@ -106,20 +106,20 @@
 - [x] mock fallback 작성
 - [x] 과장 표현 방지 프롬프트 적용
 - [x] 추가 제작 요청 additionalInstruction 반영
-- [ ] 분석 에이전트 API route 작성
-- [ ] 기획 에이전트 API route 작성
-- [ ] 검수 에이전트 API route 작성
-- [ ] 에이전트 단계별 zod schema 작성
-- [ ] 분석 결과를 기획 입력으로 연결
-- [ ] 기획 결과를 제작 입력으로 연결
-- [ ] 제작 결과를 검수 입력으로 연결
-- [ ] 누락 섹션 검증
-- [ ] 기획자 에이전트 수정 요청 structured output schema 작성
-- [ ] 총괄 에이전트 tool 정의 (`runAnalysisAgent` / `runPlanningAgent` / `runProductionAgent` / `runReviewAgent`)
-- [ ] 총괄 에이전트 tool-calling route 작성
-- [ ] 총괄 에이전트 실행 로그 저장 (`agent_type = "orchestrator"`, 하위 run `parent_run_id` 연결)
-- [ ] 총괄 에이전트 비용 제한 (최대 tool 호출 횟수, 동일 tool 연속 재시도 제한)
-- [ ] API 키 없음/실패 시 총괄 에이전트 호출 생략하고 기존 mock 파이프라인 폴백
+- [x] 분석 에이전트 API route 작성 — `src/lib/agents/analysis.ts` (`/api/agent-workflow/generate`를 통해 호출)
+- [x] 기획 에이전트 API route 작성 — `src/lib/agents/planning.ts`
+- [x] 검수 에이전트 API route 작성 — `src/lib/agents/review.ts`
+- [x] 에이전트 단계별 zod schema 작성 — `src/lib/agents/schemas.ts`
+- [x] 분석 결과를 기획 입력으로 연결 — `runPlanningAgent(input, analysisOutput)`
+- [x] 기획 결과를 제작 입력으로 연결 — `runProductionAgent(input, planningOutput)`
+- [x] 제작 결과를 검수 입력으로 연결 — `runReviewAgent(input, productionOutput, planningOutput)`
+- [x] 누락 섹션 검증 — `productionOutputSchema`의 `sections.length(13)` zod 검증 실패 시 mock 폴백
+- [ ] 기획자 에이전트 수정 요청 structured output schema 작성 — 재기획 루프는 다음 패스로 보류
+- [x] 총괄 에이전트 tool 정의 (`runAnalysisAgent` / `runPlanningAgent` / `runProductionAgent` / `runReviewAgent`) — `src/lib/agents/orchestrator.ts`
+- [x] 총괄 에이전트 tool-calling route 작성 — `src/app/api/agent-workflow/generate/route.ts`
+- [x] 총괄 에이전트 실행 로그 저장 (`agent_type = "orchestrator"`, 하위 run `parent_run_id` 연결) — Supabase 실제 insert로 검증 완료
+- [x] 총괄 에이전트 비용 제한 (최대 tool 호출 횟수, 동일 tool 연속 재시도 제한) — `stepCountIs(8)` + 연속 동일 tool 3회 감지 가드
+- [x] API 키 없음/실패 시 총괄 에이전트 호출 생략하고 기존 mock 파이프라인 폴백 — 실제 Anthropic 크레딧 부족 오류로 폴백 동작까지 확인됨
 
 ## 7. 상세페이지 캔버스
 
@@ -216,7 +216,7 @@
 - [x] 사용자 스타일 신호 저장 — localStorage `detail-page-style-signals:{projectId}`
 - [x] 사용자 스타일 신호 Supabase 저장 연결 — 로그인 세션이 있으면 `user_style_signals` insert, 실패 시 localStorage fallback
 - [x] Supabase PostgreSQL/RLS 스키마 초안 작성 — `docs/supabase/schema.sql`
-- [ ] RLS 정책 Supabase 프로젝트에 실제 적용 (`agent_runs.parent_run_id` 컬럼 포함)
+- [x] RLS 정책 Supabase 프로젝트에 실제 적용 — `agent_runs.parent_run_id` 컬럼 + `authenticated` GRANT 포함, MCP로 마이그레이션 적용 완료
 
 ## 15. Export
 

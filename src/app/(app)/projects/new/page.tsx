@@ -210,20 +210,28 @@ export default function CreateProjectPage() {
       if (error) throw error;
     }
 
-    const { error: agentRunsError } = await supabase.from("agent_runs").insert(
-      workflow.runs.map((run) => ({
-        project_id: projectId,
-        user_id: user.id,
-        agent_type: run.agentType,
-        status: run.status,
-        title: run.title,
-        summary: run.summary,
-        input,
-        output: run.output,
-        warnings: run.warnings,
-        created_at: run.createdAt,
-      }))
-    );
+    // Orchestrator row must come first: the other rows self-reference it via
+    // parent_run_id within this same multi-row insert, so Postgres needs to
+    // see the parent row before the children that point at it.
+    const agentRunRows = [
+      ...(workflow.orchestratorRun ? [workflow.orchestratorRun] : []),
+      ...workflow.runs,
+    ].map((run) => ({
+      id: run.id,
+      parent_run_id: run.parentRunId ?? null,
+      project_id: projectId,
+      user_id: user.id,
+      agent_type: run.agentType,
+      status: run.status,
+      title: run.title,
+      summary: run.summary,
+      input,
+      output: run.output,
+      warnings: run.warnings,
+      created_at: run.createdAt,
+    }));
+
+    const { error: agentRunsError } = await supabase.from("agent_runs").insert(agentRunRows);
     if (agentRunsError) throw agentRunsError;
 
     const { data: draft, error: draftError } = await supabase
@@ -349,17 +357,21 @@ export default function CreateProjectPage() {
     const normalizedCompetitorReferences = competitorReferences.filter(
       (reference) => reference.url.trim() || reference.memo.trim()
     );
-    const workflow = mockBuildAgentWorkflow(input, normalizedCompetitorReferences);
-    setAgentWorkflow(workflow);
+    const optimisticWorkflow = mockBuildAgentWorkflow(input, normalizedCompetitorReferences);
+    setAgentWorkflow(optimisticWorkflow);
 
     try {
-      const response = await fetch("/api/generate-detail-page", {
+      const response = await fetch("/api/agent-workflow/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
+        body: JSON.stringify({ input, competitorReferences: normalizedCompetitorReferences }),
       });
       if (!response.ok) throw new Error("AI generation request failed");
-      const output = (await response.json()) as GenerateDetailPageOutput;
+      const { workflow, output } = (await response.json()) as {
+        workflow: AgentWorkflowDraft;
+        output: GenerateDetailPageOutput;
+      };
+      setAgentWorkflow(workflow);
       let projectId = "p1";
       try {
         projectId =
@@ -393,7 +405,7 @@ export default function CreateProjectPage() {
           (await persistGeneratedProject({
             input,
             competitorReferences: normalizedCompetitorReferences,
-            workflow,
+            workflow: optimisticWorkflow,
             output,
           })) ?? "p1";
       } catch {
@@ -403,7 +415,7 @@ export default function CreateProjectPage() {
         projectId,
         input,
         competitorReferences: normalizedCompetitorReferences,
-        workflow,
+        workflow: optimisticWorkflow,
         output,
       });
       setGenerationMessage("AI 호출 실패로 mock 에이전트 시안을 사용합니다.");

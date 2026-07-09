@@ -7,6 +7,7 @@ import { AgentRunDraft, AgentRunStatus, AgentWorkflowDraft, AgentType } from "@/
 import { cn } from "@/lib/utils";
 
 const AGENT_LABELS: Record<AgentType, string> = {
+  orchestrator: "총괄",
   analysis: "분석",
   planning: "기획",
   production: "제작",

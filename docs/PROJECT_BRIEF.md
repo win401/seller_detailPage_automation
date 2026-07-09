@@ -107,7 +107,7 @@ Seller Detail Page Automation
 - Supabase Auth: 회원가입, 로그인, 세션 관리
 - Supabase PostgreSQL: 프로젝트, draft, 에이전트 실행 결과, 사용자 스타일 신호 저장
 - Supabase Storage: 상품 이미지, 레퍼런스 이미지, 생성/개선 이미지 저장
-- Next.js Route Handler: Claude API 호출, 가벼운 서버 로직, Supabase 연동
+- Next.js Route Handler: OpenAI API 호출, 가벼운 서버 로직, Supabase 연동
 
 Python/FastAPI 백엔드는 현재 MVP의 필수 구조로 두지 않습니다. 다만 고도화 단계에서 Python 생태계가 꼭 필요한 기능이 생기면 별도 보조 서비스로 추가할 수 있습니다.
 

@@ -316,7 +316,7 @@ MVP의 메인 백엔드 구조는 Next.js와 Supabase를 기준으로 설계합�
 #### Next.js 역할
 
 - 화면과 사용자 플로우
-- Claude API 및 Vercel AI SDK 호출
+- OpenAI API 및 Vercel AI SDK 호출
 - Supabase client/server 연동
 - 상세페이지 export, 이미지 클라이언트 최적화, 가벼운 route handler
 - localStorage mock fallback에서 Supabase 저장으로 점진 전환

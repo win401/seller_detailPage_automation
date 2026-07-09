@@ -246,8 +246,11 @@ export interface AgentRunDraft {
 
 export interface AgentWorkflowDraft {
   competitorReferences: CompetitorReferenceInput[];
+  /** Always [analysis, planning, production, review] in this order — UI relies on positional access. */
   runs: AgentRunDraft[];
   revisionEnabled: boolean;
+  /** The supervising orchestrator's own run, if the real (non-mock) pipeline ran. */
+  orchestratorRun?: AgentRunDraft;
 }
 
 // ---------- user style signal draft contract (localStorage now, Supabase later) ----------
