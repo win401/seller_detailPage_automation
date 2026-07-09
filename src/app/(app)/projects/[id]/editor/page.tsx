@@ -382,6 +382,10 @@ export default function DetailPageEditor() {
     return () => {
       cancelled = true;
     };
+    // One-time hydration on mount (see comment above) — intentionally excludes
+    // `selectedId` from deps. Including it caused this effect to re-fetch and
+    // reset the selection to the first section on every section click.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     agentWorkflowKey,
     fallbackProjectSummary.category,
@@ -389,7 +393,6 @@ export default function DetailPageEditor() {
     fallbackProjectSummary.platform,
     generationKey,
     projectId,
-    selectedId,
     storageKey,
   ]);
 
