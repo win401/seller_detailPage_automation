@@ -20,7 +20,7 @@ import { SectionList } from "@/components/editor/section-list";
 import { SectionEditPanel } from "@/components/editor/section-edit-panel";
 import { AiAssistantPanel } from "@/components/editor/ai-assistant-panel";
 import { AgentWorkflowPanel } from "@/components/editor/agent-workflow-panel";
-import { getMockReferencesForSection, mockProjectSummaries, mockSections } from "@/lib/mock-data";
+import { getMockReferencesForSection, mockSections } from "@/lib/mock-data";
 import { mockPlanRevision } from "@/lib/mock-ai";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
@@ -94,8 +94,16 @@ function isStringArray(value: unknown): value is string[] {
 export default function DetailPageEditor() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
-  const fallbackProjectSummary =
-    mockProjectSummaries.find((p) => p.id === projectId) ?? mockProjectSummaries[0];
+  const fallbackProjectSummary = useMemo<ProjectSummary>(
+    () => ({
+      id: projectId,
+      name: "상세페이지 프로젝트",
+      category: "카테고리 미설정",
+      platform: "smartstore",
+      updatedAtLabel: "-",
+    }),
+    [projectId]
+  );
   const storageKey = `detail-page-project:${projectId}`;
   const draftAssetsKey = `detail-page-draft-assets:${projectId}`;
   const agentWorkflowKey = `detail-page-agent-workflow:${projectId}`;

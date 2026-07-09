@@ -1,9 +1,7 @@
 import {
-  DetailPageProject,
   DetailSection,
   EmphasisOption,
   ProductInput,
-  ProjectSummary,
   SECTION_KIND_LABELS,
   SectionImageAsset,
   SectionKind,
@@ -161,30 +159,6 @@ export const mockSections: DetailSection[] = sectionSeeds.map((seed, i) => ({
   imageRole: seed.imageRole,
   alternatives: seed.alternatives ?? [],
 }));
-
-export const mockProject: DetailPageProject = {
-  id: "p1",
-  userId: "demo-user",
-  title: mockProductInput.productName,
-  category: mockProductInput.category,
-  productInput: mockProductInput,
-  selectedPlatform: "smartstore",
-  selectedMood: "minimal",
-  selectedTone: "practical",
-  sections: Object.fromEntries(mockSections.map((s) => [s.id, s])),
-  sectionOrder: mockSections.map((s) => s.id),
-  hiddenSectionIds: [],
-  assetPaths: [],
-  createdAt: "2026-07-08T00:00:00.000Z",
-  updatedAt: "2026-07-08T00:03:00.000Z",
-};
-
-export const mockProjectSummaries: ProjectSummary[] = [
-  { id: "p1", name: "온도 유지 프리미엄 텀블러", category: "생활/주방용품", platform: "smartstore", updatedAtLabel: "3분 전" },
-  { id: "p2", name: "무선 목받침 넥쿠션", category: "자동차용품", platform: "coupang", updatedAtLabel: "2시간 전" },
-  { id: "p3", name: "반신욕 스파 발마사지기", category: "뷰티/헬스", platform: "smartstore", updatedAtLabel: "어제" },
-  { id: "p4", name: "접이식 캠핑 테이블", category: "레저/스포츠", platform: "coupang", updatedAtLabel: "3일 전" },
-];
 
 export const mockStyleSets: StyleSet[] = [
   {

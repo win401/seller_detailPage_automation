@@ -5,9 +5,10 @@ import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { mockProjectSummaries } from "@/lib/mock-data";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { PLATFORM_LABELS, Platform, ProjectSummary } from "@/lib/types";
+
+type ProjectSource = "loading" | "supabase" | "signedOut" | "unconfigured" | "error";
 
 function isPlatform(value: string | null): value is Platform {
   return value === "coupang" || value === "smartstore" || value === "ably" || value === "zigzag";
@@ -27,15 +28,14 @@ function formatUpdatedAt(value: string | null) {
 
 export default function DashboardPage() {
   const [query, setQuery] = useState("");
-  const [projects, setProjects] = useState<ProjectSummary[]>(mockProjectSummaries);
-  const [projectSource, setProjectSource] = useState<"mock" | "supabase" | "loading">("loading");
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [projectSource, setProjectSource] = useState<ProjectSource>("loading");
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) {
-      // one-time fallback when Supabase env is not configured
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setProjectSource("mock");
+      setProjectSource("unconfigured");
       return;
     }
     const client = supabase;
@@ -47,7 +47,7 @@ export default function DashboardPage() {
       } = await client.auth.getUser();
 
       if (!user) {
-        if (!cancelled) setProjectSource("mock");
+        if (!cancelled) setProjectSource("signedOut");
         return;
       }
 
@@ -60,7 +60,7 @@ export default function DashboardPage() {
       if (cancelled) return;
 
       if (error) {
-        setProjectSource("mock");
+        setProjectSource("error");
         return;
       }
 
@@ -93,17 +93,42 @@ export default function DashboardPage() {
     );
   }, [projects, query]);
 
+  const sourceLabel: Record<ProjectSource, string> = {
+    loading: "불러오는 중",
+    supabase: "DB 동기화",
+    signedOut: "로그인 필요",
+    unconfigured: "Supabase 미연결",
+    error: "불러오기 실패",
+  };
+
+  const subtitle: Record<ProjectSource, string> = {
+    loading: "프로젝트 목록을 불러오는 중입니다",
+    supabase: "Supabase에 저장된 상세페이지 프로젝트를 관리하세요",
+    signedOut: "로그인 후 저장된 프로젝트를 확인할 수 있습니다",
+    unconfigured: "Supabase 환경변수 연결 후 프로젝트 목록을 확인할 수 있습니다",
+    error: "프로젝트 목록을 불러오지 못했습니다",
+  };
+
+  const emptyMessage =
+    projectSource === "loading"
+      ? "프로젝트 목록을 불러오는 중입니다."
+      : query.trim()
+        ? "검색 결과가 없습니다."
+        : projectSource === "signedOut"
+          ? "로그인 후 저장된 프로젝트가 여기에 표시됩니다."
+          : projectSource === "unconfigured"
+            ? "Supabase 연결 후 저장된 프로젝트가 여기에 표시됩니다."
+            : projectSource === "error"
+              ? "프로젝트를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
+              : "아직 저장된 프로젝트가 없습니다.";
+
   return (
     <div className="mx-auto w-full max-w-[1180px] flex-1 px-6 py-8 pb-16">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">프로젝트</h1>
           <p className="text-[13.5px] text-muted-foreground">
-            {projectSource === "supabase"
-              ? "Supabase에 저장된 상세페이지 프로젝트를 관리하세요"
-              : projectSource === "loading"
-                ? "프로젝트 목록을 불러오는 중입니다"
-                : "진행 중인 상세페이지 프로젝트를 관리하세요"}
+            {subtitle[projectSource]}
           </p>
         </div>
         <Button
@@ -133,7 +158,7 @@ export default function DashboardPage() {
           스타일 세트 관리
         </Link>
         <span className="flex h-[38px] items-center rounded-lg border border-border bg-card px-3 text-[12px] font-bold text-muted-foreground">
-          {projectSource === "supabase" ? "DB 동기화" : "mock 목록"}
+          {sourceLabel[projectSource]}
         </span>
       </div>
 
@@ -170,9 +195,7 @@ export default function DashboardPage() {
         ))}
         {filtered.length === 0 && (
           <div className="px-4.5 py-10 text-center text-sm text-muted-foreground">
-            {projectSource === "supabase"
-              ? "아직 저장된 프로젝트가 없습니다."
-              : "검색 결과가 없습니다."}
+            {emptyMessage}
           </div>
         )}
       </div>

@@ -72,10 +72,11 @@
 - [x] 분석 에이전트 output type 정의 — AgentRunDraft mock output 기반
 - [x] 기획 에이전트 output type 정의 — AgentRunDraft mock output 기반
 - [x] 검수 에이전트 output type 정의 — AgentRunDraft mock output 기반
-- [x] 에이전트 결과를 프로젝트 draft에 저장 — localStorage `detail-page-agent-workflow:p1`
+- [x] 에이전트 결과를 프로젝트 draft에 저장 — Supabase 저장, localStorage fallback
 - [x] 에이전트 결과를 편집 화면에서 다시 확인
 - [x] 에이전트 실패 시 다음 단계로 진행 가능한 mock fallback
 - [x] 경쟁 URL은 참고 링크로만 저장하고 자동 크롤링하지 않는 정책 반영
+- [x] 대시보드 하드코딩 샘플 프로젝트 제거 — Supabase 목록 또는 빈 상태만 표시
 
 ## 4. 이미지 처리
 
