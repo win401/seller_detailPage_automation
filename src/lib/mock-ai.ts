@@ -142,3 +142,37 @@ export function mockBuildAgentWorkflow(
     ],
   };
 }
+
+export function mockPlanRevision(
+  sections: DetailSection[],
+  selectedSection: DetailSection,
+  request: string
+): DetailSection[] {
+  const normalizedRequest = request.trim() || "선택 섹션을 더 설득력 있게 다듬기";
+  const requestLower = normalizedRequest.toLowerCase();
+  const shouldReviseAll =
+    requestLower.includes("전체") ||
+    requestLower.includes("시안") ||
+    requestLower.includes("톤") ||
+    requestLower.includes("흐름");
+
+  return sections.map((section) => {
+    const isSelected = section.id === selectedSection.id;
+    const shouldRevise = shouldReviseAll || isSelected;
+    if (!shouldRevise) return section;
+
+    const suffix = isSelected
+      ? `\n\n기획자 에이전트 반영: ${normalizedRequest}`
+      : `\n\n전체 흐름 보정: ${normalizedRequest}`;
+
+    return {
+      ...section,
+      headline: isSelected ? `${section.headline} 더 선명하게` : section.headline,
+      body: `${section.body}${suffix}`,
+      alternatives: [
+        `요청 "${normalizedRequest}"을 반영한 대안 문구`,
+        ...section.alternatives.slice(0, 2),
+      ],
+    };
+  });
+}

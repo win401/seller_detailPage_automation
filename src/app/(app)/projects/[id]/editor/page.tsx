@@ -6,10 +6,8 @@ import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   Download,
-  Monitor,
   Redo2,
   Save,
-  Smartphone,
   Sparkles,
   Undo2,
   X,
@@ -23,13 +21,10 @@ import { SectionEditPanel } from "@/components/editor/section-edit-panel";
 import { AiAssistantPanel } from "@/components/editor/ai-assistant-panel";
 import { AgentWorkflowPanel } from "@/components/editor/agent-workflow-panel";
 import { getMockReferencesForSection, mockProjectSummaries, mockSections } from "@/lib/mock-data";
-import { mockAiRewrite } from "@/lib/mock-ai";
+import { mockPlanRevision } from "@/lib/mock-ai";
 import {
   AgentWorkflowDraft,
-  AiEditAction,
   DetailSection,
-  EditorLayout,
-  EditorTab,
   PLATFORM_LABELS,
   SectionImageAsset,
   UploadedImageDraft,
@@ -53,11 +48,9 @@ export default function DetailPageEditor() {
   const [sections, setSections] = useState<DetailSection[]>(mockSections);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string>(mockSections[0].id);
-  const [layout, setLayout] = useState<EditorLayout>("horizontal");
-  const [tab, setTab] = useState<EditorTab>("sections");
   const [aiOpen, setAiOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<AiEditAction | null>(null);
-  const [pendingText, setPendingText] = useState<string | null>(null);
+  const [revisionRequest, setRevisionRequest] = useState("");
+  const [pendingSections, setPendingSections] = useState<DetailSection[] | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
   const [undoStack, setUndoStack] = useState<Snapshot[]>([]);
   const [redoStack, setRedoStack] = useState<Snapshot[]>([]);
@@ -124,8 +117,7 @@ export default function DetailPageEditor() {
 
   function selectSection(id: string) {
     setSelectedId(id);
-    setPendingAction(null);
-    setPendingText(null);
+    setPendingSections(null);
   }
 
   function updateSelectedBody(value: string) {
@@ -207,26 +199,50 @@ export default function DetailPageEditor() {
     reader.readAsDataURL(file);
   }
 
-  function selectAiAction(action: AiEditAction) {
-    setPendingAction(action);
-    setPendingText(mockAiRewrite(selectedSection, action));
+  function generateRevisionDraft(request: string) {
+    const nextSections = mockPlanRevision(sections, selectedSection, request);
+    const now = new Date().toISOString();
+    setPendingSections(nextSections);
+    setAgentWorkflow((prev) => {
+      if (!prev) return prev;
+      const nextWorkflow: AgentWorkflowDraft = {
+        ...prev,
+        runs: [
+          ...prev.runs,
+          {
+            id: `agent-revision-${Date.now()}`,
+            agentType: "revision_planning",
+            status: "mocked",
+            title: "기획자 에이전트 수정 요청",
+            summary: `"${request.trim()}" 요청을 바탕으로 새 시안 후보를 만들었습니다.`,
+            output: {
+              selectedSection: selectedSection.title,
+              revisedSectionCount: nextSections.filter(
+                (section, index) => section.body !== sections[index]?.body
+              ).length,
+            },
+            warnings: ["MVP에서는 mock 재기획 결과이며, 실제 Claude API 연결은 후속 작업입니다."],
+            createdAt: now,
+          },
+        ],
+      };
+      window.localStorage.setItem(agentWorkflowKey, JSON.stringify(nextWorkflow));
+      return nextWorkflow;
+    });
+    toast("재기획 시안이 생성되었습니다", { description: "적용 전/후를 확인해보세요" });
   }
 
   function applyAiPending() {
-    if (!pendingText) return;
+    if (!pendingSections) return;
     pushHistory();
-    setSections((prev) =>
-      prev.map((s) => (s.id === selectedId ? { ...s, body: pendingText } : s))
-    );
+    setSections(pendingSections);
     flash(selectedId);
-    setPendingAction(null);
-    setPendingText(null);
-    toast("AI 수정 결과가 섹션에 반영되었습니다");
+    setPendingSections(null);
+    toast("재기획 시안이 캔버스에 반영되었습니다");
   }
 
   function discardAiPending() {
-    setPendingAction(null);
-    setPendingText(null);
+    setPendingSections(null);
   }
 
   function undo() {
@@ -325,29 +341,6 @@ export default function DetailPageEditor() {
           </div>
         </div>
 
-        <div className="flex gap-0.5 rounded-lg bg-muted p-0.5">
-          <button
-            type="button"
-            onClick={() => setLayout("horizontal")}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold ${
-              layout === "horizontal" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
-            }`}
-          >
-            <Monitor className="size-3.5" />
-            가로 모니터
-          </button>
-          <button
-            type="button"
-            onClick={() => setLayout("vertical")}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold ${
-              layout === "vertical" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
-            }`}
-          >
-            <Smartphone className="size-3.5" />
-            세로 모니터
-          </button>
-        </div>
-
         <div className="flex items-center gap-2">
           <Button
             onClick={undo}
@@ -385,65 +378,28 @@ export default function DetailPageEditor() {
         </div>
       </div>
 
-      {layout === "horizontal" ? (
-        <div className="grid min-h-0 flex-1 grid-cols-[230px_minmax(0,1fr)_320px]">
-          <div className="flex flex-col overflow-y-auto border-r border-border bg-card">
-            <div className="border-b border-border px-4 py-3 text-xs font-bold text-muted-foreground">
-              섹션 목록
-            </div>
-            <SectionList
-              sections={sections}
-              selectedId={selectedId}
-              hiddenIds={hiddenIds}
-              onSelect={selectSection}
-              onToggleHide={toggleHide}
-            />
-            <div className="mt-auto border-t border-border p-3">
-              <AgentWorkflowPanel workflow={agentWorkflow} compact />
-            </div>
+      <div className="grid min-h-0 flex-1 grid-cols-[230px_minmax(0,1fr)_320px]">
+        <div className="flex flex-col overflow-y-auto border-r border-border bg-card">
+          <div className="border-b border-border px-4 py-3 text-xs font-bold text-muted-foreground">
+            섹션 목록
           </div>
-
-          <div className="flex min-h-0 flex-col bg-background">
-            <div className="border-b border-border px-4 py-3 text-xs font-bold text-muted-foreground">
-              상세페이지 캔버스
-            </div>
-            <div className="flex flex-1 justify-center overflow-y-auto px-4.5 py-6.5">
-              <div ref={canvasWrapRef}>
-                <SectionCanvas
-                  sections={visibleSections}
-                  selectedId={selectedId}
-                  flashId={flashId}
-                  platform={projectSummary.platform}
-                  onSelect={selectSection}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col overflow-y-auto border-l border-border bg-card">
-            <div className="border-b border-border px-4 py-3 text-xs font-bold text-muted-foreground">
-              섹션 편집 · {selectedSection.title}
-            </div>
-            <div className="p-4">
-              <SectionEditPanel
-                section={selectedSection}
-                hidden={hiddenIds.has(selectedId)}
-                onChangeBody={updateSelectedBody}
-                onMoveUp={() => moveSelected(-1)}
-                onMoveDown={() => moveSelected(1)}
-                onToggleHide={() => toggleHide(selectedId)}
-                onRegenerate={regenerateSelected}
-                productImage={productImage}
-                references={selectedReferences}
-                onApplyImage={applySectionImage}
-                onUploadSectionImage={uploadSectionImage}
-              />
-            </div>
+          <SectionList
+            sections={sections}
+            selectedId={selectedId}
+            hiddenIds={hiddenIds}
+            onSelect={selectSection}
+            onToggleHide={toggleHide}
+          />
+          <div className="mt-auto border-t border-border p-3">
+            <AgentWorkflowPanel workflow={agentWorkflow} compact />
           </div>
         </div>
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex flex-1 justify-center overflow-y-auto bg-background px-4 py-5">
+
+        <div className="flex min-h-0 flex-col bg-background">
+          <div className="border-b border-border px-4 py-3 text-xs font-bold text-muted-foreground">
+            상세페이지 캔버스
+          </div>
+          <div className="flex flex-1 justify-center overflow-y-auto px-4.5 py-6.5">
             <div ref={canvasWrapRef}>
               <SectionCanvas
                 sections={visibleSections}
@@ -454,75 +410,36 @@ export default function DetailPageEditor() {
               />
             </div>
           </div>
-          <div className="flex h-[280px] shrink-0 flex-col border-t border-border bg-card">
-            <div className="flex border-b border-border">
-              {(
-                [
-                  { id: "sections", label: "섹션" },
-                  { id: "edit", label: "편집" },
-                  { id: "agents", label: "에이전트" },
-                  { id: "ai", label: "AI 도우미" },
-                ] as { id: EditorTab; label: string }[]
-              ).map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={`flex-1 border-b-2 py-2.5 text-xs font-bold ${
-                    tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              {tab === "sections" && (
-                <SectionList
-                  sections={sections}
-                  selectedId={selectedId}
-                  hiddenIds={hiddenIds}
-                  onSelect={selectSection}
-                  onToggleHide={toggleHide}
-                />
-              )}
-              {tab === "edit" && (
-                <SectionEditPanel
-                  section={selectedSection}
-                  hidden={hiddenIds.has(selectedId)}
-                  onChangeBody={updateSelectedBody}
-                  onMoveUp={() => moveSelected(-1)}
-                  onMoveDown={() => moveSelected(1)}
-                  onToggleHide={() => toggleHide(selectedId)}
-                  onRegenerate={regenerateSelected}
-                  productImage={productImage}
-                  references={selectedReferences}
-                  onApplyImage={applySectionImage}
-                  onUploadSectionImage={uploadSectionImage}
-                />
-              )}
-              {tab === "agents" && <AgentWorkflowPanel workflow={agentWorkflow} />}
-              {tab === "ai" && (
-                <AiAssistantPanel
-                  section={selectedSection}
-                  pendingAction={pendingAction}
-                  pendingText={pendingText}
-                  onSelectAction={selectAiAction}
-                  onApply={applyAiPending}
-                  onDiscard={discardAiPending}
-                />
-              )}
-            </div>
+        </div>
+
+        <div className="flex flex-col overflow-y-auto border-l border-border bg-card">
+          <div className="border-b border-border px-4 py-3 text-xs font-bold text-muted-foreground">
+            섹션 편집 · {selectedSection.title}
+          </div>
+          <div className="p-4">
+            <SectionEditPanel
+              section={selectedSection}
+              hidden={hiddenIds.has(selectedId)}
+              onChangeBody={updateSelectedBody}
+              onMoveUp={() => moveSelected(-1)}
+              onMoveDown={() => moveSelected(1)}
+              onToggleHide={() => toggleHide(selectedId)}
+              onRegenerate={regenerateSelected}
+              productImage={productImage}
+              references={selectedReferences}
+              onApplyImage={applySectionImage}
+              onUploadSectionImage={uploadSectionImage}
+            />
           </div>
         </div>
-      )}
+      </div>
 
-      {layout === "horizontal" &&
-        (aiOpen ? (
+      {aiOpen ? (
           <div className="fixed right-7 bottom-7 z-40 flex max-h-[70vh] w-[340px] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-elevated)]">
             <div className="flex items-center justify-between border-b border-border px-4 py-3.5 text-accent">
               <div className="flex items-center gap-2">
                 <Sparkles className="size-4" />
-                <span className="font-bold">AI 편집 도우미</span>
+                <span className="font-bold">기획자 에이전트</span>
               </div>
               <button onClick={() => setAiOpen(false)} className="rounded-md p-0.5">
                 <X className="size-3.5" />
@@ -531,9 +448,10 @@ export default function DetailPageEditor() {
             <div className="overflow-y-auto p-4">
               <AiAssistantPanel
                 section={selectedSection}
-                pendingAction={pendingAction}
-                pendingText={pendingText}
-                onSelectAction={selectAiAction}
+                request={revisionRequest}
+                pendingSections={pendingSections}
+                onChangeRequest={setRevisionRequest}
+                onGenerate={generateRevisionDraft}
                 onApply={applyAiPending}
                 onDiscard={discardAiPending}
               />
@@ -546,7 +464,7 @@ export default function DetailPageEditor() {
           >
             <Sparkles className="size-5.5" />
           </button>
-        ))}
+        )}
     </div>
   );
 }

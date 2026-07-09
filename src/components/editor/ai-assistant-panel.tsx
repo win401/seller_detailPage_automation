@@ -1,67 +1,84 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { AI_QUICK_ACTIONS, AiEditAction, DetailSection } from "@/lib/types";
+import { Textarea } from "@/components/ui/textarea";
+import { DetailSection } from "@/lib/types";
+
+const REVISION_EXAMPLES = [
+  "전체 톤을 더 프리미엄하게",
+  "선택 섹션을 짧고 강하게",
+  "검수 경고를 반영해서 과장 표현 줄이기",
+];
 
 export function AiAssistantPanel({
   section,
-  pendingAction,
-  pendingText,
-  onSelectAction,
+  request,
+  pendingSections,
+  onChangeRequest,
+  onGenerate,
   onApply,
   onDiscard,
 }: {
   section: DetailSection;
-  pendingAction: AiEditAction | null;
-  pendingText: string | null;
-  onSelectAction: (action: AiEditAction) => void;
+  request: string;
+  pendingSections: DetailSection[] | null;
+  onChangeRequest: (value: string) => void;
+  onGenerate: (request: string) => void;
   onApply: () => void;
   onDiscard: () => void;
 }) {
+  const pendingSection = pendingSections?.find((item) => item.id === section.id);
+
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <div className="text-[11.5px] text-muted-foreground">선택된 섹션</div>
-        <div className="text-[13px] font-bold">{section.title}</div>
+        <div className="text-[11.5px] text-muted-foreground">기획자 에이전트</div>
+        <div className="text-[13px] font-bold">{section.title} 중심으로 수정 요청</div>
+        <p className="mt-1 text-[11.5px] leading-5 text-muted-foreground">
+          요청을 보내면 분석/기획 맥락을 기준으로 새 시안 후보를 만들고, 적용 시 캔버스 전체에 반영합니다.
+        </p>
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        {AI_QUICK_ACTIONS.map((qa) => (
+        {REVISION_EXAMPLES.map((example) => (
           <button
-            key={qa.id}
+            key={example}
             type="button"
-            onClick={() => onSelectAction(qa.id)}
-            className={cn(
-              "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
-              pendingAction === qa.id
-                ? "border-accent bg-accent-soft text-accent"
-                : "border-border bg-card-soft text-foreground"
-            )}
+            onClick={() => onChangeRequest(example)}
+            className="rounded-full border border-border bg-card-soft px-3 py-1.5 text-xs font-semibold transition-colors hover:border-accent hover:text-accent"
           >
-            {qa.label}
+            {example}
           </button>
         ))}
       </div>
 
-      <input
-        placeholder="짧게 요청해보세요 (예: 더 신뢰가 가게)"
-        className="h-9 w-full rounded-lg border border-border bg-input px-3 text-sm outline-none placeholder:text-muted-foreground"
+      <Textarea
+        rows={3}
+        value={request}
+        onChange={(event) => onChangeRequest(event.target.value)}
+        placeholder="예: 첫 화면은 더 감성적으로, FAQ는 짧게, 전체적으로 공구 느낌은 줄여줘"
       />
+      <Button
+        onClick={() => onGenerate(request)}
+        className="h-[36px] text-[12.5px] font-bold"
+        disabled={!request.trim()}
+      >
+        재기획 시안 만들기
+      </Button>
 
-      {pendingText ? (
+      {pendingSection ? (
         <div className="flex flex-col gap-2">
           <div className="rounded-lg border border-border bg-card-soft p-2.5">
             <div className="mb-0.5 text-[10.5px] font-bold text-muted-foreground">적용 전</div>
             <p className="text-xs leading-6 text-muted-foreground">{section.body}</p>
           </div>
           <div className="rounded-lg border border-primary bg-chip-active p-2.5">
-            <div className="mb-0.5 text-[10.5px] font-bold text-primary">적용 후</div>
-            <p className="text-xs leading-6">{pendingText}</p>
+            <div className="mb-0.5 text-[10.5px] font-bold text-primary">새 시안 후보</div>
+            <p className="text-xs leading-6">{pendingSection.body}</p>
           </div>
           <div className="flex gap-2">
             <Button onClick={onApply} className="h-[34px] flex-1 text-[12.5px] font-bold">
-              적용하기
+              새 시안 적용
             </Button>
             <Button
               onClick={onDiscard}
@@ -74,7 +91,7 @@ export function AiAssistantPanel({
         </div>
       ) : (
         <p className="text-[11.5px] leading-6 text-muted-foreground">
-          빠른 액션을 선택하면 적용 전/후를 비교할 수 있어요.
+          아직 생성된 수정 시안이 없습니다. 요청을 입력한 뒤 재기획 시안을 만들어보세요.
         </p>
       )}
     </div>
