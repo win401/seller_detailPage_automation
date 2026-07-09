@@ -175,6 +175,31 @@ export function SectionCanvas({
                     {sec.body}
                   </div>
                 )}
+                {sec.bullets.length > 0 && (
+                  <ul className="mt-2.5 flex flex-col gap-1.5">
+                    {sec.bullets.map((bullet, bulletIndex) => (
+                      <li
+                        key={bulletIndex}
+                        className={cn(
+                          "flex items-start gap-1.5 text-[12.5px] leading-relaxed",
+                          isIntro || isCta ? "text-white/85" : "text-canvas-muted"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "mt-[3px] size-3.5 shrink-0 rounded-full text-center text-[9px] font-extrabold leading-[14px]",
+                            isIntro || isCta
+                              ? "bg-white/20 text-white"
+                              : "bg-canvas-accent/15 text-canvas-accent"
+                          )}
+                        >
+                          ✓
+                        </span>
+                        <span>{bullet}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           );

@@ -1,6 +1,7 @@
 import { generateText, Output } from "ai";
 import { openai } from "@ai-sdk/openai";
 
+import { getMockReferencesForSection } from "@/lib/mock-data";
 import { mockGenerateDetailPage } from "@/lib/mock-ai";
 import {
   GenerateDetailPageInput,
@@ -90,7 +91,7 @@ export async function runProductionAgent(
 
     const sections = output.sections.map((section, index) => {
       const kind = section.kind as SectionKind;
-      return {
+      const base = {
         id: `s${index + 1}`,
         kind,
         kicker: section.kicker,
@@ -101,6 +102,17 @@ export async function runProductionAgent(
         imageRole: section.imageRole,
         imagePrompt: section.imagePrompt,
         alternatives: section.alternatives,
+      };
+      // Auto-apply a default reference image so a fresh AI draft doesn't start
+      // with every section blank (docs/TASKS.md §4/§5) — same lookup used by
+      // the editor's manual "Pinterest 스타일 레퍼런스" picker and by mockSections.
+      if (section.imageRole === "none") return base;
+      const defaultImage = getMockReferencesForSection(base)[0];
+      return {
+        ...base,
+        imageGradient: defaultImage.gradient,
+        imageLabel: defaultImage.label,
+        imageSource: defaultImage.source,
       };
     });
 
