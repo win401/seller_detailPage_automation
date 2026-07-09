@@ -25,6 +25,7 @@ import { mockPlanRevision } from "@/lib/mock-ai";
 import {
   AgentWorkflowDraft,
   DetailSection,
+  PLATFORM_EXPORT_WIDTH,
   PLATFORM_LABELS,
   SectionImageAsset,
   UploadedImageDraft,
@@ -35,6 +36,26 @@ import {
 interface Snapshot {
   sections: DetailSection[];
   hiddenIds: string[];
+}
+
+const EXPORT_SLICE_HEIGHT = 2000;
+
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Canvas export failed"));
+    }, "image/png");
+  });
+}
+
+function safeFileName(value: string) {
+  return value
+    .trim()
+    .replace(/[^\w가-힣-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "")
+    .slice(0, 60);
 }
 
 export default function DetailPageEditor() {
@@ -386,23 +407,72 @@ export default function DetailPageEditor() {
     if (!canvasWrapRef.current) return;
     setIsExporting(true);
     try {
-      const { toPng } = await import("html-to-image");
+      const { toCanvas } = await import("html-to-image");
       const JSZip = (await import("jszip")).default;
-      const dataUrl = await toPng(canvasWrapRef.current, {
-        pixelRatio: 2,
+      const exportWidth = PLATFORM_EXPORT_WIDTH[projectSummary.platform];
+      const sourceWidth = canvasWrapRef.current.offsetWidth || 360;
+      const sourceHeight = canvasWrapRef.current.scrollHeight || canvasWrapRef.current.offsetHeight;
+      const pixelRatio = exportWidth / sourceWidth;
+      const fullCanvas = await toCanvas(canvasWrapRef.current, {
+        width: sourceWidth,
+        height: sourceHeight,
+        pixelRatio,
         backgroundColor: "#ffffff",
       });
-      const blob = await (await fetch(dataUrl)).blob();
       const zip = new JSZip();
-      zip.file("01.png", blob);
+      const sliceCount = Math.max(1, Math.ceil(fullCanvas.height / EXPORT_SLICE_HEIGHT));
+
+      for (let index = 0; index < sliceCount; index += 1) {
+        const sourceY = index * EXPORT_SLICE_HEIGHT;
+        const sliceHeight = Math.min(EXPORT_SLICE_HEIGHT, fullCanvas.height - sourceY);
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = fullCanvas.width;
+        sliceCanvas.height = sliceHeight;
+        const ctx = sliceCanvas.getContext("2d");
+        if (!ctx) throw new Error("Canvas context is not available");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+        ctx.drawImage(
+          fullCanvas,
+          0,
+          sourceY,
+          fullCanvas.width,
+          sliceHeight,
+          0,
+          0,
+          fullCanvas.width,
+          sliceHeight
+        );
+        const fileName = `${String(index + 1).padStart(2, "0")}.png`;
+        zip.file(fileName, await canvasToBlob(sliceCanvas));
+      }
+
+      zip.file(
+        "export-info.json",
+        JSON.stringify(
+          {
+            platform: projectSummary.platform,
+            width: fullCanvas.width,
+            height: fullCanvas.height,
+            sliceHeight: EXPORT_SLICE_HEIGHT,
+            files: sliceCount,
+            createdAt: new Date().toISOString(),
+          },
+          null,
+          2
+        )
+      );
+
       const content = await zip.generateAsync({ type: "blob" });
       const url = URL.createObjectURL(content);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `${projectSummary.name}.zip`;
+      link.download = `${safeFileName(projectSummary.name) || "detail-page"}_${projectSummary.platform}.zip`;
       link.click();
       URL.revokeObjectURL(url);
-      toast("ZIP 다운로드가 완료되었습니다", { description: "01.png" });
+      toast("ZIP 다운로드가 완료되었습니다", {
+        description: `${exportWidth}px 폭 · ${sliceCount}개 PNG`,
+      });
     } finally {
       setIsExporting(false);
     }
