@@ -18,6 +18,13 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SectionCanvas } from "@/components/editor/section-canvas";
 import { SectionList } from "@/components/editor/section-list";
 import { SectionEditPanel } from "@/components/editor/section-edit-panel";
@@ -25,6 +32,8 @@ import { AiAssistantPanel } from "@/components/editor/ai-assistant-panel";
 import { AgentWorkflowPanel } from "@/components/editor/agent-workflow-panel";
 import { getMockReferencesForSection, mockSections } from "@/lib/mock-data";
 import { mockPlanRevision } from "@/lib/mock-ai";
+import { applyLayoutPresetToSections } from "@/lib/layout-presets";
+import { loadStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import {
@@ -39,6 +48,7 @@ import {
   ProjectSummary,
   SectionLayoutPreset,
   SectionImageAsset,
+  StyleSet,
   UploadedImageDraft,
   UserStyleSignalDraft,
   UserStyleSignalKind,
@@ -187,6 +197,8 @@ export default function DetailPageEditor() {
   const [loadedFromStorage, setLoadedFromStorage] = useState(false);
   const [draftLoadSource, setDraftLoadSource] = useState<"mock" | "local" | "supabase">("mock");
   const [isLoadingRemoteDraft, setIsLoadingRemoteDraft] = useState(false);
+  const [styleSets, setStyleSets] = useState<StyleSet[]>([]);
+  const [styleSetToApply, setStyleSetToApply] = useState<string>("");
   const [productImage, setProductImage] = useState<UploadedImageDraft | null>(null);
   const [referenceImage, setReferenceImage] = useState<UploadedImageDraft | null>(null);
   const [agentWorkflow, setAgentWorkflow] = useState<AgentWorkflowDraft | null>(null);
@@ -303,6 +315,12 @@ export default function DetailPageEditor() {
       // ignore corrupt style signal storage
     }
   }, [styleSignalsKey]);
+
+  useEffect(() => {
+    // one-time hydration from localStorage on mount, not a render loop
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStyleSets(loadStyleSets());
+  }, []);
 
   useEffect(() => {
     if (!isUuid(projectId)) return;
@@ -973,6 +991,17 @@ export default function DetailPageEditor() {
     setSections((prev) => prev.map((s) => (s.id === selectedId ? { ...s, ...patch } : s)));
   }
 
+  /** Bulk-applies a saved style set's layout defaults to every section in
+   * the current draft. Per-section overrides made afterward in the side
+   * panel still win until the next apply. */
+  function applyStyleSetToDraft() {
+    const styleSet = styleSets.find((ss) => ss.id === styleSetToApply);
+    if (!styleSet) return;
+    pushHistory();
+    setSections((prev) => applyLayoutPresetToSections(prev, styleSet));
+    toast("스타일 세트를 적용했습니다", { description: styleSet.name });
+  }
+
   function applySectionImage(asset: SectionImageAsset) {
     const beforeImage = selectedSection.imageLabel ?? "이미지 없음";
     pushHistory();
@@ -1448,6 +1477,31 @@ export default function DetailPageEditor() {
           />
           <div className="mt-auto border-t border-border p-3">
             <AgentWorkflowPanel workflow={agentWorkflow} compact />
+            {styleSets.length > 0 && (
+              <div className="mt-3 rounded-lg border border-border bg-card-soft p-3">
+                <div className="mb-2 text-xs font-bold">스타일 세트 적용</div>
+                <Select value={styleSetToApply} onValueChange={(v) => v && setStyleSetToApply(v)}>
+                  <SelectTrigger className="h-8 w-full bg-transparent text-[12px]">
+                    <SelectValue placeholder="스타일 세트 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {styleSets.map((ss) => (
+                      <SelectItem key={ss.id} value={ss.id}>
+                        {ss.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  onClick={applyStyleSetToDraft}
+                  disabled={!styleSetToApply}
+                  variant="outline"
+                  className="mt-2 h-8 w-full text-[12px] font-semibold"
+                >
+                  전체 섹션에 레이아웃 적용
+                </Button>
+              </div>
+            )}
             <div className="mt-3 rounded-lg border border-border bg-card-soft p-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-bold">스타일 신호</span>

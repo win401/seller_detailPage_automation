@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardList, ImagePlus, LinkIcon, Plus, Sparkles } from "lucide-react";
 
@@ -18,6 +18,8 @@ import {
 import { cn } from "@/lib/utils";
 import { mockBuildAgentWorkflow, mockGenerateDetailPage } from "@/lib/mock-ai";
 import { mockEmphasisOptions, mockProductInput, mockStyleSets } from "@/lib/mock-data";
+import { applyLayoutPresetToSections } from "@/lib/layout-presets";
+import { loadStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   ADDITIONAL_INSTRUCTION_EXAMPLES,
@@ -30,6 +32,7 @@ import {
   MOOD_LABELS,
   PLATFORM_LABELS,
   Platform,
+  StyleSet,
   TONE_LABELS,
   Tone,
   UploadedImageDraft,
@@ -142,7 +145,14 @@ export default function CreateProjectPage() {
   const [tone, setTone] = useState<Tone>("practical");
   const [mood, setMood] = useState<DesignMood>("minimal");
   const [platform, setPlatform] = useState<Platform>("smartstore");
+  const [styleSets, setStyleSets] = useState<StyleSet[]>(mockStyleSets);
   const [styleSetId, setStyleSetId] = useState(mockStyleSets[0]?.id ?? "");
+
+  useEffect(() => {
+    // one-time hydration from localStorage on mount, not a render loop
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStyleSets(loadStyleSets());
+  }, []);
   const [additionalInstruction, setAdditionalInstruction] = useState("");
   const [referenceMemo, setReferenceMemo] = useState("");
   const [competitorReferences, setCompetitorReferences] = useState<CompetitorReferenceInput[]>([
@@ -361,6 +371,17 @@ export default function CreateProjectPage() {
     const optimisticWorkflow = mockBuildAgentWorkflow(input, normalizedCompetitorReferences);
     setAgentWorkflow(optimisticWorkflow);
 
+    // A style set's layout defaults (image position/fit/height, spacing,
+    // text scale) are a presentation concern the agents don't need to know
+    // about, so they're stamped onto the generated sections here rather
+    // than passed into the generation prompt.
+    const selectedStyleSet = styleSets.find((ss) => ss.id === styleSetId);
+    function withStyleLayout(rawOutput: GenerateDetailPageOutput): GenerateDetailPageOutput {
+      return selectedStyleSet
+        ? { ...rawOutput, sections: applyLayoutPresetToSections(rawOutput.sections, selectedStyleSet) }
+        : rawOutput;
+    }
+
     try {
       const response = await fetch("/api/agent-workflow/generate", {
         method: "POST",
@@ -368,10 +389,11 @@ export default function CreateProjectPage() {
         body: JSON.stringify({ input, competitorReferences: normalizedCompetitorReferences }),
       });
       if (!response.ok) throw new Error("AI generation request failed");
-      const { workflow, output } = (await response.json()) as {
+      const { workflow, output: rawOutput } = (await response.json()) as {
         workflow: AgentWorkflowDraft;
         output: GenerateDetailPageOutput;
       };
+      const output = withStyleLayout(rawOutput);
       setAgentWorkflow(workflow);
       let projectId = "p1";
       try {
@@ -399,7 +421,7 @@ export default function CreateProjectPage() {
       );
       router.push(`/projects/${projectId}/editor`);
     } catch {
-      const output = mockGenerateDetailPage(input);
+      const output = withStyleLayout(mockGenerateDetailPage(input));
       let projectId = "p1";
       try {
         projectId =
@@ -547,14 +569,20 @@ export default function CreateProjectPage() {
             <Select
               value={styleSetId}
               onValueChange={(value) => {
-                if (value) setStyleSetId(value);
+                if (!value) return;
+                setStyleSetId(value);
+                const selected = styleSets.find((ss) => ss.id === value);
+                if (!selected) return;
+                setMood(selected.defaultMood);
+                setTone(selected.defaultTone);
+                setPlatform(selected.defaultPlatform);
               }}
             >
               <SelectTrigger className="h-9 w-full bg-transparent">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {mockStyleSets.map((ss) => (
+                {styleSets.map((ss) => (
                   <SelectItem key={ss.id} value={ss.id}>
                     {ss.name}
                   </SelectItem>
