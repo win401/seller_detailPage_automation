@@ -206,9 +206,8 @@ Important files:
    - For now, manually create 3 team test accounts in Supabase Dashboard.
    - SMTP/Resend can be added later.
 
-4. AI live generation may not work until the intended API provider/model is confirmed.
-   - Current code path should be rechecked against the actual provider/model before marking AI quality complete.
-   - Mock fallback keeps demo usable.
+4. AI live generation confirmed working 2026-07-10 with `AI_MODEL=gpt-4.1-mini` — all 4 agents (analysis/planning/production/review) returned real responses, no mock fallback. Previously `gpt-5.4-mini` (a reasoning model) intermittently failed the `planning` step with `AI_NoOutputGeneratedError` because reasoning tokens were eating the whole `maxOutputTokens` budget before any visible output — fixed by switching model and raising `maxOutputTokens` in `analysis.ts`/`planning.ts`/`review.ts`.
+   - Mock fallback keeps demo usable regardless.
 
 5. Dashboard now shows only Supabase projects.
    - This is intentional.

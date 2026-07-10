@@ -58,7 +58,7 @@ export async function runAnalysisAgent(
     const { output } = await generateText({
       model: openai(modelId),
       maxRetries: 0,
-      maxOutputTokens: 1500,
+      maxOutputTokens: 2500,
       temperature: 0.3,
       output: Output.object({ schema: analysisOutputSchema }),
       prompt: buildPrompt(input, competitorReferences),

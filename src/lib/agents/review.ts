@@ -61,7 +61,7 @@ export async function runReviewAgent(
     const { output } = await generateText({
       model: openai(modelId),
       maxRetries: 0,
-      maxOutputTokens: 1500,
+      maxOutputTokens: 2500,
       temperature: 0.2,
       output: Output.object({ schema: reviewOutputSchema }),
       prompt: buildPrompt(input, productionOutput, planningOutput),

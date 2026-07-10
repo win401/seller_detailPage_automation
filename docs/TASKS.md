@@ -126,7 +126,7 @@
 - [x] 총괄 에이전트 실행 로그 저장 (`agent_type = "orchestrator"`, 하위 run `parent_run_id` 연결) — Supabase 실제 insert로 검증 완료
 - [x] 총괄 에이전트 비용 제한 (최대 tool 호출 횟수, 동일 tool 연속 재시도 제한) — `stepCountIs(8)` + 연속 동일 tool 3회 감지 가드
 - [x] API 키 없음/실패 시 총괄 에이전트 호출 생략하고 기존 mock 파이프라인 폴백 — provider/model 호출 실패 시 데모가 끊기지 않도록 처리
-- [ ] 실제 AI API 응답 품질 검증 — API/모델 최종 테스트 전
+- [x] 실제 AI API 응답 품질 검증 — 2026-07-10 `AI_MODEL=gpt-4.1-mini`로 분석/기획/제작/검수 4단계 전부 실제 응답 성공(`source: "ai"`, mock 폴백 없음) 확인. 이전엔 `gpt-5.4-mini`(reasoning 모델) 사용 중 `planning` 단계가 `maxOutputTokens` 예산을 추론 토큰에 다 써버려 `AI_NoOutputGeneratedError`로 실패 → mock 폴백되는 버그가 있었음. reasoning이 아닌 `gpt-4.1-mini`로 전환 + `analysis`/`planning`/`review`의 `maxOutputTokens`를 여유 있게 상향해서 해결
 
 ## 7. 상세페이지 캔버스
 
