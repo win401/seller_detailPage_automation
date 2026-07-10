@@ -107,7 +107,7 @@ export async function runProductionAgent(
       // with every section blank (docs/TASKS.md §4/§5) — same lookup used by
       // the editor's manual "Pinterest 스타일 레퍼런스" picker and by mockSections.
       if (section.imageRole === "none") return base;
-      const defaultImage = getMockReferencesForSection(base)[0];
+      const defaultImage = getMockReferencesForSection(base, input.designMood)[0];
       return {
         ...base,
         imageGradient: defaultImage.gradient,

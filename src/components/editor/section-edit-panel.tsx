@@ -18,6 +18,7 @@ export function SectionEditPanel({
   onToggleHide,
   onRegenerate,
   productImage,
+  referenceImage,
   references,
   onApplyImage,
   onUploadSectionImage,
@@ -33,6 +34,7 @@ export function SectionEditPanel({
   onToggleHide: () => void;
   onRegenerate: () => void;
   productImage: UploadedImageDraft | null;
+  referenceImage: UploadedImageDraft | null;
   references: SectionImageAsset[];
   onApplyImage: (asset: SectionImageAsset) => void;
   onUploadSectionImage: (file: File) => void;
@@ -137,6 +139,27 @@ export function SectionEditPanel({
             상품 이미지 적용
           </Button>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-2 h-8 w-full text-xs font-semibold"
+          disabled={!referenceImage}
+          onClick={() => {
+            if (!referenceImage) return;
+            onApplyImage({
+              id: "uploaded-reference-image",
+              label: "업로드 레퍼런스 이미지",
+              description: referenceImage.name,
+              source: "reference",
+              dataUrl: referenceImage.dataUrl,
+              promptHint:
+                "Use the uploaded reference image only for mood, composition, and lighting. Keep the actual product's shape, color, and material unchanged.",
+              tags: ["reference", section.kind, section.imageRole],
+            });
+          }}
+        >
+          레퍼런스 이미지 적용
+        </Button>
         <Button
           type="button"
           variant="outline"

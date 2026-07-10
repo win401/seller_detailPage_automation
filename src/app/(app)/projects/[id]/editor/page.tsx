@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { gsap } from "gsap";
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "framer-motion";
+import { arrayMove } from "@dnd-kit/sortable";
 import {
   ArrowLeft,
   Download,
@@ -29,6 +30,7 @@ import { cn } from "@/lib/utils";
 import {
   AgentRunDraft,
   AgentWorkflowDraft,
+  DesignMood,
   DetailSection,
   GenerateDetailPageInput,
   Platform,
@@ -113,6 +115,10 @@ function isPlatform(value: string | null | undefined): value is Platform {
   return value === "coupang" || value === "smartstore" || value === "ably" || value === "zigzag";
 }
 
+function isDesignMood(value: string | null | undefined): value is DesignMood {
+  return value === "minimal" || value === "natural" || value === "premium" || value === "colorful";
+}
+
 function isDetailSectionArray(value: unknown): value is DetailSection[] {
   return (
     Array.isArray(value) &&
@@ -130,6 +136,10 @@ function isDetailSectionArray(value: unknown): value is DetailSection[] {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export default function DetailPageEditor() {
@@ -176,6 +186,7 @@ export default function DetailPageEditor() {
   const [loadedFromStorage, setLoadedFromStorage] = useState(false);
   const [draftLoadSource, setDraftLoadSource] = useState<"mock" | "local" | "supabase">("mock");
   const [productImage, setProductImage] = useState<UploadedImageDraft | null>(null);
+  const [referenceImage, setReferenceImage] = useState<UploadedImageDraft | null>(null);
   const [agentWorkflow, setAgentWorkflow] = useState<AgentWorkflowDraft | null>(null);
   const [styleSignals, setStyleSignals] = useState<UserStyleSignalDraft[]>([]);
   const [styleSignalSync, setStyleSignalSync] = useState<"local" | "remote" | "idle">("idle");
@@ -225,10 +236,16 @@ export default function DetailPageEditor() {
     try {
       const raw = window.localStorage.getItem(draftAssetsKey);
       if (!raw) return;
-      const parsed = JSON.parse(raw) as { productImage?: UploadedImageDraft };
+      const parsed = JSON.parse(raw) as {
+        productImage?: UploadedImageDraft;
+        referenceImage?: UploadedImageDraft;
+      };
       if (parsed.productImage) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setProductImage(parsed.productImage);
+      }
+      if (parsed.referenceImage) {
+        setReferenceImage(parsed.referenceImage);
       }
     } catch {
       // ignore corrupt asset storage
@@ -388,11 +405,34 @@ export default function DetailPageEditor() {
         window.localStorage.setItem(agentWorkflowKey, JSON.stringify(remoteWorkflow));
       }
 
+      // product_input holds the original GenerateDetailPageInput JSON; use it
+      // so mood/tone/keywords survive a cross-device load (previously only
+      // name/category/platform were kept, dropping mood/keywords/etc. even
+      // though product_input was already fetched above).
+      const productInput = isRecord(project.product_input) ? project.product_input : undefined;
       const localGeneration = {
         input: {
-          productName: nextSummary.name,
-          category: nextSummary.category,
+          productName:
+            (typeof productInput?.productName === "string" && productInput.productName) ||
+            nextSummary.name,
+          category:
+            (typeof productInput?.category === "string" && productInput.category) ||
+            nextSummary.category,
           platform: nextSummary.platform,
+          keywords: isStringArray(productInput?.keywords) ? productInput.keywords : [],
+          targetCustomer:
+            typeof productInput?.targetCustomer === "string" ? productInput.targetCustomer : "",
+          emphasisPoints: isStringArray(productInput?.emphasisPoints) ? productInput.emphasisPoints : [],
+          tone: typeof productInput?.tone === "string" ? productInput.tone : "practical",
+          designMood: isDesignMood(
+            typeof productInput?.designMood === "string" ? productInput.designMood : undefined
+          )
+            ? productInput?.designMood
+            : "minimal",
+          additionalInstruction:
+            typeof productInput?.additionalInstruction === "string"
+              ? productInput.additionalInstruction
+              : "",
         },
         source: draft?.source ?? "mock",
         warnings:
@@ -855,6 +895,25 @@ export default function DetailPageEditor() {
     });
   }
 
+  function reorderSections(activeId: string, overId: string) {
+    const fromIndex = sections.findIndex((s) => s.id === activeId);
+    const toIndex = sections.findIndex((s) => s.id === overId);
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
+
+    pushHistory();
+    setSections((prev) => {
+      const from = prev.findIndex((s) => s.id === activeId);
+      const to = prev.findIndex((s) => s.id === overId);
+      if (from < 0 || to < 0) return prev;
+      return arrayMove(prev, from, to);
+    });
+    recordStyleSignal({
+      kind: "section_reorder",
+      before: `index:${fromIndex}`,
+      after: `index:${toIndex}`,
+    });
+  }
+
   function regenerateSelected() {
     pushHistory();
     const rewrites = [
@@ -1256,10 +1315,11 @@ export default function DetailPageEditor() {
     () => sections.filter((s) => !hiddenIds.has(s.id)),
     [sections, hiddenIds]
   );
-  const selectedReferences = useMemo(
-    () => getMockReferencesForSection(selectedSection),
-    [selectedSection]
-  );
+  const selectedReferences = useMemo(() => {
+    const mood = readLocalGeneration()?.input?.designMood;
+    return getMockReferencesForSection(selectedSection, isDesignMood(mood) ? mood : "minimal");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- readLocalGeneration reads a stable per-project localStorage key
+  }, [selectedSection]);
 
   return (
     <div className="flex h-[calc(100vh-60px)] flex-col">
@@ -1337,6 +1397,7 @@ export default function DetailPageEditor() {
             hiddenIds={hiddenIds}
             onSelect={selectSection}
             onToggleHide={toggleHide}
+            onReorder={reorderSections}
           />
           <div className="mt-auto border-t border-border p-3">
             <AgentWorkflowPanel workflow={agentWorkflow} compact />
@@ -1435,6 +1496,7 @@ export default function DetailPageEditor() {
               onToggleHide={() => toggleHide(selectedId)}
               onRegenerate={regenerateSelected}
               productImage={productImage}
+              referenceImage={referenceImage}
               references={selectedReferences}
               onApplyImage={applySectionImage}
               onUploadSectionImage={uploadSectionImage}

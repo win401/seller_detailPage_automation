@@ -1,4 +1,4 @@
-import { mockSections } from "./mock-data";
+import { getMockReferencesForSection, mockSections } from "./mock-data";
 import {
   AgentWorkflowDraft,
   AiEditAction,
@@ -44,6 +44,12 @@ export function mockGenerateDetailPage(input: GenerateDetailPageInput): Generate
           ? keywordText || input.productName
           : section.headline;
 
+    // Re-pick the reference image for the selected design mood so a fresh
+    // mock draft's imagery matches what the user chose, instead of always
+    // reusing mockSections' fixed "minimal" palette (docs/TASKS.md §7).
+    const moodImage =
+      section.imageRole === "none" ? null : getMockReferencesForSection(section, input.designMood)[0];
+
     return {
       ...section,
       headline: headlinePrefix || section.headline,
@@ -53,6 +59,11 @@ export function mockGenerateDetailPage(input: GenerateDetailPageInput): Generate
           : section.body,
       imagePrompt:
         `${input.designMood} mood, ${section.imageRole}, product detail page section image, keep real product facts unchanged`,
+      ...(moodImage && {
+        imageGradient: moodImage.gradient,
+        imageLabel: moodImage.label,
+        imageSource: moodImage.source,
+      }),
     };
   });
 

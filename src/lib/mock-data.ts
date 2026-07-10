@@ -1,4 +1,5 @@
 import {
+  DesignMood,
   DetailSection,
   EmphasisOption,
   ProductInput,
@@ -35,53 +36,99 @@ export const mockProductInput: ProductInput = {
   additionalInstruction: "",
 };
 
-export const mockSectionImageReferences: SectionImageAsset[] = [
-  {
-    id: "ref-minimal-desk",
-    label: "미니멀 데스크",
-    description: "자연광이 들어오는 우드톤 책상 위 여백 중심 컷",
-    source: "reference",
-    gradient: "linear-gradient(135deg, #f6efe4 0%, #d9b99a 48%, #7d6a58 100%)",
-    promptHint: "warm wooden desk, soft morning natural light, minimal composition, generous whitespace",
-    tags: ["intro", "one_line", "product-hero-lifestyle", "product-flatlay"],
+/**
+ * Mood-specific gradient palettes for the 5 mock reference "roles" below.
+ * Same composition/shape per role across moods, only the color stops change,
+ * so a generated draft's imagery actually reflects the user's selected
+ * design mood (docs/TASKS.md §7 "무드 프리셋 적용") instead of always using
+ * the same warm-neutral palette.
+ */
+const MOOD_GRADIENTS: Record<
+  DesignMood,
+  { desk: string; macro: string; commute: string; parts: string; badge: string }
+> = {
+  minimal: {
+    desk: "linear-gradient(135deg, #f6efe4 0%, #d9b99a 48%, #7d6a58 100%)",
+    macro: "radial-gradient(circle at 30% 25%, #f4f2ed 0%, #b9b7ad 38%, #3f443d 100%)",
+    commute: "linear-gradient(145deg, #e9eef0 0%, #9ca9a3 45%, #2f3a36 100%)",
+    parts: "linear-gradient(135deg, #fafafa 0%, #dcd8cf 50%, #8f8b82 100%)",
+    badge: "linear-gradient(135deg, #fbfaf7 0%, #d8c8ae 46%, #5b4637 100%)",
   },
-  {
-    id: "ref-soft-macro",
-    label: "소재 클로즈업",
-    description: "무광 질감과 디테일을 강조하는 부드러운 접사 컷",
-    source: "reference",
-    gradient: "radial-gradient(circle at 30% 25%, #f4f2ed 0%, #b9b7ad 38%, #3f443d 100%)",
-    promptHint: "macro product detail, matte stainless texture, shallow depth of field, clean premium lighting",
-    tags: ["benefit_1", "detail", "product-detail-macro", "product-detail-texture"],
+  natural: {
+    desk: "linear-gradient(135deg, #f1f0e4 0%, #b9c9a0 48%, #5c6b4a 100%)",
+    macro: "radial-gradient(circle at 30% 25%, #f0f2e8 0%, #a9b98f 38%, #3c4530 100%)",
+    commute: "linear-gradient(145deg, #eaf0e6 0%, #93a879 45%, #38452e 100%)",
+    parts: "linear-gradient(135deg, #f7f8f0 0%, #cbd6b4 50%, #7c8a63 100%)",
+    badge: "linear-gradient(135deg, #f5f6ec 0%, #c2cf9e 46%, #4c5a3a 100%)",
   },
-  {
-    id: "ref-commute-scene",
-    label: "출근길 사용 장면",
-    description: "가방, 노트북, 이동 동선이 보이는 실사용 라이프스타일 컷",
-    source: "reference",
-    gradient: "linear-gradient(145deg, #e9eef0 0%, #9ca9a3 45%, #2f3a36 100%)",
-    promptHint: "commute lifestyle scene, tumbler beside laptop and tote bag, calm urban morning mood",
-    tags: ["problem", "use_scene", "recommended_for", "problem-context-commute", "lifestyle-multi-scene"],
+  premium: {
+    desk: "linear-gradient(135deg, #2b2823 0%, #5b4a33 48%, #0f0d0a 100%)",
+    macro: "radial-gradient(circle at 30% 25%, #3a352c 0%, #7a5f36 38%, #100e0a 100%)",
+    commute: "linear-gradient(145deg, #262421 0%, #6b5738 45%, #0c0b09 100%)",
+    parts: "linear-gradient(135deg, #302c26 0%, #8a7350 50%, #14120e 100%)",
+    badge: "linear-gradient(135deg, #201d19 0%, #b08d4f 46%, #0a0908 100%)",
   },
-  {
-    id: "ref-clean-parts",
-    label: "구성품 정렬",
-    description: "뚜껑과 바디를 깔끔하게 분리해 구조를 보여주는 컷",
-    source: "reference",
-    gradient: "linear-gradient(135deg, #fafafa 0%, #dcd8cf 50%, #8f8b82 100%)",
-    promptHint: "disassembled product parts, clean top-down layout, neutral background, precise shadows",
-    tags: ["benefit_3", "solution", "product-disassembled", "product-cross-section"],
+  colorful: {
+    desk: "linear-gradient(135deg, #fff1e6 0%, #ff9d6c 48%, #d94f70 100%)",
+    macro: "radial-gradient(circle at 30% 25%, #fff7e0 0%, #ffc857 38%, #ef5da8 100%)",
+    commute: "linear-gradient(145deg, #e6f7ff 0%, #4fc3d9 45%, #2c5fa8 100%)",
+    parts: "linear-gradient(135deg, #f4fff0 0%, #8fe388 50%, #1f9e6d 100%)",
+    badge: "linear-gradient(135deg, #fff0f6 0%, #ff7ab8 46%, #a83279 100%)",
   },
-  {
-    id: "ref-premium-badge",
-    label: "신뢰 포인트",
-    description: "인증, 보증, 소재 정보를 차분하게 보여주는 그래픽형 컷",
-    source: "reference",
-    gradient: "linear-gradient(135deg, #fbfaf7 0%, #d8c8ae 46%, #5b4637 100%)",
-    promptHint: "premium trust point layout, subtle badge area, clean product information space, no fake certification",
-    tags: ["trust", "faq", "cta", "certification-badge"],
-  },
-];
+};
+
+function buildSectionImageReferences(mood: DesignMood): SectionImageAsset[] {
+  const g = MOOD_GRADIENTS[mood] ?? MOOD_GRADIENTS.minimal;
+  return [
+    {
+      id: "ref-desk",
+      label: "데스크 연출 컷",
+      description: "자연광이 들어오는 책상 위 여백 중심 컷",
+      source: "reference",
+      gradient: g.desk,
+      promptHint: `${mood} mood, desk composition, soft natural light, generous whitespace`,
+      tags: ["intro", "one_line", "product-hero-lifestyle", "product-flatlay"],
+    },
+    {
+      id: "ref-soft-macro",
+      label: "소재 클로즈업",
+      description: "질감과 디테일을 강조하는 접사 컷",
+      source: "reference",
+      gradient: g.macro,
+      promptHint: `${mood} mood, macro product detail, texture, shallow depth of field, clean lighting`,
+      tags: ["benefit_1", "detail", "product-detail-macro", "product-detail-texture"],
+    },
+    {
+      id: "ref-commute-scene",
+      label: "실사용 장면",
+      description: "가방, 노트북, 이동 동선이 보이는 실사용 라이프스타일 컷",
+      source: "reference",
+      gradient: g.commute,
+      promptHint: `${mood} mood, everyday lifestyle scene, product in use, calm urban setting`,
+      tags: ["problem", "use_scene", "recommended_for", "problem-context-commute", "lifestyle-multi-scene"],
+    },
+    {
+      id: "ref-clean-parts",
+      label: "구성품 정렬",
+      description: "구성품을 깔끔하게 분리해 구조를 보여주는 컷",
+      source: "reference",
+      gradient: g.parts,
+      promptHint: `${mood} mood, disassembled product parts, clean top-down layout, precise shadows`,
+      tags: ["benefit_3", "solution", "product-disassembled", "product-cross-section"],
+    },
+    {
+      id: "ref-premium-badge",
+      label: "신뢰 포인트",
+      description: "인증, 보증, 소재 정보를 차분하게 보여주는 그래픽형 컷",
+      source: "reference",
+      gradient: g.badge,
+      promptHint: `${mood} mood, trust point layout, subtle badge area, no fake certification`,
+      tags: ["trust", "faq", "cta", "certification-badge"],
+    },
+  ];
+}
+
+export const mockSectionImageReferences: SectionImageAsset[] = buildSectionImageReferences("minimal");
 
 /**
  * Picks a single default reference image for a freshly generated section, by
@@ -275,9 +322,13 @@ export const mockStyleSets: StyleSet[] = [
   },
 ];
 
-export function getMockReferencesForSection(section: DetailSection): SectionImageAsset[] {
-  const matched = mockSectionImageReferences.filter((ref) =>
+export function getMockReferencesForSection(
+  section: Pick<DetailSection, "kind" | "imageRole">,
+  mood: DesignMood = "minimal"
+): SectionImageAsset[] {
+  const references = buildSectionImageReferences(mood);
+  const matched = references.filter((ref) =>
     ref.tags.some((tag) => tag === section.kind || tag === section.imageRole)
   );
-  return matched.length > 0 ? matched : mockSectionImageReferences.slice(0, 3);
+  return matched.length > 0 ? matched : references.slice(0, 3);
 }

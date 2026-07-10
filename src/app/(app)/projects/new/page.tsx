@@ -155,6 +155,7 @@ export default function CreateProjectPage() {
   ]);
   const [agentWorkflow, setAgentWorkflow] = useState<AgentWorkflowDraft | null>(null);
   const [productImage, setProductImage] = useState<UploadedImageDraft | null>(null);
+  const [referenceImage, setReferenceImage] = useState<UploadedImageDraft | null>(null);
   const [imageOptimizationMessage, setImageOptimizationMessage] = useState<string | null>(null);
   const [isOptimizingImage, setIsOptimizingImage] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -277,10 +278,10 @@ export default function CreateProjectPage() {
     workflow: AgentWorkflowDraft;
     output: GenerateDetailPageOutput;
   }) {
-    if (productImage) {
+    if (productImage || referenceImage) {
       window.localStorage.setItem(
         `detail-page-draft-assets:${projectId}`,
-        JSON.stringify({ productImage })
+        JSON.stringify({ productImage, referenceImage })
       );
     }
     window.localStorage.setItem(`detail-page-agent-workflow:${projectId}`, JSON.stringify(workflow));
@@ -443,6 +444,16 @@ export default function CreateProjectPage() {
       setImageOptimizationMessage("이미지 최적화에 실패했습니다. 다른 이미지를 업로드해주세요.");
     } finally {
       setIsOptimizingImage(false);
+    }
+  }
+
+  async function handleReferenceImageChange(file: File | undefined) {
+    if (!file) return;
+    try {
+      const optimized = await optimizeImageFile(file);
+      setReferenceImage(optimized);
+    } catch {
+      setImageOptimizationMessage("레퍼런스 이미지 최적화에 실패했습니다. 다른 이미지를 업로드해주세요.");
     }
   }
 
@@ -762,9 +773,23 @@ export default function CreateProjectPage() {
                   원본 상품 이미지
                 </div>
               )}
-              <div className="flex h-[84px] items-center justify-center rounded-lg border border-dashed border-border bg-muted text-[11.5px] text-muted-foreground">
-                레퍼런스 이미지
-              </div>
+              <label className="flex h-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted text-[11.5px] text-muted-foreground transition-colors hover:border-primary/70 hover:bg-muted/60">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(e) => handleReferenceImageChange(e.target.files?.[0])}
+                />
+                {referenceImage ? (
+                  <span
+                    className="h-full w-full bg-contain bg-center bg-no-repeat"
+                    style={{ backgroundImage: `url(${referenceImage.dataUrl})` }}
+                    aria-label="업로드한 레퍼런스 이미지 미리보기"
+                  />
+                ) : (
+                  <span>레퍼런스 이미지</span>
+                )}
+              </label>
             </div>
             <Textarea
               rows={2}
