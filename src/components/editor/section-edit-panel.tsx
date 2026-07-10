@@ -17,6 +17,7 @@ export function SectionEditPanel({
   onMoveDown,
   onToggleHide,
   onRegenerate,
+  onSelectAlternative,
   productImage,
   referenceImage,
   references,
@@ -33,6 +34,7 @@ export function SectionEditPanel({
   onMoveDown: () => void;
   onToggleHide: () => void;
   onRegenerate: () => void;
+  onSelectAlternative: (index: number) => void;
   productImage: UploadedImageDraft | null;
   referenceImage: UploadedImageDraft | null;
   references: SectionImageAsset[];
@@ -91,6 +93,24 @@ export function SectionEditPanel({
       >
         <RefreshCw className="size-3.5" />이 섹션 다시 생성
       </Button>
+
+      {section.alternatives.length > 0 && (
+        <div className="mt-1 border-t border-border pt-3">
+          <div className="mb-2 text-xs font-bold">카피 후보</div>
+          <div className="grid gap-1.5">
+            {section.alternatives.map((alt, index) => (
+              <button
+                key={`${section.id}-alt-${index}`}
+                type="button"
+                onClick={() => onSelectAlternative(index)}
+                className="rounded-lg border border-border bg-card-soft px-2.5 py-2 text-left text-[12px] leading-5 transition-colors hover:border-primary/70"
+              >
+                {alt}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-2 border-t border-border pt-3">
         <div className="mb-2 text-xs font-bold">섹션 이미지</div>

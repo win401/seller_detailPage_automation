@@ -11,6 +11,7 @@ const REVISION_EXAMPLES = [
   "전체 톤을 더 프리미엄하게",
   "선택 섹션을 짧고 강하게",
   "검수 경고를 반영해서 과장 표현 줄이기",
+  "FAQ/CTA는 더 짧고 간결하게 축약해줘",
 ];
 
 export function AiAssistantPanel({

@@ -185,6 +185,7 @@ export default function DetailPageEditor() {
   const [exportSuccessKey, setExportSuccessKey] = useState(0);
   const [loadedFromStorage, setLoadedFromStorage] = useState(false);
   const [draftLoadSource, setDraftLoadSource] = useState<"mock" | "local" | "supabase">("mock");
+  const [isLoadingRemoteDraft, setIsLoadingRemoteDraft] = useState(false);
   const [productImage, setProductImage] = useState<UploadedImageDraft | null>(null);
   const [referenceImage, setReferenceImage] = useState<UploadedImageDraft | null>(null);
   const [agentWorkflow, setAgentWorkflow] = useState<AgentWorkflowDraft | null>(null);
@@ -443,7 +444,11 @@ export default function DetailPageEditor() {
       window.localStorage.setItem(generationKey, JSON.stringify(localGeneration));
     }
 
-    void loadRemoteDraft();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time loading flag for this mount's fetch, not a render loop
+    setIsLoadingRemoteDraft(true);
+    void loadRemoteDraft().finally(() => {
+      if (!cancelled) setIsLoadingRemoteDraft(false);
+    });
 
     return () => {
       cancelled = true;
@@ -541,6 +546,8 @@ export default function DetailPageEditor() {
     switch (kind) {
       case "copy_manual_edit":
         return `${sectionTitle} 문구를 사용자가 직접 수정했습니다. 다음 기획에서는 이 표현 톤을 우선 참고합니다.`;
+      case "headline_choice":
+        return `${sectionTitle} 헤드라인 후보를 사용자가 선택했습니다. 다음 기획에서는 이 표현을 우선 참고합니다.`;
       case "section_reorder":
         return `${sectionTitle} 섹션 순서를 사용자가 조정했습니다. 다음 기획에서는 섹션 우선순위를 참고합니다.`;
       case "section_visibility":
@@ -926,6 +933,36 @@ export default function DetailPageEditor() {
       prev.map((s) => (s.id === selectedId ? { ...s, body: newBody } : s))
     );
     flash(selectedId);
+  }
+
+  /** Swaps the selected section's headline with one of its AI-generated
+   * alternatives (docs/TASKS.md §11 "카피 후보 선택"), keeping the swap
+   * reversible by putting the previous headline back into the candidate
+   * list at the same slot. */
+  function applyHeadlineAlternative(index: number) {
+    const target = selectedSection;
+    const candidate = target.alternatives[index];
+    if (!candidate) return;
+
+    pushHistory();
+    setSections((prev) =>
+      prev.map((s) =>
+        s.id === selectedId
+          ? {
+              ...s,
+              headline: candidate,
+              alternatives: s.alternatives.map((alt, i) => (i === index ? target.headline : alt)),
+            }
+          : s
+      )
+    );
+    flash(selectedId);
+    recordStyleSignal({
+      kind: "headline_choice",
+      section: target,
+      before: target.headline,
+      after: candidate,
+    });
   }
 
   function applySectionImage(asset: SectionImageAsset) {
@@ -1335,11 +1372,13 @@ export default function DetailPageEditor() {
             <div className="truncate text-sm font-bold">{projectSummary.name}</div>
             <div className="text-[11.5px] text-muted-foreground">
               {PLATFORM_LABELS[projectSummary.platform]} ·{" "}
-              {draftLoadSource === "supabase"
-                ? "DB draft 불러옴"
-                : loadedFromStorage
-                  ? "저장된 draft 불러옴"
-                  : "새 초안"}
+              {isLoadingRemoteDraft
+                ? "불러오는 중..."
+                : draftLoadSource === "supabase"
+                  ? "DB draft 불러옴"
+                  : loadedFromStorage
+                    ? "저장된 draft 불러옴"
+                    : "새 초안"}
             </div>
           </div>
         </div>
@@ -1495,6 +1534,7 @@ export default function DetailPageEditor() {
               onMoveDown={() => moveSelected(1)}
               onToggleHide={() => toggleHide(selectedId)}
               onRegenerate={regenerateSelected}
+              onSelectAlternative={applyHeadlineAlternative}
               productImage={productImage}
               referenceImage={referenceImage}
               references={selectedReferences}

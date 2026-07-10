@@ -257,6 +257,7 @@ export interface AgentWorkflowDraft {
 
 export type UserStyleSignalKind =
   | "copy_manual_edit"
+  | "headline_choice"
   | "section_reorder"
   | "section_visibility"
   | "section_image_choice"

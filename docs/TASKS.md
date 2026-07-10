@@ -87,7 +87,7 @@
 ## 4. 이미지 처리
 
 - [x] 이미지 업로드 — local preview
-- [ ] 레퍼런스 이미지 업로드 또는 메모 입력
+- [x] 레퍼런스 이미지 업로드 또는 메모 입력 — 생성 화면 업로드 + 에디터 "레퍼런스 이미지 적용" 버튼
 - [x] 클라이언트 리사이즈
 - [x] WebP/JPEG 압축
 - [x] 최적화 전/후 용량 표시
@@ -132,7 +132,7 @@
 
 - [x] 모바일 캔버스 레이아웃 — `src/components/editor/section-canvas.tsx`
 - [x] 13개 섹션 렌더링
-- [ ] 무드 프리셋 적용
+- [x] 무드 프리셋 적용 — mood별 이미지 그라디언트 팔레트(minimal/natural/premium/colorful)를 `input.designMood` 기준으로 mock/live 생성 경로 모두에 적용
 - [x] 선택 섹션 표시
 - [x] 미리보기 확대/축소 — 헤더 −/100%/+ 버튼, 50~150% 범위. ZIP export는 `canvasWrapRef` 부모에만 `transform: scale`을 걸어 격리(줌 상태와 무관하게 항상 원래 크기로 캡처됨, 실제 export로 검증 완료)
 - [x] 캔버스 독립 스크롤 처리
@@ -150,13 +150,13 @@
 
 ## 9. Light/Dark 모드
 
-- [ ] 시스템 테마 기본값 반영
-- [ ] light/dark/system 선택 UI
-- [ ] 선택한 테마 저장
-- [ ] 대시보드 light/dark 확인
-- [ ] 편집기 light/dark 확인
-- [ ] 관리자 화면 light/dark 확인
-- [ ] 상세페이지 캔버스/export 디자인과 앱 테마 분리
+- [x] 시스템 테마 기본값 반영 — `ThemeProvider defaultTheme="system"` (`src/app/layout.tsx`)
+- [x] light/dark/system 선택 UI — `ThemeSwitch` (`src/components/app-shell/theme-switch.tsx`)
+- [x] 선택한 테마 저장 — next-themes가 localStorage에 자동 저장
+- [ ] 대시보드 light/dark 확인 — 실제 화면 눈으로 확인 필요 (수동 QA)
+- [ ] 편집기 light/dark 확인 — 실제 화면 눈으로 확인 필요 (수동 QA)
+- [ ] 관리자 화면 light/dark 확인 — 2차 항목(관리자 화면)이 아직 없어 해당 없음
+- [x] 상세페이지 캔버스/export 디자인과 앱 테마 분리 — `globals.css`에 `--canvas-*` 토큰이 `.dark`와 무관하게 고정값으로 정의됨 ("intentionally NOT theme-dependent" 주석 포함)
 
 ## 10. GSAP 인터랙션 (2차)
 
@@ -173,9 +173,9 @@
 - [x] 섹션 문구 수정 — 사이드 패널 + 캔버스 inline 수정
 - [x] 섹션 이미지 교체 — 직접 업로드/상품 이미지/레퍼런스 mock 적용
 - [x] 섹션 숨김/복구
-- [ ] dnd-kit 섹션 순서 변경 — 현재는 선택 섹션 위/아래 이동 중심
-- [ ] 카피 후보 선택
-- [ ] 특정 섹션 다시 생성
+- [x] dnd-kit 섹션 순서 변경 — `SectionList`의 grip 아이콘이 실제 드래그 핸들로 동작 (`@dnd-kit/sortable`), 위/아래 버튼도 유지
+- [x] 카피 후보 선택 — 섹션 편집 패널 "카피 후보" 목록에서 클릭하면 헤드라인 교체(이전 헤드라인은 후보 목록에 남아 다시 전환 가능)
+- [x] 특정 섹션 다시 생성 — "이 섹션 다시 생성" 버튼(mock 우선, 3종 대체 문구 로테이션)
 - [x] 편집 히스토리 상태 관리 (undo/redo 스택)
 - [x] Ctrl+Z / Ctrl+Shift+Z 단축키
 - [x] 상단 작업바 되돌리기/다시하기 버튼
@@ -186,7 +186,7 @@
 - [x] 빠른 액션 버튼
 - [x] 전체 시안 수정 요청
 - [x] 선택 섹션 중심 수정 요청
-- [ ] FAQ/CTA 축약 요청 — 전용 예시 칩 미제공(자유 입력으로는 가능)
+- [x] FAQ/CTA 축약 요청 — 전용 예시 칩 추가 (`AiAssistantPanel` REVISION_EXAMPLES)
 - [x] 검수 경고 반영 요청 — 예시 칩 + `priorReview` 컨텍스트 전달 구조 연결
 - [x] 재기획 전/후 비교 — `AiAssistantPanel` 적용 전/새 시안 후보 비교 UI
 - [x] 새 시안 적용하기
@@ -259,12 +259,12 @@
 
 ## 17. 마무리
 
-- [ ] 샘플 상품 데이터
-- [ ] 빈 상태 UI
-- [ ] 로딩 상태 UI
-- [ ] 오류 상태 UI
-- [ ] 주요 뷰포트 반응형 최종 점검
-- [ ] light/dark 시각 점검
-- [ ] 주요 모션이 작업 흐름을 방해하지 않는지 점검
-- [x] lint/build 확인 — 2026-07-09 `npm run lint`, `npx tsc --noEmit`, `npm run build` 통과
-- [ ] 발표 데모 흐름 정리
+- [x] 샘플 상품 데이터 — `mockProductInput`이 새 프로젝트 폼 기본값으로 이미 연결됨
+- [x] 빈 상태 UI — 대시보드 로그아웃/미설정/빈 목록 상태 메시지
+- [x] 로딩 상태 UI — 대시보드/생성 화면/에디터(Supabase draft 불러오는 중 표시 추가) 모두 커버
+- [x] 오류 상태 UI — 대시보드 오류 상태, `SupabaseSaveError` 상세 메시지, AI 실패 시 mock 폴백
+- [ ] 주요 뷰포트 반응형 최종 점검 — 실제 화면 눈으로 확인 필요 (수동 QA)
+- [ ] light/dark 시각 점검 — 실제 화면 눈으로 확인 필요 (수동 QA, §9와 동일)
+- [ ] 주요 모션이 작업 흐름을 방해하지 않는지 점검 — 실제 화면 눈으로 확인 필요 (수동 QA)
+- [x] lint/build 확인 — 2026-07-10 `npm run lint`, `npx tsc --noEmit`, `npm run build` 통과
+- [x] 발표 데모 흐름 정리 — `docs/DEMO_SCRIPT.md`
