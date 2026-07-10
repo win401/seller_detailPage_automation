@@ -44,6 +44,75 @@ export const MOOD_LABELS: Record<DesignMood, string> = {
 
 export type ThemeMode = "light" | "dark" | "system";
 
+// ---------- section/style-set layout presets ----------
+// Preset-based (not free-position) section layout controls. Keeps the editor
+// block-based rather than free Figma-style placement, while still giving
+// real editing range on image crop/position and section density.
+
+export type ImagePosition =
+  | "top-left"
+  | "top"
+  | "top-right"
+  | "left"
+  | "center"
+  | "right"
+  | "bottom-left"
+  | "bottom"
+  | "bottom-right";
+
+export const IMAGE_POSITION_CSS: Record<ImagePosition, string> = {
+  "top-left": "left top",
+  top: "center top",
+  "top-right": "right top",
+  left: "left center",
+  center: "center center",
+  right: "right center",
+  "bottom-left": "left bottom",
+  bottom: "center bottom",
+  "bottom-right": "right bottom",
+};
+
+export type ImageFit = "cover" | "contain";
+
+export const IMAGE_FIT_LABELS: Record<ImageFit, string> = {
+  cover: "채우기",
+  contain: "전체 보기",
+};
+
+export type ImageHeight = "compact" | "default" | "tall";
+
+export const IMAGE_HEIGHT_LABELS: Record<ImageHeight, string> = {
+  compact: "낮게",
+  default: "기본",
+  tall: "높게",
+};
+
+export type SectionSpacing = "compact" | "default" | "spacious";
+
+export const SECTION_SPACING_LABELS: Record<SectionSpacing, string> = {
+  compact: "좁게",
+  default: "기본",
+  spacious: "넉넉하게",
+};
+
+export type TextScale = "compact" | "default" | "large";
+
+export const TEXT_SCALE_LABELS: Record<TextScale, string> = {
+  compact: "작게",
+  default: "기본",
+  large: "크게",
+};
+
+/** Layout preset fields shared by both a single section's override and a
+ * style set's project-wide defaults. */
+export interface SectionLayoutPreset {
+  imagePosition?: ImagePosition;
+  imageFit?: ImageFit;
+  imageHeight?: ImageHeight;
+  spacing?: SectionSpacing;
+  textScale?: TextScale;
+}
+
 // ---------- section model (13-section detail page) ----------
 
 export type SectionKind =
@@ -94,7 +163,7 @@ export const SECTION_KIND_LABELS: Record<SectionKind, string> = {
   cta: "CTA",
 };
 
-export interface DetailSection {
+export interface DetailSection extends SectionLayoutPreset {
   id: string;
   kind: SectionKind;
   /** Small label above the headline, e.g. "BENEFIT 01". */
@@ -159,7 +228,7 @@ export const ADDITIONAL_INSTRUCTION_EXAMPLES = [
 
 // ---------- style sets ----------
 
-export interface StyleSet {
+export interface StyleSet extends SectionLayoutPreset {
   id: string;
   userId: string;
   name: string;

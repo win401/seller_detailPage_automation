@@ -6,7 +6,30 @@ import { ImagePlus, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { DetailSection, SectionImageAsset, UploadedImageDraft } from "@/lib/types";
+import {
+  DetailSection,
+  IMAGE_FIT_LABELS,
+  IMAGE_HEIGHT_LABELS,
+  SECTION_SPACING_LABELS,
+  SectionImageAsset,
+  SectionLayoutPreset,
+  TEXT_SCALE_LABELS,
+  UploadedImageDraft,
+} from "@/lib/types";
+import { ImagePositionGrid, PresetToggleGroup } from "./layout-preset-controls";
+
+const IMAGE_FIT_OPTIONS = (Object.keys(IMAGE_FIT_LABELS) as (keyof typeof IMAGE_FIT_LABELS)[]).map(
+  (value) => ({ value, label: IMAGE_FIT_LABELS[value] })
+);
+const IMAGE_HEIGHT_OPTIONS = (
+  Object.keys(IMAGE_HEIGHT_LABELS) as (keyof typeof IMAGE_HEIGHT_LABELS)[]
+).map((value) => ({ value, label: IMAGE_HEIGHT_LABELS[value] }));
+const SPACING_OPTIONS = (
+  Object.keys(SECTION_SPACING_LABELS) as (keyof typeof SECTION_SPACING_LABELS)[]
+).map((value) => ({ value, label: SECTION_SPACING_LABELS[value] }));
+const TEXT_SCALE_OPTIONS = (
+  Object.keys(TEXT_SCALE_LABELS) as (keyof typeof TEXT_SCALE_LABELS)[]
+).map((value) => ({ value, label: TEXT_SCALE_LABELS[value] }));
 
 export function SectionEditPanel({
   section,
@@ -18,6 +41,7 @@ export function SectionEditPanel({
   onToggleHide,
   onRegenerate,
   onSelectAlternative,
+  onChangeLayout,
   productImage,
   referenceImage,
   references,
@@ -35,6 +59,8 @@ export function SectionEditPanel({
   onToggleHide: () => void;
   onRegenerate: () => void;
   onSelectAlternative: (index: number) => void;
+  /** Section-level layout preset override (docs/TASKS.md — 섹션 레이아웃 프리셋). */
+  onChangeLayout: (patch: SectionLayoutPreset) => void;
   productImage: UploadedImageDraft | null;
   referenceImage: UploadedImageDraft | null;
   references: SectionImageAsset[];
@@ -123,6 +149,40 @@ export function SectionEditPanel({
           </span>
         </div>
 
+        <div className="mt-2 flex items-start gap-3">
+          <div>
+            <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
+              이미지 위치
+            </div>
+            <ImagePositionGrid
+              value={section.imagePosition}
+              onChange={(imagePosition) => onChangeLayout({ imagePosition })}
+            />
+          </div>
+          <div className="flex-1 grid gap-1.5">
+            <div>
+              <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
+                이미지 채우기
+              </div>
+              <PresetToggleGroup
+                options={IMAGE_FIT_OPTIONS}
+                value={section.imageFit}
+                onChange={(imageFit) => onChangeLayout({ imageFit })}
+              />
+            </div>
+            <div>
+              <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
+                이미지 높이
+              </div>
+              <PresetToggleGroup
+                options={IMAGE_HEIGHT_OPTIONS}
+                value={section.imageHeight}
+                onChange={(imageHeight) => onChangeLayout({ imageHeight })}
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="mt-2 grid grid-cols-2 gap-2">
           <label className="flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border text-xs font-semibold">
             <input
@@ -190,6 +250,32 @@ export function SectionEditPanel({
           <Sparkles className="size-3.5" />
           {isGeneratingImage ? "생성 중..." : "AI로 이미지 생성"}
         </Button>
+      </div>
+
+      <div className="mt-2 border-t border-border pt-3">
+        <div className="mb-2 text-xs font-bold">여백 & 텍스트 크기</div>
+        <div className="grid gap-1.5">
+          <div>
+            <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
+              섹션 여백
+            </div>
+            <PresetToggleGroup
+              options={SPACING_OPTIONS}
+              value={section.spacing}
+              onChange={(spacing) => onChangeLayout({ spacing })}
+            />
+          </div>
+          <div>
+            <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
+              텍스트 크기
+            </div>
+            <PresetToggleGroup
+              options={TEXT_SCALE_OPTIONS}
+              value={section.textScale}
+              onChange={(textScale) => onChangeLayout({ textScale })}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-2">

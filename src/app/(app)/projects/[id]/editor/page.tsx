@@ -37,6 +37,7 @@ import {
   PLATFORM_EXPORT_WIDTH,
   PLATFORM_LABELS,
   ProjectSummary,
+  SectionLayoutPreset,
   SectionImageAsset,
   UploadedImageDraft,
   UserStyleSignalDraft,
@@ -965,6 +966,13 @@ export default function DetailPageEditor() {
     });
   }
 
+  /** Per-section layout preset override (image position/fit/height, section
+   * spacing, text scale) — docs/TASKS.md 섹션 레이아웃 프리셋. */
+  function updateSelectedLayout(patch: SectionLayoutPreset) {
+    pushHistory();
+    setSections((prev) => prev.map((s) => (s.id === selectedId ? { ...s, ...patch } : s)));
+  }
+
   function applySectionImage(asset: SectionImageAsset) {
     const beforeImage = selectedSection.imageLabel ?? "이미지 없음";
     pushHistory();
@@ -1535,6 +1543,7 @@ export default function DetailPageEditor() {
               onToggleHide={() => toggleHide(selectedId)}
               onRegenerate={regenerateSelected}
               onSelectAlternative={applyHeadlineAlternative}
+              onChangeLayout={updateSelectedLayout}
               productImage={productImage}
               referenceImage={referenceImage}
               references={selectedReferences}

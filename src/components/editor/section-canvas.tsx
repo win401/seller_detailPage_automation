@@ -5,6 +5,14 @@ import { gsap } from "gsap";
 
 import { cn } from "@/lib/utils";
 import { DetailSection, PLATFORM_EXPORT_WIDTH, Platform } from "@/lib/types";
+import {
+  getBodyTextClass,
+  getHeadlineTextClass,
+  getImageFitClass,
+  getImageHeightClass,
+  getImagePositionCss,
+  getSpacingClasses,
+} from "@/lib/layout-presets";
 
 type EditableField = "headline" | "body";
 type EditingCell = { sectionId: string; field: EditableField };
@@ -108,11 +116,16 @@ export function SectionCanvas({
             >
               {hasImage && (
                 <div
-                  className="h-36 border-b border-canvas-border bg-cover bg-center"
+                  className={cn(
+                    "border-b border-canvas-border",
+                    getImageHeightClass(sec.imageHeight),
+                    getImageFitClass(sec.imageFit)
+                  )}
                   style={{
                     backgroundImage: sec.imageUrl
                       ? `url(${sec.imageUrl})`
                       : sec.imageGradient,
+                    backgroundPosition: getImagePositionCss(sec.imagePosition),
                   }}
                   aria-label={sec.imageLabel ?? sec.imageRole}
                 >
@@ -123,7 +136,7 @@ export function SectionCanvas({
                   </div>
                 </div>
               )}
-              <div className={cn("px-5", isIntro || isCta ? "py-6.5" : "py-5")}>
+              <div className={getSpacingClasses(sec.spacing, isIntro || isCta)}>
                 <div
                   className={cn(
                     "mb-1.5 text-[10px] font-extrabold tracking-wide",
@@ -149,9 +162,10 @@ export function SectionCanvas({
                     }}
                     className={cn(
                       "mb-1.5 w-full rounded border border-dashed bg-transparent font-bold tracking-tight outline-none",
+                      getHeadlineTextClass(sec.textScale, isIntro || isCta),
                       isIntro || isCta
-                        ? "border-white/50 text-[19px] text-white"
-                        : "border-canvas-accent text-[15px] text-canvas-dark"
+                        ? "border-white/50 text-white"
+                        : "border-canvas-accent text-canvas-dark"
                     )}
                   />
                 ) : (
@@ -162,7 +176,8 @@ export function SectionCanvas({
                     }}
                     className={cn(
                       "mb-1.5 cursor-text font-bold tracking-tight",
-                      isIntro || isCta ? "text-[19px] text-white" : "text-[15px] text-canvas-dark"
+                      getHeadlineTextClass(sec.textScale, isIntro || isCta),
+                      isIntro || isCta ? "text-white" : "text-canvas-dark"
                     )}
                   >
                     {sec.headline}
@@ -180,7 +195,8 @@ export function SectionCanvas({
                       if (e.key === "Escape") cancelEdit();
                     }}
                     className={cn(
-                      "w-full resize-none rounded border border-dashed bg-transparent text-[13px] leading-relaxed outline-none",
+                      "w-full resize-none rounded border border-dashed bg-transparent leading-relaxed outline-none",
+                      getBodyTextClass(sec.textScale),
                       isIntro || isCta
                         ? "border-white/50 text-white/85"
                         : "border-canvas-accent text-canvas-muted"
@@ -193,7 +209,8 @@ export function SectionCanvas({
                       startEdit(sec, "body");
                     }}
                     className={cn(
-                      "cursor-text text-[13px] leading-relaxed",
+                      "cursor-text leading-relaxed",
+                      getBodyTextClass(sec.textScale),
                       isIntro || isCta ? "text-white/85" : "text-canvas-muted"
                     )}
                   >
