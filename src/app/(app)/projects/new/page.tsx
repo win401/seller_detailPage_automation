@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardList, ImagePlus, LinkIcon, Plus, Sparkles } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, ClipboardList, ImagePlus, LinkIcon, Loader2, Plus, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +50,13 @@ const IMAGE_OUTPUT_TYPE = "image/webp";
 const TONE_OPTIONS = Object.keys(TONE_LABELS) as Tone[];
 const MOOD_OPTIONS = Object.keys(MOOD_LABELS) as DesignMood[];
 const PLATFORM_OPTIONS = Object.keys(PLATFORM_LABELS) as Platform[];
+const GENERATION_STAGES = [
+  { label: "상품 정보 분석", description: "입력 정보와 경쟁 참고를 정리하고 있어요" },
+  { label: "상세페이지 기획", description: "판매 흐름과 섹션 구성을 설계하고 있어요" },
+  { label: "카피와 시안 제작", description: "13개 섹션의 문구와 레이아웃을 만들고 있어요" },
+  { label: "검수", description: "과장 표현과 정보 누락을 확인하고 있어요" },
+  { label: "프로젝트 저장", description: "편집 가능한 시안으로 마무리하고 있어요" },
+] as const;
 const REFERENCE_TYPE_LABELS: Record<CompetitorReferenceType, string> = {
   same_product: "동일 상품",
   similar_product: "유사 상품",
@@ -79,6 +87,121 @@ function Chip({
     >
       {children}
     </button>
+  );
+}
+
+function GenerationProgressOverlay({
+  open,
+  elapsed,
+  productName,
+}: {
+  open: boolean;
+  elapsed: number;
+  productName: string;
+}) {
+  const stageIndex = elapsed < 5 ? 0 : elapsed < 13 ? 1 : elapsed < 27 ? 2 : elapsed < 42 ? 3 : 4;
+  const stage = GENERATION_STAGES[stageIndex];
+  const progress = Math.max(10, ((stageIndex + 1) / GENERATION_STAGES.length) * 100);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/55 px-5 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          role="status"
+          aria-live="polite"
+          aria-label="상세페이지 시안 생성 중"
+        >
+          <motion.div
+            className="w-full max-w-[460px] overflow-hidden rounded-lg border border-border bg-card shadow-[0_24px_80px_rgba(0,0,0,0.28)]"
+            initial={{ y: 18, scale: 0.98, opacity: 0 }}
+            animate={{ y: 0, scale: 1, opacity: 1 }}
+            exit={{ y: 10, scale: 0.98, opacity: 0 }}
+            transition={{ duration: 0.28, ease: "easeOut" }}
+          >
+            <div className="flex items-center gap-4 border-b border-border px-6 py-5">
+              <div className="relative flex size-14 shrink-0 items-center justify-center">
+                <motion.div
+                  className="absolute inset-0 rounded-full border-2 border-muted border-t-primary"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1.15, repeat: Infinity, ease: "linear" }}
+                />
+                <Sparkles className="size-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold text-primary">AI DETAIL PAGE</div>
+                <h2 className="mt-1 text-lg font-extrabold">상세페이지 시안을 만들고 있어요</h2>
+                <p className="mt-1 truncate text-xs text-muted-foreground">
+                  {productName || "새 상품"} · {elapsed}초 경과
+                </p>
+              </div>
+            </div>
+
+            <div className="px-6 py-5">
+              <div className="mb-4 overflow-hidden rounded-full bg-muted">
+                <motion.div
+                  className="h-1.5 rounded-full bg-primary"
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.45, ease: "easeOut" }}
+                />
+              </div>
+
+              <div className="mb-5 rounded-md border border-primary/25 bg-accent-soft px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+                  <Loader2 className="size-4 animate-spin text-primary" />
+                  {stage.label}
+                </div>
+                <p className="mt-1 pl-6 text-xs leading-5 text-muted-foreground">
+                  {stage.description}
+                </p>
+              </div>
+
+              <div className="grid gap-2.5">
+                {GENERATION_STAGES.map((item, index) => {
+                  const isComplete = index < stageIndex;
+                  const isCurrent = index === stageIndex;
+                  return (
+                    <div
+                      key={item.label}
+                      className={cn(
+                        "flex h-8 items-center gap-3 text-xs transition-colors duration-300",
+                        isCurrent ? "font-bold text-foreground" : "text-muted-foreground"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex size-5 shrink-0 items-center justify-center rounded-full border",
+                          isComplete && "border-primary bg-primary text-primary-foreground",
+                          isCurrent && "border-primary text-primary",
+                          !isComplete && !isCurrent && "border-border"
+                        )}
+                      >
+                        {isComplete ? (
+                          <Check className="size-3" />
+                        ) : isCurrent ? (
+                          <span className="size-1.5 animate-pulse rounded-full bg-primary" />
+                        ) : (
+                          <span className="size-1 rounded-full bg-muted-foreground/35" />
+                        )}
+                      </span>
+                      <span>{item.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="mt-5 text-center text-[11px] text-muted-foreground">
+                완료되면 편집 화면으로 자동 이동합니다.
+              </p>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -173,7 +296,16 @@ export default function CreateProjectPage() {
   const [imageOptimizationMessage, setImageOptimizationMessage] = useState<string | null>(null);
   const [isOptimizingImage, setIsOptimizingImage] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationElapsed, setGenerationElapsed] = useState(0);
   const [generationMessage, setGenerationMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isGenerating) return;
+    const timer = window.setInterval(() => {
+      setGenerationElapsed((current) => current + 1);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [isGenerating]);
 
   async function persistGeneratedProject({
     input,
@@ -350,6 +482,7 @@ export default function CreateProjectPage() {
   }
 
   async function handleGenerate() {
+    setGenerationElapsed(0);
     setIsGenerating(true);
     setGenerationMessage("분석 → 기획 → 제작 → 검수 에이전트가 초안을 준비하는 중입니다...");
     const input: GenerateDetailPageInput = {
@@ -491,6 +624,11 @@ export default function CreateProjectPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1180px] flex-1 px-6 py-8 pb-16">
+      <GenerationProgressOverlay
+        open={isGenerating}
+        elapsed={generationElapsed}
+        productName={productName}
+      />
       <h1 className="text-2xl font-extrabold tracking-tight">새 상세페이지 만들기</h1>
       <p className="text-[13.5px] text-muted-foreground">
         상품 정보와 사진만 넣으면 AI가 13섹션 초안을 만들어드려요
