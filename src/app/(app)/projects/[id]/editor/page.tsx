@@ -49,6 +49,7 @@ import {
   SectionLayoutPreset,
   SectionImageAsset,
   StyleSet,
+  Tone,
   UploadedImageDraft,
   UserStyleSignalDraft,
   UserStyleSignalKind,
@@ -128,6 +129,10 @@ function isPlatform(value: string | null | undefined): value is Platform {
 
 function isDesignMood(value: string | null | undefined): value is DesignMood {
   return value === "minimal" || value === "natural" || value === "premium" || value === "colorful";
+}
+
+function isTone(value: string | null | undefined): value is Tone {
+  return value === "practical" || value === "trust" || value === "premium" || value === "warm";
 }
 
 function isDetailSectionArray(value: unknown): value is DetailSection[] {
@@ -234,9 +239,35 @@ export default function DetailPageEditor() {
       const raw = window.localStorage.getItem(storageKey);
       if (raw) {
         const parsed = JSON.parse(raw) as Snapshot;
+        const rawGeneration = window.localStorage.getItem(generationKey);
+        const generation = rawGeneration ? (JSON.parse(rawGeneration) as LocalGeneration) : null;
+        const input = generation?.input;
+        const legacyInput: GenerateDetailPageInput | null = input?.productName
+          ? {
+              productName: input.productName,
+              category: input.category ?? "",
+              platform: input.platform ?? "smartstore",
+              keywords: isStringArray(input.keywords) ? input.keywords : [],
+              targetCustomer: typeof input.targetCustomer === "string" ? input.targetCustomer : "",
+              emphasisPoints: isStringArray(input.emphasisPoints) ? input.emphasisPoints : [],
+              tone: isTone(input.tone) ? input.tone : "practical",
+              designMood: isDesignMood(input.designMood) ? input.designMood : "minimal",
+              additionalInstruction:
+                typeof input.additionalInstruction === "string" ? input.additionalInstruction : "",
+            }
+          : null;
+        const displaySections = legacyInput
+          ? upgradeLegacyMockSections(legacyInput, parsed.sections)
+          : parsed.sections;
+        if (displaySections !== parsed.sections) {
+          window.localStorage.setItem(
+            storageKey,
+            JSON.stringify({ sections: displaySections, hiddenIds: parsed.hiddenIds })
+          );
+        }
         // one-time load from localStorage on mount, not a render loop
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setSections(parsed.sections);
+        setSections(displaySections);
         setHiddenIds(new Set(parsed.hiddenIds));
         setLoadedFromStorage(true);
         setDraftLoadSource("local");
@@ -244,7 +275,7 @@ export default function DetailPageEditor() {
     } catch {
       // ignore corrupt local storage
     }
-  }, [storageKey]);
+  }, [generationKey, storageKey]);
 
   useEffect(() => {
     try {

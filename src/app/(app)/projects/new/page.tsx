@@ -16,7 +16,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { mockBuildAgentWorkflow, mockGenerateDetailPage } from "@/lib/mock-ai";
+import {
+  mockBuildAgentWorkflow,
+  mockGenerateDetailPage,
+  upgradeLegacyMockSections,
+} from "@/lib/mock-ai";
 import { mockEmphasisOptions, mockProductInput, mockStyleSets } from "@/lib/mock-data";
 import { applyLayoutPresetToSections } from "@/lib/layout-presets";
 import { loadStyleSets } from "@/lib/style-sets";
@@ -377,9 +381,15 @@ export default function CreateProjectPage() {
     // than passed into the generation prompt.
     const selectedStyleSet = styleSets.find((ss) => ss.id === styleSetId);
     function withStyleLayout(rawOutput: GenerateDetailPageOutput): GenerateDetailPageOutput {
-      return selectedStyleSet
-        ? { ...rawOutput, sections: applyLayoutPresetToSections(rawOutput.sections, selectedStyleSet) }
-        : rawOutput;
+      // The editor only accepts structured blocks. A live model may return the
+      // old flat 13-section shape, so normalize it before either local or DB save.
+      const structuredSections = upgradeLegacyMockSections(input, rawOutput.sections);
+      return {
+        ...rawOutput,
+        sections: selectedStyleSet
+          ? applyLayoutPresetToSections(structuredSections, selectedStyleSet)
+          : structuredSections,
+      };
     }
 
     try {
