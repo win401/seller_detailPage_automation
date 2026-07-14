@@ -48,11 +48,7 @@ export async function runPlanningAgent(
   }
 
   try {
-    const modelId = process.env.AI_MODEL ?? "gpt-5.4-mini";
-    // gpt-5.4-mini is a reasoning model — hidden reasoning tokens are drawn
-    // from maxOutputTokens before any visible output, so a low budget here
-    // reliably produced AI_NoOutputGeneratedError once the analysis context
-    // made the prompt long enough to reason over.
+    const modelId = process.env.AI_MODEL ?? "gpt-4.1-mini";
     const { output } = await generateText({
       model: openai(modelId),
       maxRetries: 0,

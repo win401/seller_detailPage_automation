@@ -102,7 +102,7 @@ export async function runRevisionAgent(
   }
 
   try {
-    const modelId = process.env.AI_MODEL ?? "gpt-5.4-mini";
+    const modelId = process.env.AI_MODEL ?? "gpt-4.1-mini";
     const { output } = await generateText({
       model: openai(modelId),
       maxRetries: 0,

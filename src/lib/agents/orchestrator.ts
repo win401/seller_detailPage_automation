@@ -230,7 +230,7 @@ export async function runOrchestratedGeneration(
   let stoppedReason: "completed" | "cost_limit_reached" | "repeated_failure" = "completed";
 
   try {
-    const modelId = process.env.AI_MODEL ?? "gpt-5.4-mini";
+    const modelId = process.env.AI_MODEL ?? "gpt-4.1-mini";
     const result = await generateText({
       model: openai(modelId),
       tools,
