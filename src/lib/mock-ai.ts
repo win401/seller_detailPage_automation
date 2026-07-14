@@ -49,6 +49,7 @@ export function mockGenerateDetailPage(input: GenerateDetailPageInput): Generate
       imagePrompt:
         `${input.designMood} mood, ${section.imageRole}, product detail page section image, keep real product facts unchanged`,
       ...(moodImage && {
+        imageUrl: moodImage.dataUrl,
         imageGradient: moodImage.gradient,
         imageLabel: moodImage.label,
         imageSource: moodImage.source,

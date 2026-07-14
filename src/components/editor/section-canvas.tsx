@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 
+import { getMockReferencesForSection } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { DetailSection, PLATFORM_EXPORT_WIDTH, Platform } from "@/lib/types";
 import {
@@ -34,9 +35,16 @@ function BlockImage({
   className?: string;
   overlay?: boolean;
 }) {
-  const image = section.slots?.image ?? section.imageUrl;
+  const savedImage = section.slots?.image ?? section.imageUrl;
+  // Older local/Supabase drafts only stored a gradient. Give those drafts the
+  // same photo-like mock visual as newly generated drafts without mutating data.
+  const fallbackMockImage =
+    !savedImage && section.imageSource !== "uploaded"
+      ? getMockReferencesForSection(section)[0]?.dataUrl
+      : undefined;
+  const image = savedImage ?? fallbackMockImage;
   const backgroundImage = image ? `url(${image})` : section.imageGradient;
-  const isMockImage = !image && section.imageSource !== "uploaded";
+  const isMockImage = !savedImage && !!fallbackMockImage || section.imageSource === "reference";
 
   if (!backgroundImage) {
     return (
@@ -60,18 +68,11 @@ function BlockImage({
       }}
       aria-label={section.imageLabel ?? section.imageRole}
     >
-      {isMockImage && (
-        <>
-          <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,.26),transparent_42%,rgba(0,0,0,.12))]" />
-          <div className="absolute inset-x-[12%] bottom-0 h-[54%] rounded-t-[46%] border border-white/35 bg-white/14 shadow-[0_-16px_36px_rgba(255,255,255,.1)]" />
-          <div className="absolute left-[22%] top-[17%] h-[20%] w-[56%] rounded-full border border-white/45 bg-white/18" />
-        </>
-      )}
       {overlay && <div className="absolute inset-0 bg-gradient-to-t from-black/38 via-black/5 to-transparent" />}
       {section.imageLabel && (
         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 text-white">
           <span className="text-[9px] font-bold tracking-[0.16em] text-white/76">
-            {isMockImage ? "IMAGE SLOT" : "PRODUCT VISUAL"}
+            {isMockImage ? "MOCK VISUAL" : "PRODUCT VISUAL"}
           </span>
           <span className="truncate rounded-full border border-white/20 bg-black/20 px-2 py-1 text-[10px] font-bold backdrop-blur-sm">
             {section.imageLabel}
@@ -667,7 +668,7 @@ export function SectionCanvas({
           const isFlash = sec.id === flashId;
           const isCta = sec.kind === "cta";
           const isIntro = sec.kind === "intro";
-          const hasImage = !!sec.imageUrl || !!sec.imageGradient;
+          const hasImage = !!sec.imageUrl || !!sec.imageGradient || sec.imageSource !== "uploaded";
           if (sec.layoutType) {
             return (
               <StructuredSectionBlock
@@ -700,26 +701,14 @@ export function SectionCanvas({
               )}
             >
               {hasImage && (
-                <div
+                <BlockImage
+                  section={sec}
                   className={cn(
                     "border-b border-canvas-border",
                     getImageHeightClass(sec.imageHeight),
                     getImageFitClass(sec.imageFit)
                   )}
-                  style={{
-                    backgroundImage: sec.imageUrl
-                      ? `url(${sec.imageUrl})`
-                      : sec.imageGradient,
-                    backgroundPosition: getImagePositionCss(sec.imagePosition),
-                  }}
-                  aria-label={sec.imageLabel ?? sec.imageRole}
-                >
-                  <div className="flex h-full items-end bg-gradient-to-t from-black/24 to-transparent p-3">
-                    <span className="rounded-full bg-white/85 px-2 py-1 text-[10px] font-bold text-canvas-dark">
-                      {sec.imageLabel ?? sec.imageRole}
-                    </span>
-                  </div>
-                </div>
+                />
               )}
               <div className={getSpacingClasses(sec.spacing, isIntro || isCta)}>
                 <div

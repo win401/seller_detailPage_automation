@@ -40,11 +40,10 @@ export const mockProductInput: ProductInput = {
 };
 
 /**
- * Mood-specific gradient palettes for the 5 mock reference "roles" below.
- * Same composition/shape per role across moods, only the color stops change,
- * so a generated draft's imagery actually reflects the user's selected
- * design mood (docs/TASKS.md §7 "무드 프리셋 적용") instead of always using
- * the same warm-neutral palette.
+ * Mock visual sources for the five common image roles. These are intentionally
+ * generic editorial images, never a claimed photo of the seller's product.
+ * They let the draft read like a real detail page before the seller replaces
+ * each section with an actual product photo.
  */
 const MOOD_GRADIENTS: Record<
   DesignMood,
@@ -88,6 +87,7 @@ function buildSectionImageReferences(mood: DesignMood): SectionImageAsset[] {
       label: "데스크 연출 컷",
       description: "자연광이 들어오는 책상 위 여백 중심 컷",
       source: "reference",
+      dataUrl: "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&w=1200&q=82",
       gradient: g.desk,
       promptHint: `${mood} mood, desk composition, soft natural light, generous whitespace`,
       tags: ["intro", "one_line", "product-hero-lifestyle", "product-flatlay"],
@@ -97,6 +97,7 @@ function buildSectionImageReferences(mood: DesignMood): SectionImageAsset[] {
       label: "소재 클로즈업",
       description: "질감과 디테일을 강조하는 접사 컷",
       source: "reference",
+      dataUrl: "https://images.unsplash.com/photo-1540932239986-30128078f3c5?auto=format&fit=crop&w=1200&q=82",
       gradient: g.macro,
       promptHint: `${mood} mood, macro product detail, texture, shallow depth of field, clean lighting`,
       tags: ["benefit_1", "detail", "product-detail-macro", "product-detail-texture"],
@@ -106,6 +107,7 @@ function buildSectionImageReferences(mood: DesignMood): SectionImageAsset[] {
       label: "실사용 장면",
       description: "가방, 노트북, 이동 동선이 보이는 실사용 라이프스타일 컷",
       source: "reference",
+      dataUrl: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1200&q=82",
       gradient: g.commute,
       promptHint: `${mood} mood, everyday lifestyle scene, product in use, calm urban setting`,
       tags: ["problem", "use_scene", "recommended_for", "problem-context-commute", "lifestyle-multi-scene"],
@@ -115,6 +117,7 @@ function buildSectionImageReferences(mood: DesignMood): SectionImageAsset[] {
       label: "구성품 정렬",
       description: "구성품을 깔끔하게 분리해 구조를 보여주는 컷",
       source: "reference",
+      dataUrl: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=82",
       gradient: g.parts,
       promptHint: `${mood} mood, disassembled product parts, clean top-down layout, precise shadows`,
       tags: ["benefit_3", "solution", "product-disassembled", "product-cross-section"],
@@ -124,6 +127,7 @@ function buildSectionImageReferences(mood: DesignMood): SectionImageAsset[] {
       label: "신뢰 포인트",
       description: "인증, 보증, 소재 정보를 차분하게 보여주는 그래픽형 컷",
       source: "reference",
+      dataUrl: "https://images.unsplash.com/photo-1519710164239-da123dc03ef4?auto=format&fit=crop&w=1200&q=82",
       gradient: g.badge,
       promptHint: `${mood} mood, trust point layout, subtle badge area, no fake certification`,
       tags: ["trust", "faq", "cta", "certification-badge"],

@@ -115,6 +115,7 @@ export async function runProductionAgent(
       const defaultImage = getMockReferencesForSection(base, input.designMood)[0];
       return {
         ...base,
+        imageUrl: defaultImage.dataUrl,
         imageGradient: defaultImage.gradient,
         imageLabel: defaultImage.label,
         imageSource: defaultImage.source,
