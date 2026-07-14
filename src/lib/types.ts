@@ -163,9 +163,120 @@ export const SECTION_KIND_LABELS: Record<SectionKind, string> = {
   cta: "CTA",
 };
 
+export type DetailBlockRole =
+  | "notice"
+  | "intro"
+  | "problem"
+  | "claim"
+  | "material"
+  | "feature"
+  | "option"
+  | "usage"
+  | "guide"
+  | "trust"
+  | "spec"
+  | "faq"
+  | "policy"
+  | "cta";
+
+export type DetailBlockLayoutType =
+  | "top_notice_banner"
+  | "problem_hook"
+  | "big_claim_band"
+  | "material_closeup"
+  | "before_after_compare"
+  | "feature_blue_panel"
+  | "evidence_card"
+  | "option_grid"
+  | "step_guide"
+  | "comparison_table"
+  | "review_summary"
+  | "product_info_table"
+  | "qa_list"
+  | "brand_mood_story"
+  | "color_lineup"
+  | "care_guide"
+  | "certification_stack"
+  | "check_point_cards"
+  | "policy_notice";
+
+export interface DetailOptionItem {
+  label: string;
+  value?: string;
+  description?: string;
+  color?: string;
+  imageUrl?: string;
+}
+
+export interface DetailSpecRow {
+  label: string;
+  value: string;
+}
+
+export interface DetailFaqItem {
+  question: string;
+  answer: string;
+}
+
+export interface DetailGuideItem {
+  title: string;
+  body: string;
+  icon?: string;
+}
+
+export interface DetailProofItem {
+  label: string;
+  value: string;
+  description?: string;
+}
+
+export interface DetailStepItem {
+  title: string;
+  body: string;
+  imageUrl?: string;
+}
+
+export interface DetailComparisonRow {
+  label: string;
+  left: string;
+  right: string;
+}
+
+export interface DetailBlockSlots {
+  eyebrow?: string;
+  subHeadline?: string;
+  badges?: string[];
+  items?: string[];
+  caption?: string;
+  brandName?: string;
+  palette?: string[];
+  swatches?: string[];
+  beforeLabel?: string;
+  afterLabel?: string;
+  beforeImage?: string;
+  afterImage?: string;
+  image?: string;
+  images?: string[];
+  optionItems?: DetailOptionItem[];
+  specRows?: DetailSpecRow[];
+  faqItems?: DetailFaqItem[];
+  guideItems?: DetailGuideItem[];
+  proofItems?: DetailProofItem[];
+  steps?: DetailStepItem[];
+  comparisonRows?: DetailComparisonRow[];
+  reviewItems?: string[];
+  score?: string;
+  cards?: DetailGuideItem[];
+  noticeItems?: string[];
+  emphasis?: string;
+}
+
 export interface DetailSection extends SectionLayoutPreset {
   id: string;
   kind: SectionKind;
+  blockRole?: DetailBlockRole;
+  layoutType?: DetailBlockLayoutType;
+  slots?: DetailBlockSlots;
   /** Small label above the headline, e.g. "BENEFIT 01". */
   kicker: string;
   title: string;

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 
@@ -16,6 +17,342 @@ import {
 
 type EditableField = "headline" | "body";
 type EditingCell = { sectionId: string; field: EditableField };
+type RenderEditableText = (
+  sec: DetailSection,
+  field: EditableField,
+  className: string,
+  editClassName: string,
+  multiline?: boolean
+) => ReactNode;
+
+function BlockImage({
+  section,
+  className,
+  overlay = true,
+}: {
+  section: DetailSection;
+  className?: string;
+  overlay?: boolean;
+}) {
+  const image = section.slots?.image ?? section.imageUrl;
+  const backgroundImage = image ? `url(${image})` : section.imageGradient;
+
+  if (!backgroundImage) {
+    return (
+      <div
+        className={cn(
+          "flex min-h-[156px] items-center justify-center bg-[linear-gradient(135deg,#f4f0e8,#d7cab8)] text-center text-[11px] font-bold text-canvas-muted",
+          className
+        )}
+      >
+        이미지 슬롯
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn("relative overflow-hidden bg-cover bg-center", className)}
+      style={{
+        backgroundImage,
+        backgroundPosition: getImagePositionCss(section.imagePosition),
+      }}
+      aria-label={section.imageLabel ?? section.imageRole}
+    >
+      {overlay && <div className="absolute inset-0 bg-gradient-to-t from-black/32 via-black/5 to-transparent" />}
+      {section.imageLabel && (
+        <span className="absolute bottom-3 left-3 rounded-full bg-white/88 px-2 py-1 text-[10px] font-bold text-canvas-dark">
+          {section.imageLabel}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function StructuredSectionBlock({
+  section,
+  index,
+  sectionCount,
+  isSelected,
+  isFlash,
+  onSelect,
+  renderEditableText,
+}: {
+  section: DetailSection;
+  index: number;
+  sectionCount: number;
+  isSelected: boolean;
+  isFlash: boolean;
+  onSelect: (id: string) => void;
+  renderEditableText: RenderEditableText;
+}) {
+  const slots = section.slots ?? {};
+  const layoutType = section.layoutType;
+  const sectionFrameClass = cn(
+    "cursor-pointer outline-offset-[-2px] transition-colors",
+    index !== sectionCount - 1 && "border-b border-canvas-border",
+    isSelected && "outline outline-2 outline-canvas-accent",
+    isFlash && "animate-[flashHighlight_0.9s_ease]"
+  );
+  const headline = (className: string, editClassName = className) =>
+    renderEditableText(section, "headline", className, editClassName);
+  const body = (className: string, editClassName = className) =>
+    renderEditableText(section, "body", className, editClassName, true);
+
+  return (
+    <section
+      data-section-id={section.id}
+      onClick={() => onSelect(section.id)}
+      className={sectionFrameClass}
+    >
+      {layoutType === "brand_mood_story" && (
+        <div className="bg-[#f7f4ec]">
+          <BlockImage section={section} className="h-[330px]" />
+          <div className="px-8 py-9 text-center">
+            <div className="mb-3 text-[10px] font-extrabold tracking-[0.22em] text-[#5f765f]">
+              {slots.eyebrow ?? section.kicker}
+            </div>
+            {headline("text-[24px] font-bold leading-[1.22] tracking-tight text-canvas-dark")}
+            <div className="mx-auto mt-4 h-px w-12 bg-[#7f9474]" />
+            {body("mt-5 text-[13px] leading-[1.85] text-canvas-muted")}
+            {slots.badges && (
+              <div className="mt-7 grid grid-cols-3 gap-2">
+                {slots.badges.map((badge) => (
+                  <div
+                    key={badge}
+                    className="rounded-full bg-white px-2 py-3 text-[10px] font-bold text-[#5d6f5b] shadow-sm"
+                  >
+                    {badge}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {layoutType === "big_claim_band" && (
+        <div className="bg-[#526f58] px-7 py-10 text-center text-white">
+          <div className="mb-3 text-[10px] font-extrabold tracking-[0.28em] text-white/70">
+            {section.kicker}
+          </div>
+          {headline("text-[28px] font-extrabold leading-[1.18] tracking-tight text-white")}
+          {slots.subHeadline && (
+            <p className="mt-3 text-[13px] font-semibold text-white/82">{slots.subHeadline}</p>
+          )}
+          <BlockImage section={section} className="mt-7 h-[210px] rounded-[2px]" />
+          {body("mt-6 text-[13px] leading-[1.75] text-white/82")}
+          {slots.badges && (
+            <div className="mt-7 grid grid-cols-3 gap-2">
+              {slots.badges.map((badge) => (
+                <span key={badge} className="rounded-full bg-white/16 px-2 py-2 text-[10px] font-bold">
+                  {badge}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {layoutType === "problem_hook" && (
+        <div className="bg-white px-7 py-10">
+          <div className="mb-4 inline-flex rounded-full bg-[#f1e8dc] px-3 py-1 text-[10px] font-extrabold text-[#6e5b49]">
+            {section.kicker}
+          </div>
+          {headline("text-[25px] font-extrabold leading-[1.25] tracking-tight text-canvas-dark")}
+          {body("mt-4 text-[13px] leading-[1.8] text-canvas-muted")}
+          <div className="mt-7 space-y-2.5">
+            {(section.bullets.length > 0
+              ? section.bullets
+              : ["작은 사이즈로 불편한 사용감", "거친 촉감과 낮은 흡수감", "욕실 분위기와 맞지 않는 컬러"]
+            ).map((item, itemIndex) => (
+              <div key={item} className="flex items-center gap-3 bg-[#f8f6f1] px-3 py-3">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#526f58] text-[11px] font-extrabold text-white">
+                  {itemIndex + 1}
+                </span>
+                <span className="text-[12px] font-semibold leading-relaxed text-canvas-dark">{item}</span>
+              </div>
+            ))}
+          </div>
+          <BlockImage section={section} className="mt-7 h-[180px]" />
+        </div>
+      )}
+
+      {layoutType === "material_closeup" && (
+        <div className="bg-[#fbfaf7]">
+          <div className="px-7 py-8">
+            <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-[#6e8068]">
+              {section.kicker}
+            </div>
+            {headline("text-[23px] font-extrabold leading-[1.25] text-canvas-dark")}
+            {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
+          </div>
+          <BlockImage section={section} className="mx-7 h-[230px]" overlay={false} />
+          <div className="grid grid-cols-3 gap-px bg-[#e8e1d6] px-7 py-7">
+            {(slots.badges ?? ["Soft", "Absorbent", "Daily"]).map((badge) => (
+              <div key={badge} className="bg-white py-4 text-center text-[11px] font-extrabold text-[#526f58]">
+                {badge}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {layoutType === "feature_blue_panel" && (
+        <div className="bg-[#0e84dc] px-7 py-9 text-white">
+          <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-white/75">
+            {section.kicker}
+          </div>
+          {headline("text-[24px] font-extrabold leading-[1.25] tracking-tight text-white")}
+          {body("mt-3 text-[13px] leading-[1.75] text-white/88")}
+          <BlockImage section={section} className="mt-7 h-[215px] rounded-[2px]" />
+          {section.bullets.length > 0 && (
+            <div className="mt-6 grid gap-2">
+              {section.bullets.map((bullet) => (
+                <div key={bullet} className="bg-white px-3 py-3 text-[12px] font-bold text-[#0f5c95]">
+                  {bullet}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {layoutType === "color_lineup" && (
+        <div className="bg-white px-7 py-10">
+          <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-[#526f58]">
+            {section.kicker}
+          </div>
+          {headline("text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
+          {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
+          <BlockImage section={section} className="mt-7 h-[190px]" overlay={false} />
+          <div className="mt-7 grid grid-cols-2 gap-3">
+            {(slots.optionItems ?? []).map((option) => (
+              <div key={option.label} className="flex items-center gap-3 bg-[#f7f5ef] p-3">
+                <span
+                  className="size-8 shrink-0 rounded-full border border-black/10"
+                  style={{ backgroundColor: option.color ?? "#ddd" }}
+                />
+                <span className="text-[12px] font-bold text-canvas-dark">{option.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {layoutType === "care_guide" && (
+        <div className="bg-[#f6f8f1] px-7 py-10">
+          <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-[#526f58]">
+            {section.kicker}
+          </div>
+          {headline("text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
+          {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
+          <div className="mt-7 divide-y divide-[#dfe7da] bg-white">
+            {(slots.guideItems ?? []).map((guide) => (
+              <div key={guide.title} className="flex gap-4 p-4">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#526f58] text-[11px] font-extrabold text-white">
+                  {guide.icon ?? "✓"}
+                </span>
+                <div>
+                  <div className="text-[13px] font-extrabold text-canvas-dark">{guide.title}</div>
+                  <div className="mt-1 text-[12px] leading-relaxed text-canvas-muted">{guide.body}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {layoutType === "check_point_cards" && (
+        <div className="bg-[#b49c86] px-7 py-10 text-white">
+          <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-white/70">
+            {section.kicker}
+          </div>
+          {headline("text-[24px] font-extrabold leading-[1.25] text-white")}
+          {body("mt-3 text-[13px] leading-[1.75] text-white/85")}
+          <div className="mt-7 grid gap-3">
+            {(slots.cards ?? []).map((card) => (
+              <div key={card.title} className="bg-white/92 p-4 text-canvas-dark">
+                <div className="text-[13px] font-extrabold">{card.title}</div>
+                <div className="mt-1 text-[12px] leading-relaxed text-canvas-muted">{card.body}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {layoutType === "product_info_table" && (
+        <div className="bg-white px-7 py-11">
+          {headline("text-[28px] font-extrabold leading-[1.2] text-canvas-dark")}
+          <div className="mt-2 text-[14px] text-canvas-muted">Product Information</div>
+          <div className="mt-6 border-t-2 border-canvas-dark">
+            {(slots.specRows ?? []).map((row) => (
+              <div key={row.label} className="grid grid-cols-[82px_1fr] border-b border-canvas-border py-3.5">
+                <div className="text-[12px] font-bold text-canvas-muted">[{row.label}]</div>
+                <div className="text-[12.5px] font-semibold leading-relaxed text-canvas-dark">{row.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {layoutType === "policy_notice" && (
+        <div className="bg-[#f8f8f8] px-7 py-10">
+          <div className="border-l-4 border-[#526f58] pl-4">
+            {headline("text-[23px] font-extrabold leading-[1.25] text-canvas-dark")}
+            {slots.emphasis && (
+              <div className="mt-2 text-[12px] font-extrabold text-[#526f58]">{slots.emphasis}</div>
+            )}
+          </div>
+          <ul className="mt-6 space-y-3">
+            {(slots.noticeItems ?? [section.body]).map((notice) => (
+              <li key={notice} className="text-[12px] font-semibold leading-[1.75] text-canvas-muted">
+                · {notice}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {layoutType === "qa_list" && (
+        <div className="bg-white px-7 py-10">
+          <div className="mb-3 text-center text-[32px] font-black tracking-tight text-canvas-dark">FAQ</div>
+          {body("mx-auto max-w-[260px] text-center text-[12px] leading-[1.7] text-canvas-muted")}
+          <div className="mt-7 space-y-3">
+            {(slots.faqItems ?? []).map((faq) => (
+              <div key={faq.question} className="bg-[#f5f6f2] p-4">
+                <div className="text-[12px] font-extrabold text-canvas-dark">Q. {faq.question}</div>
+                <div className="mt-2 text-[12px] leading-relaxed text-canvas-muted">A. {faq.answer}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {![
+        "brand_mood_story",
+        "big_claim_band",
+        "problem_hook",
+        "material_closeup",
+        "feature_blue_panel",
+        "color_lineup",
+        "care_guide",
+        "check_point_cards",
+        "product_info_table",
+        "policy_notice",
+        "qa_list",
+      ].includes(layoutType ?? "") && (
+        <div className="bg-white px-7 py-10">
+          <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-canvas-accent">
+            {section.kicker}
+          </div>
+          {headline("text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
+          {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
+        </div>
+      )}
+    </section>
+  );
+}
 
 /**
  * The mobile detail-page canvas. Colors here are intentionally the
@@ -80,6 +417,69 @@ export function SectionCanvas({
     setEditingCell(null);
   }
 
+  function renderEditableText(
+    sec: DetailSection,
+    field: EditableField,
+    className: string,
+    editClassName: string,
+    multiline = false
+  ) {
+    const isEditing = editingCell?.sectionId === sec.id && editingCell.field === field;
+
+    if (isEditing && multiline) {
+      return (
+        <textarea
+          autoFocus
+          rows={3}
+          value={draftValue}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => setDraftValue(e.target.value)}
+          onBlur={() => commitEdit(sec)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") cancelEdit();
+          }}
+          className={cn(
+            "w-full resize-none rounded border border-dashed bg-transparent outline-none",
+            editClassName
+          )}
+        />
+      );
+    }
+
+    if (isEditing) {
+      return (
+        <input
+          autoFocus
+          value={draftValue}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => setDraftValue(e.target.value)}
+          onBlur={() => commitEdit(sec)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commitEdit(sec);
+            } else if (e.key === "Escape") {
+              cancelEdit();
+            }
+          }}
+          className={cn("w-full rounded border border-dashed bg-transparent outline-none", editClassName)}
+        />
+      );
+    }
+
+    return (
+      <div
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          startEdit(sec, field);
+        }}
+        className={cn("cursor-text", className)}
+      >
+        {field === "headline" ? sec.headline : sec.body}
+      </div>
+    );
+  }
+
   return (
     <div
       ref={canvasRef}
@@ -98,6 +498,21 @@ export function SectionCanvas({
           const isCta = sec.kind === "cta";
           const isIntro = sec.kind === "intro";
           const hasImage = !!sec.imageUrl || !!sec.imageGradient;
+          if (sec.layoutType) {
+            return (
+              <StructuredSectionBlock
+                key={sec.id}
+                section={sec}
+                index={i}
+                sectionCount={sections.length}
+                isSelected={isSelected}
+                isFlash={isFlash}
+                onSelect={onSelect}
+                renderEditableText={renderEditableText}
+              />
+            );
+          }
+
           return (
             <div
               key={sec.id}
