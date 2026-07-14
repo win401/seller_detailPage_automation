@@ -31,7 +31,7 @@ import { SectionEditPanel } from "@/components/editor/section-edit-panel";
 import { AiAssistantPanel } from "@/components/editor/ai-assistant-panel";
 import { AgentWorkflowPanel } from "@/components/editor/agent-workflow-panel";
 import { getMockReferencesForSection, mockSections } from "@/lib/mock-data";
-import { mockPlanRevision } from "@/lib/mock-ai";
+import { mockPlanRevision, upgradeLegacyMockSections } from "@/lib/mock-ai";
 import { applyLayoutPresetToSections } from "@/lib/layout-presets";
 import { loadStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -409,17 +409,6 @@ export default function DetailPageEditor() {
 
       // One-time hydration from Supabase when opening a persisted project.
       setProjectSummary(nextSummary);
-      if (remoteSections) {
-        setSections(remoteSections);
-        setHiddenIds(new Set(remoteHiddenIds));
-        setSelectedId(remoteSections[0]?.id ?? selectedId);
-        setLoadedFromStorage(false);
-        setDraftLoadSource("supabase");
-        window.localStorage.setItem(
-          storageKey,
-          JSON.stringify({ sections: remoteSections, hiddenIds: remoteHiddenIds })
-        );
-      }
       if (remoteWorkflow) {
         setAgentWorkflow(remoteWorkflow);
         window.localStorage.setItem(agentWorkflowKey, JSON.stringify(remoteWorkflow));
@@ -460,6 +449,23 @@ export default function DetailPageEditor() {
             ? (draft.review_summary as { warnings?: unknown }).warnings
             : [],
       };
+
+      const generatedInput = localGeneration.input as GenerateDetailPageInput;
+      const displaySections = remoteSections
+        ? upgradeLegacyMockSections(generatedInput, remoteSections)
+        : null;
+
+      if (displaySections) {
+        setSections(displaySections);
+        setHiddenIds(new Set(remoteHiddenIds));
+        setSelectedId(displaySections[0]?.id ?? selectedId);
+        setLoadedFromStorage(false);
+        setDraftLoadSource("supabase");
+        window.localStorage.setItem(
+          storageKey,
+          JSON.stringify({ sections: displaySections, hiddenIds: remoteHiddenIds })
+        );
+      }
       window.localStorage.setItem(generationKey, JSON.stringify(localGeneration));
     }
 

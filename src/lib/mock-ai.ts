@@ -64,6 +64,37 @@ export function mockGenerateDetailPage(input: GenerateDetailPageInput): Generate
   };
 }
 
+/** Upgrade the first flat/gradient mock format without discarding user copy. */
+export function upgradeLegacyMockSections(
+  input: GenerateDetailPageInput,
+  legacySections: DetailSection[]
+): DetailSection[] {
+  if (legacySections.some((section) => section.layoutType)) return legacySections;
+
+  const templateSections = mockGenerateDetailPage(input).sections;
+  return templateSections.map((template, index) => {
+    const legacy = legacySections.find((section) => section.kind === template.kind) ?? legacySections[index];
+    if (!legacy) return template;
+
+    const keepOwnVisual = legacy.imageSource === "uploaded" || legacy.imageSource === "generated";
+    return {
+      ...template,
+      kicker: legacy.kicker || template.kicker,
+      headline: legacy.headline || template.headline,
+      body: legacy.body || template.body,
+      bullets: legacy.bullets.length ? legacy.bullets : template.bullets,
+      alternatives: legacy.alternatives.length ? legacy.alternatives : template.alternatives,
+      ...(keepOwnVisual && {
+        imageUrl: legacy.imageUrl,
+        imageLabel: legacy.imageLabel,
+        imageSource: legacy.imageSource,
+        imageGradient: legacy.imageGradient,
+        imagePrompt: legacy.imagePrompt,
+      }),
+    };
+  });
+}
+
 type MockAgentRun = Pick<AgentWorkflowDraft["runs"][number], "title" | "summary" | "output" | "warnings">;
 
 /**
