@@ -1,4 +1,5 @@
-import { getMockReferencesForSection, mockSections } from "./mock-data";
+import { getMockReferencesForSection } from "./mock-data";
+import { createTemplateSections } from "./detail-page-templates";
 import {
   AgentWorkflowDraft,
   AiEditAction,
@@ -35,14 +36,7 @@ export function mockAiRewrite(section: DetailSection, action: AiEditAction): str
 }
 
 export function mockGenerateDetailPage(input: GenerateDetailPageInput): GenerateDetailPageOutput {
-  const keywordText = input.keywords.slice(0, 2).join(" · ");
-  const sections = mockSections.map((section) => {
-    const headlinePrefix =
-      section.kind === "intro"
-        ? input.productName
-        : section.kind === "one_line"
-          ? keywordText || input.productName
-          : section.headline;
+  const sections = createTemplateSections(input).map((section) => {
 
     // Re-pick the reference image for the selected design mood so a fresh
     // mock draft's imagery matches what the user chose, instead of always
@@ -52,11 +46,6 @@ export function mockGenerateDetailPage(input: GenerateDetailPageInput): Generate
 
     return {
       ...section,
-      headline: headlinePrefix || section.headline,
-      body:
-        section.kind === "intro"
-          ? `${input.targetCustomer || "고객"}에게 어울리는 ${input.productName} 상세페이지 초안입니다.`
-          : section.body,
       imagePrompt:
         `${input.designMood} mood, ${section.imageRole}, product detail page section image, keep real product facts unchanged`,
       ...(moodImage && {
@@ -70,7 +59,7 @@ export function mockGenerateDetailPage(input: GenerateDetailPageInput): Generate
   return {
     sections,
     source: "mock",
-    warnings: ["OpenAI API 키가 없거나 호출에 실패하면 mock 초안을 사용합니다."],
+    warnings: ["카테고리별 구조 템플릿을 적용한 mock 시안입니다. 실제 상품 사진과 옵션 정보는 편집기에서 연결해 주세요."],
   };
 }
 

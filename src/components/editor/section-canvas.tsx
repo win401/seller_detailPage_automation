@@ -118,6 +118,20 @@ function StructuredSectionBlock({
       onClick={() => onSelect(section.id)}
       className={sectionFrameClass}
     >
+      {layoutType === "top_notice_banner" && (
+        <div className="bg-[#273b34] px-6 py-7 text-center text-white">
+          <div className="text-[9px] font-extrabold tracking-[0.22em] text-white/62">{section.kicker}</div>
+          {headline("mt-3 text-[20px] font-extrabold leading-[1.3] text-white")}
+          {body("mx-auto mt-2 max-w-[270px] text-[11px] leading-[1.65] text-white/76")}
+          <div className="mt-5 grid grid-cols-3 border-y border-white/18">
+            {(slots.badges ?? []).map((badge) => (
+              <div key={badge} className="px-1 py-3 text-[10px] font-bold text-white/90">{badge}</div>
+            ))}
+          </div>
+          {slots.items?.[0] && <div className="mt-3 text-[10px] text-white/58">{slots.items[0]}</div>}
+        </div>
+      )}
+
       {layoutType === "brand_mood_story" && (
         <div className="bg-[#f7f4ec]">
           <BlockImage section={section} className="h-[390px]" />
@@ -214,6 +228,39 @@ function StructuredSectionBlock({
         </div>
       )}
 
+      {layoutType === "before_after_compare" && (
+        <div className="bg-[#f6f7f4] px-7 py-10">
+          <div className="text-center">
+            <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#466451]">{section.kicker}</div>
+            {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
+            {body("mx-auto mt-3 max-w-[280px] text-[12px] leading-[1.75] text-canvas-muted")}
+          </div>
+          <div className="mt-7 grid grid-cols-2 gap-2">
+            <div className="overflow-hidden bg-white">
+              <BlockImage section={section} className="h-[190px]" />
+              <div className="px-3 py-3 text-center text-[11px] font-extrabold text-canvas-muted">
+                {slots.beforeLabel ?? "기존 사용 환경"}
+              </div>
+            </div>
+            <div className="overflow-hidden bg-white">
+              <BlockImage section={section} className="h-[190px]" />
+              <div className="bg-[#466451] px-3 py-3 text-center text-[11px] font-extrabold text-white">
+                {slots.afterLabel ?? "상품 사용 포인트"}
+              </div>
+            </div>
+          </div>
+          <div className="mt-5 divide-y divide-[#dce2db] border-y border-[#dce2db]">
+            {(slots.comparisonRows ?? []).map((row) => (
+              <div key={row.label} className="grid grid-cols-[62px_1fr_1fr] gap-2 py-3 text-[10.5px] leading-relaxed">
+                <span className="font-bold text-canvas-muted">{row.label}</span>
+                <span className="text-canvas-muted">{row.left}</span>
+                <span className="font-bold text-[#355640]">{row.right}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {layoutType === "feature_blue_panel" && (
         <div className="bg-[#1676ba] px-7 py-10 text-white">
           <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-white/75">
@@ -253,6 +300,99 @@ function StructuredSectionBlock({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {layoutType === "option_grid" && (
+        <div className="bg-white px-7 py-10">
+          <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#526f58]">{section.kicker}</div>
+          {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
+          {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
+          <div className="mt-7 grid grid-cols-2 gap-3">
+            {(slots.optionItems ?? []).map((option, index) => (
+              <div key={option.label} className="border border-[#e3e0d8] bg-[#fbfaf7] p-4">
+                <div className="text-[9px] font-extrabold text-[#758475]">OPTION {String(index + 1).padStart(2, "0")}</div>
+                <div className="mt-2 text-[13px] font-extrabold text-canvas-dark">{option.label}</div>
+                {option.description && <div className="mt-1 text-[11px] text-canvas-muted">{option.description}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {layoutType === "evidence_card" && (
+        <div className="bg-[#f4f1ea] px-7 py-10">
+          <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#7b6651]">{section.kicker}</div>
+          {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
+          {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
+          <BlockImage section={section} className="mt-7 h-[230px]" overlay={false} />
+          {slots.caption && <div className="mt-3 text-center text-[10px] leading-relaxed text-canvas-muted">{slots.caption}</div>}
+          <div className="mt-6 grid gap-2">
+            {(slots.proofItems ?? []).map((item) => (
+              <div key={item.label} className="grid grid-cols-[78px_1fr] border-b border-[#dcd5c9] py-3 text-[11px]">
+                <span className="font-bold text-canvas-muted">{item.label}</span>
+                <span className="font-bold text-canvas-dark">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {layoutType === "step_guide" && (
+        <div className="bg-white px-7 py-10">
+          <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#1676ba]">{section.kicker}</div>
+          {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
+          {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
+          <div className="mt-8 space-y-5">
+            {(slots.steps ?? []).map((step, index) => (
+              <div key={step.title} className="grid grid-cols-[44px_1fr] gap-3">
+                <div className="flex size-10 items-center justify-center rounded-full bg-[#1676ba] text-[11px] font-extrabold text-white">
+                  {String(index + 1).padStart(2, "0")}
+                </div>
+                <div className="border-b border-[#e5e3dc] pb-5">
+                  <div className="text-[12px] font-extrabold text-canvas-dark">{step.title}</div>
+                  <div className="mt-1 text-[12px] leading-relaxed text-canvas-muted">{step.body}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {layoutType === "comparison_table" && (
+        <div className="bg-[#f8f8f6] px-7 py-10">
+          <div className="text-center text-[10px] font-extrabold tracking-[0.2em] text-[#526f58]">{section.kicker}</div>
+          {headline("mt-3 text-center text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
+          {body("mx-auto mt-3 max-w-[280px] text-center text-[12px] leading-[1.7] text-canvas-muted")}
+          <div className="mt-7 overflow-hidden border border-[#dfe0da] bg-white">
+            <div className="grid grid-cols-[74px_1fr_1fr] bg-[#e9eee7] text-[10px] font-extrabold text-[#536351]">
+              <span className="p-3">비교 기준</span><span className="p-3">내 사용 환경</span><span className="bg-[#526f58] p-3 text-white">상품 확인</span>
+            </div>
+            {(slots.comparisonRows ?? []).map((row) => (
+              <div key={row.label} className="grid grid-cols-[74px_1fr_1fr] border-t border-[#e4e5df] text-[10.5px] leading-relaxed">
+                <span className="p-3 font-bold text-canvas-muted">{row.label}</span>
+                <span className="p-3 text-canvas-muted">{row.left}</span>
+                <span className="border-l border-[#e4e5df] p-3 font-bold text-canvas-dark">{row.right}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {layoutType === "certification_stack" && (
+        <div className="bg-[#eef5ef] px-7 py-10">
+          <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#3f704f]">{section.kicker}</div>
+          {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
+          {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
+          <div className="mt-7 divide-y divide-[#d5e3d4] border-y border-[#d5e3d4] bg-white">
+            {(slots.proofItems ?? []).map((item, index) => (
+              <div key={item.label} className="flex items-center gap-4 p-4">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#4d815c] text-[11px] font-extrabold text-white">{index + 1}</span>
+                <div><div className="text-[12px] font-extrabold text-canvas-dark">{item.label}</div><div className="mt-1 text-[11px] text-canvas-muted">{item.value}</div></div>
+              </div>
+            ))}
+          </div>
+          {slots.caption && <div className="mt-4 text-[10px] leading-relaxed text-canvas-muted">{slots.caption}</div>}
         </div>
       )}
 
@@ -354,12 +494,19 @@ function StructuredSectionBlock({
 
       {![
         "brand_mood_story",
+        "top_notice_banner",
         "big_claim_band",
         "problem_hook",
         "material_closeup",
+        "before_after_compare",
         "feature_blue_panel",
+        "evidence_card",
+        "option_grid",
+        "step_guide",
+        "comparison_table",
         "color_lineup",
         "care_guide",
+        "certification_stack",
         "check_point_cards",
         "product_info_table",
         "policy_notice",

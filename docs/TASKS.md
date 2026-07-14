@@ -153,14 +153,14 @@
 - [x] 1차 기준 레퍼런스 선정 — 실제 셀러/기획자가 좋다고 판단한 기능성 신발 깔창 상세페이지 (`docs/REFERENCE_DETAIL_PAGE_ANALYSIS.md`)
 - [x] 1차 레퍼런스 상세페이지 섹션 분해 — 문제 제기, 소재/구조, 비교, 기능 강조, 사용법, 옵션, 제품정보, Q&A
 - [x] 추가 레퍼런스 상세페이지 3개 확보 — 뱀부 대형 타올, 오가닉코튼 경추베개, 파쉬 물주머니 raw data
-- [ ] 공통 섹션 역할 정의 — 기존 13개 섹션을 실제 상세페이지 플로우에 맞게 보강
-- [ ] 블록 타입 목록 정의 — `full_bleed_hero`, `emotional_statement`, `pain_point_review`, `benefit_summary`, `image_overlay_point`, `feature_photo_block`, `design_story`, `option_showcase`, `function_detail`, `material_story`, `usage_scene`, `spec_table`, `faq_list`, `final_cta`
-- [ ] 상품군별 템플릿 후보 정의 — 기능성 생활용품/잡화형, 프리미엄 리빙/패브릭형, 헬스케어성 생활용품/전문성형
-- [ ] 섹션 데이터 구조를 `role + layoutType + slots` 중심으로 확장 — 기존 `headline/body/bullets`는 슬롯 일부로 유지
-- [ ] `slots` 스키마 정의 — `eyebrow`, `headline`, `subHeadline`, `body`, `bullets`, `badges`, `image`, `images`, `specRows`, `faqItems`, `optionItems` 등
-- [ ] mock/test 상세페이지 데이터를 실전형 레이아웃으로 재작성 — API 키 없이도 완성본이 실제 상세페이지처럼 보이게 함
-- [ ] `layoutType`별 React 블록 컴포넌트 구현 — 캔버스와 export가 동일 렌더러를 사용
-- [ ] 기존 `SectionCanvas`를 블록 렌더러 기반으로 리팩터링 — 섹션 kind만이 아니라 `layoutType`으로 디자인 결정
+- [x] 공통 섹션 역할 정의 — 기존 13개 섹션을 실제 상세페이지 플로우에 맞게 보강
+- [x] 블록 타입 목록 정의 — 상단 안내, 문제 제기, 핵심 후킹, 비교, 근거, 사용 단계, 옵션, 정보표, FAQ, 정책 블록 구현
+- [x] 상품군별 템플릿 후보 정의 — 기능성 생활용품/잡화형, 프리미엄 리빙/패브릭형, 헬스케어성 생활용품/전문성형
+- [x] 섹션 데이터 구조를 `role + layoutType + slots` 중심으로 확장 — 기존 `headline/body/bullets`는 슬롯 일부로 유지
+- [x] `slots` 스키마 정의 — `eyebrow`, `headline`, `subHeadline`, `body`, `bullets`, `badges`, `image`, `images`, `specRows`, `faqItems`, `optionItems` 등
+- [x] mock/test 상세페이지 데이터를 실전형 레이아웃으로 재작성 — 카테고리에 따라 템플릿을 선택하고 API 키 없이 즉시 생성
+- [x] `layoutType`별 React 블록 컴포넌트 구현 — 캔버스와 export가 동일 렌더러를 사용
+- [x] 기존 `SectionCanvas`를 블록 렌더러 기반으로 리팩터링 — 섹션 kind만이 아니라 `layoutType`으로 디자인 결정
 - [ ] 업로드 이미지/레퍼런스 이미지가 블록별 이미지 슬롯에 들어가도록 매핑
 - [ ] 제품 상세 정보 표 블록 구현 — `specRows` 기반, 상품명/색상/외형치수/소재/제조국/반품 등
 - [ ] 옵션/컬러 소개 블록 구현 — 색상칩, 대표 이미지, 짧은 설명 슬롯
