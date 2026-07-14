@@ -36,6 +36,7 @@ function BlockImage({
 }) {
   const image = section.slots?.image ?? section.imageUrl;
   const backgroundImage = image ? `url(${image})` : section.imageGradient;
+  const isMockImage = !image && section.imageSource !== "uploaded";
 
   if (!backgroundImage) {
     return (
@@ -59,11 +60,23 @@ function BlockImage({
       }}
       aria-label={section.imageLabel ?? section.imageRole}
     >
-      {overlay && <div className="absolute inset-0 bg-gradient-to-t from-black/32 via-black/5 to-transparent" />}
+      {isMockImage && (
+        <>
+          <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,.26),transparent_42%,rgba(0,0,0,.12))]" />
+          <div className="absolute inset-x-[12%] bottom-0 h-[54%] rounded-t-[46%] border border-white/35 bg-white/14 shadow-[0_-16px_36px_rgba(255,255,255,.1)]" />
+          <div className="absolute left-[22%] top-[17%] h-[20%] w-[56%] rounded-full border border-white/45 bg-white/18" />
+        </>
+      )}
+      {overlay && <div className="absolute inset-0 bg-gradient-to-t from-black/38 via-black/5 to-transparent" />}
       {section.imageLabel && (
-        <span className="absolute bottom-3 left-3 rounded-full bg-white/88 px-2 py-1 text-[10px] font-bold text-canvas-dark">
-          {section.imageLabel}
-        </span>
+        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2 text-white">
+          <span className="text-[9px] font-bold tracking-[0.16em] text-white/76">
+            {isMockImage ? "IMAGE SLOT" : "PRODUCT VISUAL"}
+          </span>
+          <span className="truncate rounded-full border border-white/20 bg-black/20 px-2 py-1 text-[10px] font-bold backdrop-blur-sm">
+            {section.imageLabel}
+          </span>
+        </div>
       )}
     </div>
   );
@@ -107,14 +120,17 @@ function StructuredSectionBlock({
     >
       {layoutType === "brand_mood_story" && (
         <div className="bg-[#f7f4ec]">
-          <BlockImage section={section} className="h-[330px]" />
-          <div className="px-8 py-9 text-center">
+          <BlockImage section={section} className="h-[390px]" />
+          <div className="px-8 py-10 text-center">
+            {slots.brandName && (
+              <div className="mb-5 font-serif text-[22px] font-semibold text-[#263126]">{slots.brandName}</div>
+            )}
             <div className="mb-3 text-[10px] font-extrabold tracking-[0.22em] text-[#5f765f]">
               {slots.eyebrow ?? section.kicker}
             </div>
-            {headline("text-[24px] font-bold leading-[1.22] tracking-tight text-canvas-dark")}
+            {headline("text-[28px] font-bold leading-[1.22] text-canvas-dark")}
             <div className="mx-auto mt-4 h-px w-12 bg-[#7f9474]" />
-            {body("mt-5 text-[13px] leading-[1.85] text-canvas-muted")}
+            {body("mt-5 text-[13px] leading-[1.9] text-canvas-muted")}
             {slots.badges && (
               <div className="mt-7 grid grid-cols-3 gap-2">
                 {slots.badges.map((badge) => (
@@ -132,15 +148,15 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "big_claim_band" && (
-        <div className="bg-[#526f58] px-7 py-10 text-center text-white">
+        <div className="bg-[#405f48] px-7 py-11 text-center text-white">
           <div className="mb-3 text-[10px] font-extrabold tracking-[0.28em] text-white/70">
             {section.kicker}
           </div>
-          {headline("text-[28px] font-extrabold leading-[1.18] tracking-tight text-white")}
+          {headline("text-[29px] font-extrabold leading-[1.2] text-white")}
           {slots.subHeadline && (
             <p className="mt-3 text-[13px] font-semibold text-white/82">{slots.subHeadline}</p>
           )}
-          <BlockImage section={section} className="mt-7 h-[210px] rounded-[2px]" />
+          <BlockImage section={section} className="mt-8 h-[240px] rounded-[2px]" />
           {body("mt-6 text-[13px] leading-[1.75] text-white/82")}
           {slots.badges && (
             <div className="mt-7 grid grid-cols-3 gap-2">
@@ -187,8 +203,8 @@ function StructuredSectionBlock({
             {headline("text-[23px] font-extrabold leading-[1.25] text-canvas-dark")}
             {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
           </div>
-          <BlockImage section={section} className="mx-7 h-[230px]" overlay={false} />
-          <div className="grid grid-cols-3 gap-px bg-[#e8e1d6] px-7 py-7">
+          <BlockImage section={section} className="mx-7 h-[260px]" overlay={false} />
+          <div className="grid grid-cols-3 gap-px bg-[#e8e1d6] px-7 py-8">
             {(slots.badges ?? ["Soft", "Absorbent", "Daily"]).map((badge) => (
               <div key={badge} className="bg-white py-4 text-center text-[11px] font-extrabold text-[#526f58]">
                 {badge}
@@ -199,13 +215,13 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "feature_blue_panel" && (
-        <div className="bg-[#0e84dc] px-7 py-9 text-white">
+        <div className="bg-[#1676ba] px-7 py-10 text-white">
           <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-white/75">
             {section.kicker}
           </div>
           {headline("text-[24px] font-extrabold leading-[1.25] tracking-tight text-white")}
           {body("mt-3 text-[13px] leading-[1.75] text-white/88")}
-          <BlockImage section={section} className="mt-7 h-[215px] rounded-[2px]" />
+          <BlockImage section={section} className="mt-8 h-[245px] rounded-[2px]" />
           {section.bullets.length > 0 && (
             <div className="mt-6 grid gap-2">
               {section.bullets.map((bullet) => (
@@ -225,15 +241,15 @@ function StructuredSectionBlock({
           </div>
           {headline("text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
           {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
-          <BlockImage section={section} className="mt-7 h-[190px]" overlay={false} />
-          <div className="mt-7 grid grid-cols-2 gap-3">
+          <BlockImage section={section} className="mt-7 h-[220px]" overlay={false} />
+          <div className="mt-7 grid grid-cols-3 gap-2">
             {(slots.optionItems ?? []).map((option) => (
-              <div key={option.label} className="flex items-center gap-3 bg-[#f7f5ef] p-3">
+              <div key={option.label} className="bg-[#f7f5ef] p-2.5 text-center">
                 <span
-                  className="size-8 shrink-0 rounded-full border border-black/10"
+                  className="mx-auto block size-8 rounded-full border border-black/10"
                   style={{ backgroundColor: option.color ?? "#ddd" }}
                 />
-                <span className="text-[12px] font-bold text-canvas-dark">{option.label}</span>
+                <span className="mt-2 block text-[10px] font-bold text-canvas-dark">{option.label}</span>
               </div>
             ))}
           </div>
@@ -264,17 +280,22 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "check_point_cards" && (
-        <div className="bg-[#b49c86] px-7 py-10 text-white">
+        <div className="bg-[#a1846b] px-7 py-11 text-white">
           <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-white/70">
             {section.kicker}
           </div>
           {headline("text-[24px] font-extrabold leading-[1.25] text-white")}
           {body("mt-3 text-[13px] leading-[1.75] text-white/85")}
-          <div className="mt-7 grid gap-3">
-            {(slots.cards ?? []).map((card) => (
-              <div key={card.title} className="bg-white/92 p-4 text-canvas-dark">
-                <div className="text-[13px] font-extrabold">{card.title}</div>
-                <div className="mt-1 text-[12px] leading-relaxed text-canvas-muted">{card.body}</div>
+          <div className="mt-8 grid gap-2.5">
+            {(slots.cards ?? []).map((card, cardIndex) => (
+              <div key={card.title} className="grid grid-cols-[32px_1fr] gap-3 bg-white/92 p-4 text-canvas-dark">
+                <div className="flex size-8 items-center justify-center rounded-full bg-[#a1846b] text-[11px] font-extrabold text-white">
+                  {String(cardIndex + 1).padStart(2, "0")}
+                </div>
+                <div>
+                  <div className="text-[13px] font-extrabold">{card.title}</div>
+                  <div className="mt-1 text-[12px] leading-relaxed text-canvas-muted">{card.body}</div>
+                </div>
               </div>
             ))}
           </div>
@@ -283,8 +304,10 @@ function StructuredSectionBlock({
 
       {layoutType === "product_info_table" && (
         <div className="bg-white px-7 py-11">
-          {headline("text-[28px] font-extrabold leading-[1.2] text-canvas-dark")}
+          <div className="text-[10px] font-extrabold tracking-[0.22em] text-[#526f58]">PRODUCT INFO</div>
+          {headline("mt-3 text-[28px] font-extrabold leading-[1.2] text-canvas-dark")}
           <div className="mt-2 text-[14px] text-canvas-muted">Product Information</div>
+          {body("mt-4 text-[12px] leading-[1.7] text-canvas-muted")}
           <div className="mt-6 border-t-2 border-canvas-dark">
             {(slots.specRows ?? []).map((row) => (
               <div key={row.label} className="grid grid-cols-[82px_1fr] border-b border-canvas-border py-3.5">
