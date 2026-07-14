@@ -4,6 +4,7 @@ import { openai } from "@ai-sdk/openai";
 import { mockPlanningAgent } from "@/lib/mock-ai";
 import { GenerateDetailPageInput } from "@/lib/types";
 import { AgentRunResult, AnalysisOutput, planningOutputSchema } from "./schemas";
+import { getMockReason, isLiveAiEnabled } from "./runtime-config";
 
 function buildPrompt(input: GenerateDetailPageInput, analysisOutput?: AnalysisOutput) {
   return `
@@ -42,6 +43,10 @@ export async function runPlanningAgent(
       source: "mock",
     };
   };
+
+  if (!isLiveAiEnabled()) {
+    return fallback(getMockReason());
+  }
 
   if (!process.env.OPENAI_API_KEY) {
     return fallback("OPENAI_API_KEY가 없어 mock 기획 결과를 사용했습니다.");

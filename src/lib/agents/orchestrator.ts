@@ -26,6 +26,7 @@ import { runPlanningAgent } from "./planning";
 import { runProductionAgent } from "./production";
 import { runReviewAgent } from "./review";
 import { runRevisionAgent } from "./revision";
+import { getMockReason, isLiveAiEnabled } from "./runtime-config";
 import { AgentRunResult, AnalysisOutput, PlanningOutput, ReviewOutput } from "./schemas";
 
 const MAX_STEPS = 8;
@@ -150,10 +151,13 @@ export async function runOrchestratedGeneration(
   input: GenerateDetailPageInput,
   competitorReferences: CompetitorReferenceInput[]
 ): Promise<{ workflow: AgentWorkflowDraft; output: GenerateDetailPageOutput }> {
-  if (!process.env.OPENAI_API_KEY) {
+  if (!isLiveAiEnabled() || !process.env.OPENAI_API_KEY) {
     return {
       workflow: mockBuildAgentWorkflow(input, competitorReferences),
-      output: mockGenerateDetailPage(input),
+      output: {
+        ...mockGenerateDetailPage(input),
+        warnings: [getMockReason()],
+      },
     };
   }
 
@@ -352,8 +356,8 @@ export async function runOrchestratedRevision(
   priorPlanning?: PlanningOutput,
   priorReview?: ReviewOutput
 ): Promise<RevisionResult> {
-  if (!process.env.OPENAI_API_KEY) {
-    return mockRevisionResult(currentSections, request, selectedSectionId, "OPENAI_API_KEY가 없어 mock 재기획 결과를 사용했습니다.");
+  if (!isLiveAiEnabled() || !process.env.OPENAI_API_KEY) {
+    return mockRevisionResult(currentSections, request, selectedSectionId, getMockReason());
   }
 
   try {

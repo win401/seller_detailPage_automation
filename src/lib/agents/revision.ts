@@ -4,6 +4,7 @@ import { openai } from "@ai-sdk/openai";
 import { mockPlanRevision } from "@/lib/mock-ai";
 import { DetailSection, GenerateDetailPageInput } from "@/lib/types";
 import { AgentRunResult, AnalysisOutput, PlanningOutput, ReviewOutput, revisionOutputSchema } from "./schemas";
+import { getMockReason, isLiveAiEnabled } from "./runtime-config";
 
 function buildPrompt(
   input: GenerateDetailPageInput,
@@ -97,6 +98,10 @@ export async function runRevisionAgent(
   priorReview?: ReviewOutput,
   selectedSectionId?: string
 ): Promise<AgentRunResult> {
+  if (!isLiveAiEnabled()) {
+    return fallback(currentSections, request, selectedSectionId, getMockReason());
+  }
+
   if (!process.env.OPENAI_API_KEY) {
     return fallback(currentSections, request, selectedSectionId, "OPENAI_API_KEY가 없어 mock 재기획 결과를 사용했습니다.");
   }

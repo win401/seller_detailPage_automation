@@ -11,6 +11,7 @@ import {
   SectionKind,
 } from "@/lib/types";
 import { PlanningOutput, productionOutputSchema } from "./schemas";
+import { getMockReason, isLiveAiEnabled } from "./runtime-config";
 
 const sectionPlan = SECTION_KIND_ORDER.map((kind, index) => ({
   id: `s${index + 1}`,
@@ -74,6 +75,10 @@ export async function runProductionAgent(
   input: GenerateDetailPageInput,
   planningOutput?: PlanningOutput
 ): Promise<GenerateDetailPageOutput> {
+  if (!isLiveAiEnabled()) {
+    return fallback(input, getMockReason());
+  }
+
   if (!process.env.OPENAI_API_KEY) {
     return fallback(input, "OPENAI_API_KEY가 없어 mock 초안을 사용했습니다.");
   }
