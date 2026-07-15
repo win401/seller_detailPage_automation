@@ -11,6 +11,7 @@ This project is a two-week mini-project workspace for a Coupang and Smart Store 
 - Prioritize a working MVP over broad platform integrations.
 - Use Korean copy for user-facing product text unless the user asks otherwise.
 - Make design choices friendly for beginner sellers and small business owners.
+- After finishing a unit of work, update `docs/TASKS.md` to match the current state: check off items that are actually done, add items you discovered mid-work, and note when something is a partial/MVP version of a larger planned item rather than the full spec. `docs/TASKS.md` is the source of truth when it conflicts with other docs or with in-progress work from another session/tool.
 
 ## Current Direction
 
@@ -40,3 +41,4 @@ Core sequence:
 - `docs/TASKS.md`: working task list
 - `docs/PROMPTS.md`: AI prompt drafts
 
+## Imported Claude Cowork project instructions
