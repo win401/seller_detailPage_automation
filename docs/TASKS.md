@@ -1,345 +1,159 @@
 # Tasks
 
-## 현재 작업 원칙
+> 최종 갱신: 2026-07-15
+>
+> 이 문서는 현재 구현 상태와 다음 실행 순서를 관리한다. 과거 논의와 폐기된 결정은 다른 `docs/` 문서에 남기고, 여기에는 실제로 의미 있는 완료 상태와 남은 작업만 기록한다.
 
-- 실제 AI API 품질 테스트가 끝나기 전까지 AI 기능은 "구조 연결 완료"와 "실제 응답 검증 완료"를 분리해서 표시합니다.
-- 새 기능 확장보다 현재 MVP 흐름의 안정성, 문서 정합성, 데모 가능 상태를 우선합니다.
-- mock fallback은 데모 안정성을 위해 유지합니다.
+## 제품 방향
 
-## 0. 우선순위: 얇은 End-to-End 플로우 (1차 목표)
+쿠팡·스마트스토어 셀러가 상품 정보와 사진을 입력하면, 구조화된 세로형 상세페이지 초안을 만들고 편집·저장·ZIP 내보내기까지 수행하는 데스크톱 작업 도구다.
 
-아래 흐름을 mock/placeholder를 적극 활용해서 먼저 한 번 끝까지 통과시킵니다.
-나머지 섹션의 세부 항목(반응형 세로 모니터 대응, GSAP 모션, 스타일 세트, 이미지 개선/합성 UI, 관리자 화면 등)은 이 흐름이 통과한 뒤 2차로 채웁니다.
+- 셀러는 PC에서 작업하며, 중앙 캔버스는 모바일 상세페이지 비율의 긴 결과물을 미리 보여준다.
+- 자유 좌표 기반 피그마형 편집이 아니라, 검증된 블록을 조립하는 템플릿 편집 방식을 사용한다.
+- 개발과 데모 중에는 mock 생성이 기본이다. 실제 AI 호출은 비용과 품질을 의도적으로 확인할 때만 켠다.
+- 현재 경쟁 상세페이지 URL은 참고 링크다. 셀러용 흐름에서 외부 사이트 자동 크롤링은 하지 않는다.
 
-- [x] 로그인 (데모 계정 진입 포함) — mock, Supabase Auth 연동 전
-- [x] 새 프로젝트 생성 진입
-- [x] 상품 정보 입력 (최소 필드: 상품명, 카테고리, 키워드, 타깃, 톤앤매너, 무드, 플랫폼, 추가 제작 요청) — AI 생성 API 입력값으로 연결
-- [x] 경쟁 상세페이지 URL/메모 입력 — 실제 크롤링 없음, 사용자 제공 정보 기반
-- [x] 분석 에이전트 결과 표시 — mock 또는 structured output
-- [x] 기획 에이전트 결과 표시 — mock 또는 structured output
-- [x] 상품 이미지 업로드 — 1200px 기준 클라이언트 최적화 + 브라우저 preview + 에디터 임시 전달
-- [x] 제작 에이전트 13섹션 생성 (mock fallback 허용) — Vercel AI SDK API + mock fallback
-- [x] 검수 에이전트 결과 표시 — 과장 표현/누락/가독성 체크
-- [x] 에디터에서 기존 분석/기획/제작/검수 결과 확인 — Supabase 우선, localStorage fallback
-- [x] 모바일 캔버스에 13섹션 렌더링
-- [x] 섹션 1개 문구 직접 수정
-- [x] 기획자 에이전트 수정 요청 → 재기획 → 새 시안 적용 — mock 우선
-- [x] 수동 수정 내용을 사용자 스타일 신호로 요약 저장 — localStorage 우선
-- [x] 프로젝트 저장 및 다시 불러오기 — Supabase 우선, localStorage fallback
-- [x] 플랫폼 기준 이미지 생성 + ZIP 다운로드 — 플랫폼 폭 적용, 2000px 단위 슬라이싱
+## 현재 구현 상태
 
-## 1. 프로젝트 기본 구조
+### 핵심 사용자 흐름
 
-- [x] Claude Design 산출물 검토 및 화면별 라우트 매핑
-- [x] 디자인 색상/타이포/spacing 토큰 globals.css 반영
-- [x] 디자인 기준 누락 shadcn/ui 컴포넌트 추가 설치 — shadcn CLI 네트워크 차단으로 @base-ui/react 기반 직접 작성
-- [x] 라우트 구조 정리
-- [x] 공통 레이아웃 구성
-- [x] shadcn/ui 컴포넌트 정리
-- [x] 공통 타입 정의
-- [x] mock 상세페이지 데이터 작성
-- [x] light/dark 테마 기본 구조 설정
+- [x] Supabase Auth 로그인, 회원가입, 로그아웃, 계정 메뉴, 설정 화면
+- [x] Supabase 기반 대시보드, 프로젝트 생성, 초안 버전 저장, 프로젝트 복원, localStorage fallback
+- [x] 상품명·카테고리·키워드·타깃·강조 포인트·무드·톤·플랫폼·추가 요청·경쟁 URL/메모·상품/레퍼런스 이미지 입력
+- [x] 클라이언트 이미지 최적화: 최대 1200px 리사이즈, WebP/JPEG 압축, 최적화 전후 용량 안내
+- [x] 분석 → 기획 → 제작 → 검수 워크플로우와 Zod structured output, mock fallback
+- [x] Vercel AI SDK 기반 실제 AI 호출 경로. `ENABLE_LIVE_AI=true`일 때만 실행하며 기본 모델은 `gpt-4.1-mini`
+- [x] 편집기 직접 문구 수정, 이미지 교체, 섹션 숨김/복구, 드래그 정렬, 카피 후보, 섹션 재생성, undo/redo, 확대/축소, Space+drag 이동
+- [x] 기획자 에이전트 수정 루프: 요청 → 기획 → 제작 → 검수 → 새 시안 비교/적용
+- [x] 스타일 세트 CRUD 및 새/기존 초안에 무드·톤·플랫폼·레이아웃 프리셋 적용 (현재 local-first)
+- [x] 전체 상세페이지 렌더링, 플랫폼 폭 적용, 2000px 슬라이싱, ZIP 생성·다운로드
+- [x] light/dark/system 테마, 캔버스/export 디자인의 앱 테마 독립, AI/적용/export 모션 및 reduced-motion 대응
 
-## 2. 인증과 대시보드
+### 상세페이지 렌더링
 
-- [x] Supabase Auth 설정 — browser client + env 연결 준비
-- [x] 로그인 화면
-- [x] 데모 계정 로그인 진입
-- [x] 회원가입 전용 페이지 — `/signup`, display name/email/password 입력 후 Supabase Auth 가입
-- [x] 로그아웃 — 상단 계정 메뉴에서 Supabase signOut 후 `/login` 이동
-- [x] 상단 계정 메뉴 — 아바타 클릭 시 설정/로그아웃 표시
-- [x] 계정 설정 페이지 — `/settings`, 계정/인증/SMTP 예정 정보 표시
-- [x] 프로젝트 대시보드 — Supabase `detail_page_projects` 목록 표시, 샘플 프로젝트 fallback 제거
-- [x] 새 프로젝트 생성 진입
-- [x] 상단 네비게이션 테마 토글 — `ThemeSwitch`
+- [x] 리빙, 기능성, 웰니스 3개 구조 템플릿 패밀리
+- [x] 상품명/카테고리/키워드 기반 mock 템플릿 선택
+- [x] 13개 섹션 데이터를 `blockRole + layoutType + slots` 구조로 확장
+- [x] 캔버스와 export가 같은 React 블록 렌더러 사용
+- [x] 안내·브랜드 스토리·문제 제기·핵심 베네핏·소재·비교·기능·옵션·근거·사용 단계·관리·체크리스트·상품 정보표·FAQ·정책 블록
+- [x] 기존 그라디언트 중심 이미지 영역을 실사형 mock 비주얼로 교체
+- [x] 기존 draft를 열 때 구조화된 레이아웃 경로로 정규화
 
-## 3. 상품 입력
+### 데이터와 플랫폼 기반
 
-- [x] 상품명 입력
-- [x] 카테고리 선택
-- [x] 핵심 키워드 입력
-- [x] 타깃 고객 입력
-- [x] 강조 포인트 체크박스
-- [x] 톤앤매너 선택
-- [x] 디자인 무드 선택
-- [x] 플랫폼 선택
-- [ ] 스타일 세트 선택 — 2차
-- [x] 초안 생성 전 추가 제작 요청 입력
-- [x] 추가 제작 요청 예시 칩 또는 placeholder 제공
-- [x] 경쟁 상세페이지 URL 입력 필드
-- [x] 경쟁 상세페이지 메모 입력 필드
-- [x] 경쟁 URL 여러 개 추가/삭제 UI
-- [x] "자동 크롤링하지 않음, 메모 기반 분석" 안내 문구
+- [x] profiles, projects, draft versions, agent runs, style signals, usage events, 프로젝트 연결 경쟁 레퍼런스의 Supabase/RLS 기본 구조
+- [x] 총괄 에이전트와 하위 실행을 연결하는 parent/child agent run 추적
+- [x] 수동 수정 내용을 Supabase 스타일 신호로 저장하고 localStorage fallback 유지
 
-## 3-1. 에이전트 워크플로우
+## 최우선: 현재 흐름 검증
 
-- [x] 생성 화면에 분석 → 기획 → 제작 → 검수 단계 표시
-- [x] 에이전트 단계별 진행 상태 UI
-- [x] 분석 에이전트 output type 정의 — AgentRunDraft mock output 기반
-- [x] 기획 에이전트 output type 정의 — AgentRunDraft mock output 기반
-- [x] 검수 에이전트 output type 정의 — AgentRunDraft mock output 기반
-- [x] 에이전트 결과를 프로젝트 draft에 저장 — Supabase 저장, localStorage fallback
-- [x] 에이전트 결과를 편집 화면에서 다시 확인
-- [x] 에이전트 실패 시 다음 단계로 진행 가능한 mock fallback
-- [x] 경쟁 URL은 참고 링크로만 저장하고 자동 크롤링하지 않는 정책 반영
-- [x] 대시보드 하드코딩 샘플 프로젝트 제거 — Supabase 목록 또는 빈 상태만 표시
+새 기능을 넓히기 전에 현재 흐름이 배포 환경에서도 안정적으로 동작하는지 확인한다.
 
-## 4. 이미지 처리
+- [ ] 로컬·Vercel에서 회원가입/로그인 → 프로젝트 생성 → mock 시안 → 편집 → 저장 → 새로고침 복원 → ZIP 다운로드 E2E QA
+- [ ] 실제 Supabase 스키마와 `docs/supabase/schema.sql`의 차이 확인 및 필요한 마이그레이션 정리
+- [ ] 데모 계정이 아닌 두 계정으로 저장/조회와 RLS 격리 확인
+- [ ] 모든 지원 폭에서 ZIP 조각의 하단 잘림, 겹침, 스케일 오류 확인
+- [ ] 다음 구현 묶음마다 `npm run lint`, `npx tsc --noEmit`, `npm run build` 실행
+- [ ] 매 push 후 실제 확인한 Vercel 배포 버전/URL을 작업 기록에 남기기
+- [ ] UI 또는 진단 정보에 mock/live, 선택 모델, fallback 이유, 생성 시간 표시
+- [ ] API 크레딧과 `ENABLE_LIVE_AI` 설정을 의도적으로 준비한 뒤 실제 AI 품질 테스트 1회 수행
 
-- [x] 이미지 업로드 — local preview
-- [x] 레퍼런스 이미지 업로드 또는 메모 입력 — 생성 화면 업로드 + 에디터 "레퍼런스 이미지 적용" 버튼
-- [x] 클라이언트 리사이즈
-- [x] WebP/JPEG 압축
-- [x] 최적화 전/후 용량 표시
-- [ ] Supabase Storage 저장
-- [x] 원본/레퍼런스/개선 결과 이미지 비교 UI — 생성 화면 preview + 에디터 mock reference 카드
+## 우선순위 1: 셀러 이미지가 실제 상세페이지를 채우게 하기
 
-## 5. 이미지 개선/합성 준비 (2차)
+구조화된 레이아웃은 구현됐다. 다음 품질 단계는 일반 mock 이미지 대신 판매자가 올린 이미지를 각 블록에 정확히 배치하는 것이다.
 
-- [ ] 이미지 개선 방향 structured output schema 작성
-- [ ] 이미지 생성/합성 프롬프트 생성
-- [ ] negative prompt 생성
-- [ ] 개선 결과 이미지 슬롯
-- [x] mock 개선 이미지 또는 placeholder — Pinterest 스타일 mock 레퍼런스 카드
-- [x] 상세페이지 섹션에 개선 이미지 반영 — mock 레퍼런스/업로드 이미지 섹션 적용
-- [ ] 실제 상품 정보와 다른 이미지 생성 방지 규칙
+- [ ] 업로드 이미지와 블록 슬롯 연결 규칙 정의: 히어로, 제품 단독컷, 소재 디테일, 사용 장면, 옵션, 사이즈/스펙, 정책
+- [ ] 모든 블록 이미지 슬롯을 보여주고 업로드 파일을 선택할 수 있는 이미지 배정 UI
+- [ ] 프로젝트 범위 Supabase Storage 경로와 RLS 정책 구성
+- [ ] 브라우저 URL이 아닌 draft version에 이미지 자산 메타데이터와 슬롯 배정 저장
+- [ ] 이미지 그리드/연속 이미지 레이아웃의 복수 이미지 지원
+- [ ] 이미지가 없을 때 레이아웃을 망치지 않는 빈 상태와 필요한 이미지 안내
+- [ ] 새로고침, 스타일 세트 변경, 수정 시안, ZIP export 뒤에도 이미지 배정 유지 확인
+- [ ] 실제 상품 사진으로 3개 템플릿 패밀리 최종 시각 QA
 
-## 6. AI/에이전트 생성
+## 우선순위 2: 블록 렌더러용 AI 출력 고도화
 
-- [x] Vercel AI SDK 설정
-- [x] 13섹션 zod schema 작성
-- [x] 제작 에이전트 생성 API route 작성
-- [x] mock fallback 작성
-- [x] 과장 표현 방지 프롬프트 적용
-- [x] 추가 제작 요청 additionalInstruction 반영
-- [x] 분석 에이전트 API route 작성 — `src/lib/agents/analysis.ts` (`/api/agent-workflow/generate`를 통해 호출)
-- [x] 기획 에이전트 API route 작성 — `src/lib/agents/planning.ts`
-- [x] 검수 에이전트 API route 작성 — `src/lib/agents/review.ts`
-- [x] 에이전트 단계별 zod schema 작성 — `src/lib/agents/schemas.ts`
-- [x] 분석 결과를 기획 입력으로 연결 — `runPlanningAgent(input, analysisOutput)`
-- [x] 기획 결과를 제작 입력으로 연결 — `runProductionAgent(input, planningOutput)`
-- [x] 제작 결과를 검수 입력으로 연결 — `runReviewAgent(input, productionOutput, planningOutput)`
-- [x] 누락 섹션 검증 — `productionOutputSchema`의 `sections.length(13)` zod 검증 실패 시 mock 폴백
-- [x] 기획자 에이전트 수정 요청 structured output schema 작성 — `revisionOutputSchema`
-- [x] 총괄 에이전트 tool 정의 (`runAnalysisAgent` / `runPlanningAgent` / `runProductionAgent` / `runReviewAgent`) — `src/lib/agents/orchestrator.ts`
-- [x] 총괄 에이전트 tool-calling route 작성 — `src/app/api/agent-workflow/generate/route.ts`
-- [x] 총괄 에이전트 실행 로그 저장 (`agent_type = "orchestrator"`, 하위 run `parent_run_id` 연결) — Supabase 실제 insert로 검증 완료
-- [x] 총괄 에이전트 비용 제한 (최대 tool 호출 횟수, 동일 tool 연속 재시도 제한) — `stepCountIs(8)` + 연속 동일 tool 3회 감지 가드
-- [x] API 키 없음/실패 시 총괄 에이전트 호출 생략하고 기존 mock 파이프라인 폴백 — provider/model 호출 실패 시 데모가 끊기지 않도록 처리
-- [x] 실제 AI API 응답 품질 검증 — 2026-07-10 `AI_MODEL=gpt-4.1-mini`로 분석/기획/제작/검수 4단계 전부 실제 응답 성공(`source: "ai"`, mock 폴백 없음) 확인. 이전엔 `gpt-5.4-mini`(reasoning 모델) 사용 중 `planning` 단계가 `maxOutputTokens` 예산을 추론 토큰에 다 써버려 `AI_NoOutputGeneratedError`로 실패 → mock 폴백되는 버그가 있었음. reasoning이 아닌 `gpt-4.1-mini`로 전환 + `analysis`/`planning`/`review`의 `maxOutputTokens`를 여유 있게 상향해서 해결
+현재 mock은 구조화된 레이아웃을 만든다. 실제 AI도 임의 HTML/CSS가 아니라 같은 계약을 따르도록 단계적으로 맞춘다.
 
-## 7. 상세페이지 캔버스
+- [ ] 제작 에이전트 스키마에 승인된 `layoutType`과 슬롯 콘텐츠 출력 추가
+- [ ] 허용 `layoutType`을 서버 enum으로 제한하고, 알 수 없는 값은 안전한 템플릿 fallback 처리
+- [ ] 기존 AI 섹션 출력과 `blockRole + layoutType + slots` 사이 호환 변환 함수
+- [ ] 선택한 스타일 세트 규칙과 누적 스타일 신호를 기획/제작 입력에 전달
+- [ ] 검수 에이전트에 근거 부족, 이미지 슬롯 누락, 섹션 흐름, 반복, 가독성 점검 추가
+- [ ] 각 섹션/레이아웃 선택 이유를 짧은 structured 설명으로 제공
+- [ ] 리빙·기능성·웰니스 테스트 프롬프트로 live 결과를 mock 기준과 비교
+- [ ] API 오류·시간 초과·데모 모드에서 결정론적 mock fallback 유지
 
-- [x] 모바일 캔버스 레이아웃 — `src/components/editor/section-canvas.tsx`
-- [x] 13개 섹션 렌더링
-- [x] 무드 프리셋 적용 — mood별 이미지 그라디언트 팔레트(minimal/natural/premium/colorful)를 `input.designMood` 기준으로 mock/live 생성 경로 모두에 적용
-- [x] 선택 섹션 표시
-- [x] 미리보기 확대/축소 — 헤더 −/100%/+ 버튼, 50~150% 범위. ZIP export는 `canvasWrapRef` 부모에만 `transform: scale`을 걸어 격리(줌 상태와 무관하게 항상 원래 크기로 캡처됨, 실제 export로 검증 완료)
-- [x] 캔버스 독립 스크롤 처리
-- [x] Space + drag 화면 이동 — Space 홀드 중 드래그 시 스크롤 컨테이너 `scrollLeft`/`scrollTop` 직접 이동. 텍스트 입력 중에는 비활성화됨
-- [x] 캔버스 텍스트 더블클릭 inline 수정 — headline/body 더블클릭 시 캔버스 위에서 바로 수정, blur/Enter 커밋 · Escape 취소, 사이드 패널·스타일 신호와 동일한 undo 스택/`recordStyleSignal` 경로 재사용
+## 우선순위 3: 스타일 세트를 레이아웃 시스템으로 확장
 
-## 7-1. 상세페이지 고도화: 구조 템플릿 엔진
+스타일 세트는 색상/무드 프리셋이 아니라 재사용 가능한 상세페이지 디자인 시스템이 되어야 한다.
 
-현재 캔버스는 13개 섹션 데이터가 렌더링되지만, 결과물이 실제 쿠팡/스마트스토어 상세페이지라기보다 카드형 섹션 나열처럼 보일 수 있습니다. 다음 단계에서는 AI API 품질보다 먼저, mock/test 상태에서도 실제 상세페이지처럼 보이는 구조 템플릿 엔진을 만듭니다.
+- [ ] local-first 스타일 세트를 Supabase로 동기화하되 안전한 local fallback 유지
+- [ ] 레이아웃 기본값, 선호 블록 역할/타입, 섹션 표시, 여백, 이미지 처리, 글자 크기용 스키마 필드 추가
+- [ ] 편집기와 같은 블록 렌더러를 쓰는 스타일 세트 미리보기 캔버스
+- [ ] 프리미엄 리빙, 따뜻한 라이프스타일, 정보 밀도 기능성, 클린 웰니스 기본 세트 정의
+- [ ] 스타일 세트별 섹션 역할 기본값과 이미지 슬롯 우선순위 제공
+- [ ] 수동 수정 신호를 사용자/스타일 세트 선호 요약으로 집계해 다음 기획에 사용
+- [ ] 스타일 세트 적용이 확정된 상품 사실을 덮어쓰지 않는지 검증
 
-핵심 원칙:
-- 자유 좌표 편집이 아니라 검증된 섹션 블록 조립 방식으로 간다.
-- AI는 HTML/CSS를 직접 만들지 않고 `layoutType`과 슬롯 콘텐츠를 선택/생성한다.
-- 렌더링 품질은 우리가 만든 React 블록 컴포넌트와 스타일 세트가 책임진다.
-- 스타일 세트는 색/폰트 버튼이 아니라 블록 조합, 여백, 타이포, 이미지 처리 규칙을 가진 상세페이지 레이아웃 세트다.
+## 우선순위 4: 편집기 작업 환경
 
-작업 항목:
-- [x] 1차 기준 레퍼런스 선정 — 실제 셀러/기획자가 좋다고 판단한 기능성 신발 깔창 상세페이지 (`docs/REFERENCE_DETAIL_PAGE_ANALYSIS.md`)
-- [x] 1차 레퍼런스 상세페이지 섹션 분해 — 문제 제기, 소재/구조, 비교, 기능 강조, 사용법, 옵션, 제품정보, Q&A
-- [x] 추가 레퍼런스 상세페이지 3개 확보 — 뱀부 대형 타올, 오가닉코튼 경추베개, 파쉬 물주머니 raw data
-- [x] 공통 섹션 역할 정의 — 기존 13개 섹션을 실제 상세페이지 플로우에 맞게 보강
-- [x] 블록 타입 목록 정의 — 상단 안내, 문제 제기, 핵심 후킹, 비교, 근거, 사용 단계, 옵션, 정보표, FAQ, 정책 블록 구현
-- [x] 상품군별 템플릿 후보 정의 — 기능성 생활용품/잡화형, 프리미엄 리빙/패브릭형, 헬스케어성 생활용품/전문성형
-- [x] 섹션 데이터 구조를 `role + layoutType + slots` 중심으로 확장 — 기존 `headline/body/bullets`는 슬롯 일부로 유지
-- [x] `slots` 스키마 정의 — `eyebrow`, `headline`, `subHeadline`, `body`, `bullets`, `badges`, `image`, `images`, `specRows`, `faqItems`, `optionItems` 등
-- [x] mock/test 상세페이지 데이터를 실전형 레이아웃으로 재작성 — 카테고리에 따라 템플릿을 선택하고 API 키 없이 즉시 생성
-- [x] `layoutType`별 React 블록 컴포넌트 구현 — 캔버스와 export가 동일 렌더러를 사용
-- [x] 기존 `SectionCanvas`를 블록 렌더러 기반으로 리팩터링 — 섹션 kind만이 아니라 `layoutType`으로 디자인 결정
-- [ ] 업로드 이미지/레퍼런스 이미지가 블록별 이미지 슬롯에 들어가도록 매핑
-- [ ] 제품 상세 정보 표 블록 구현 — `specRows` 기반, 상품명/색상/외형치수/소재/제조국/반품 등
-- [ ] 옵션/컬러 소개 블록 구현 — 색상칩, 대표 이미지, 짧은 설명 슬롯
-- [ ] 기능 설명 반복 블록 구현 — 이미지 + 제목 + 설명이 여러 번 이어지는 상세페이지형 리듬
-- [ ] FAQ/추천 대상/신뢰 요소 블록 구현 — 단순 텍스트 카드가 아닌 구매 전환용 섹션으로 정리
-- [ ] AI 생성 스키마를 `layoutType + slots` 구조로 변경 준비 — 실제 API 연결 전 mock부터 검증
-- [ ] 기존 에이전트 출력과 신규 블록 스키마 사이 변환 함수 작성 — 이전 draft와 호환
-- [ ] export/ZIP 슬라이싱에서 신규 블록 렌더러가 깨지지 않는지 확인
-- [ ] 완성도 기준 수립 — "카드 나열처럼 보이는가", "실제 상세페이지 흐름이 있는가", "상품 정보 표/디테일 컷/기능 설명이 충분한가"
-- [ ] Nano Banana/Gemini 이미지 생성 없이 직접 업로드 이미지 기반으로 블록 슬롯을 채우는 MVP 경로 확정
+- [ ] 현재 3열 레이아웃을 노트북과 와이드 데스크톱에서 검증
+- [ ] 화면이 좁은 데스크톱에서 좌/우 보조 패널 접기 기능
+- [ ] 다양한 화면 높이에서 섹션 목록·캔버스·편집 패널의 독립 스크롤 유지
+- [ ] 세로 모니터 전용 레이아웃은 보류. 현재 사용자 테스트에서는 가로 작업 환경이 더 적합함
+- [ ] 캔버스 수정, 드래그, 줌, AI 도우미에 키보드 접근성 보강
+- [ ] 캔버스 고정 외형을 바꾸지 않는 범위에서 light/dark 시각 QA
+- [ ] 실제 사용 후 생성·패널 전환 모션이 작업을 지연시키지 않도록 튜닝
 
-## 8. 반응형 작업 레이아웃 (2차)
+## 우선순위 5: 관리자 경쟁 상세페이지 이미지 분석 / EDA
 
-- [ ] 가로 모니터용 3열 편집 레이아웃
-- [ ] 세로 모니터용 캔버스 중심 레이아웃 — 실제 사용성 검토 후 MVP에서는 보류, 3열 작업 모드 유지
-- [ ] 보조 패널 접기/펼치기
-- [ ] 상단 작업 바 반응형 처리
-- [ ] 캔버스/패널 독립 스크롤
-- [ ] 노트북/가로 모니터/세로 모니터 뷰포트 점검
+목표: 관리자가 다른 셀러의 긴 상세페이지 캡처 이미지를 업로드하면, 레이아웃과 카피 신호를 추출해 내부 EDA 데이터로 축적한다. 이는 셀러가 입력하는 경쟁 URL/메모 기능과 별개이며 URL 크롤링을 전제로 하지 않는다.
 
-## 9. Light/Dark 모드
+### 레퍼런스 데이터 모델
 
-- [x] 시스템 테마 기본값 반영 — `ThemeProvider defaultTheme="system"` (`src/app/layout.tsx`)
-- [x] light/dark/system 선택 UI — `ThemeSwitch` (`src/components/app-shell/theme-switch.tsx`)
-- [x] 선택한 테마 저장 — next-themes가 localStorage에 자동 저장
-- [ ] 대시보드 light/dark 확인 — 실제 화면 눈으로 확인 필요 (수동 QA)
-- [ ] 편집기 light/dark 확인 — 실제 화면 눈으로 확인 필요 (수동 QA)
-- [ ] 관리자 화면 light/dark 확인 — 2차 항목(관리자 화면)이 아직 없어 해당 없음
-- [x] 상세페이지 캔버스/export 디자인과 앱 테마 분리 — `globals.css`에 `--canvas-*` 토큰이 `.dark`와 무관하게 고정값으로 정의됨 ("intentionally NOT theme-dependent" 주석 포함)
-
-## 10. GSAP 인터랙션 (2차)
-
-- [x] GSAP/@gsap/react 설치
-- [x] floating AI 도우미 버튼 — 기존 pulse 유지 + GSAP entrance
-- [x] AI 도우미 버튼에서 패널로 확장되는 모션 — `aiPanelRef`/`aiFabRef`
-- [x] AI 결과 생성 시 후보 카드 reveal 모션 — `AiAssistantPanel`
-- [x] AI 결과 적용 시 섹션 하이라이트 모션 — `SectionCanvas` GSAP flash
-- [x] export 완료 success motion — ZIP 생성 완료 badge
-- [x] prefers-reduced-motion 대응
-
-## 11. 블록형 편집기
-
-- [x] 섹션 문구 수정 — 사이드 패널 + 캔버스 inline 수정
-- [x] 섹션 이미지 교체 — 직접 업로드/상품 이미지/레퍼런스 mock 적용
-- [x] 섹션 숨김/복구
-- [x] dnd-kit 섹션 순서 변경 — `SectionList`의 grip 아이콘이 실제 드래그 핸들로 동작 (`@dnd-kit/sortable`), 위/아래 버튼도 유지
-- [x] 카피 후보 선택 — 섹션 편집 패널 "카피 후보" 목록에서 클릭하면 헤드라인 교체(이전 헤드라인은 후보 목록에 남아 다시 전환 가능)
-- [x] 특정 섹션 다시 생성 — "이 섹션 다시 생성" 버튼(mock 우선, 3종 대체 문구 로테이션)
-- [x] 편집 히스토리 상태 관리 (undo/redo 스택)
-- [x] Ctrl+Z / Ctrl+Shift+Z 단축키
-- [x] 상단 작업바 되돌리기/다시하기 버튼
-- [x] 섹션 레이아웃 프리셋 편집 — 자유 px 편집 대신 프리셋 기반(`docs/CLAUDE_HANDOFF.md`의 "블록 기반 유지" 결정과 타협): 이미지 위치(3x3), 이미지 채우기(cover/contain), 이미지 높이(낮게/기본/높게), 섹션 여백(좁게/기본/넉넉하게), 텍스트 크기(작게/기본/크게). `src/lib/layout-presets.ts`, 섹션 편집 패널 "레이아웃"/"여백 & 텍스트 크기" 블록
-
-## 12. 기획자 에이전트 수정 요청
-
-- [x] 편집기 내 기획자 에이전트 요청 패널
-- [x] 빠른 액션 버튼
-- [x] 전체 시안 수정 요청
-- [x] 선택 섹션 중심 수정 요청
-- [x] FAQ/CTA 축약 요청 — 전용 예시 칩 추가 (`AiAssistantPanel` REVISION_EXAMPLES)
-- [x] 검수 경고 반영 요청 — 예시 칩 + `priorReview` 컨텍스트 전달 구조 연결
-- [x] 재기획 전/후 비교 — `AiAssistantPanel` 적용 전/새 시안 후보 비교 UI
-- [x] 새 시안 적용하기
-- [x] 수정 요청 API 호출 — `src/app/api/agent-workflow/revise/route.ts`
-- [x] 총괄 에이전트가 수정 요청 범위(section / multi_section / full_draft) 판단 — `runRevisionAgent`의 `revisionScope` 출력 기준으로 병합
-- [x] 총괄 에이전트를 통한 기획 → 제작 → 검수 루프 연결 — `runOrchestratedRevision`(revision→production→review), 기존 `runProductionAgent`/`runReviewAgent` 재사용
-- [ ] 총괄 에이전트 tool 호출 상한과 연결된 호출 횟수 제한 상태 — 재기획은 결정론적 3단계 파이프라인이라 tool-calling 루프/상한 자체가 해당 없음
-- [x] mock fallback — API 키 없음/호출 실패 시 기존 `mockPlanRevision` 그대로 사용
-- [x] 기존 분석/기획/제작/검수 결과를 기획자 에이전트 입력 맥락으로 전달 — `agentWorkflow.runs`에서 추출해 프롬프트에 포함
-- [x] 수동 수정 전/후를 사용자 스타일 신호로 기록
-- [ ] 실제 AI API 재기획 응답 품질 검증 — API/모델 최종 테스트 전
-
-## 13. 스타일 세트 (2차)
-
-- [x] 스타일 세트 목록 — `/styles`, localStorage 기반(`src/lib/style-sets.ts`), 아직 Supabase `style_sets` 테이블과는 연결 안 됨(레이아웃 프리셋 컬럼이 스키마에 없음)
-- [x] 스타일 세트 생성 — `/styles`의 `StyleSetFormDialog`
-- [x] 스타일 세트 수정
-- [x] 기본 무드/톤/색상 저장
-- [x] 레이아웃 기본값 저장 — 이미지 위치/채우기/높이, 섹션 여백, 텍스트 크기 프리셋(`SectionLayoutPreset`, §7/§11과 필드 공유)
-- [ ] 스타일 세트 개념 재정의 — 단순 색/폰트 버튼이 아니라 상세페이지 블록 조합 + 여백 + 타이포 + 이미지 처리 규칙으로 관리
-- [ ] 스타일 세트별 대표 블록 조합 정의 — 프리미엄 리빙형, 감성 뷰티형, 정보 밀도형, 리뷰/공구 강조형 등
-- [ ] 스타일 세트 편집 화면에 상세페이지 샘플 캔버스 추가 — 버튼 선택이 아니라 실제 적용 결과를 보며 수정
-- [ ] 스타일 세트 편집 캔버스와 상세페이지 편집 캔버스가 동일 블록 렌더러 사용
-- [ ] 스타일 세트에 `preferredLayoutTypes` 또는 섹션 role별 기본 `layoutType` 저장
-- [ ] 스타일 세트에 블록별 기본 슬롯 처리 규칙 저장 — 이미지 우선/텍스트 우선/후기 우선/스펙 우선 등
-- [ ] 섹션 표시 기본값 저장 — 필드(`sectionVisibility`)는 있으나 폼 UI 미제공
-- [x] 새 프로젝트에 스타일 세트 적용 — 생성 화면에서 선택 시 무드/톤/플랫폼 자동 반영 + 생성된 섹션에 레이아웃 기본값 스탬프. 에디터에서도 기존 초안에 일괄 적용 가능("전체 섹션에 레이아웃 적용")
-- [ ] 수동 수정 요약 기반 사용자 선호 저장
-- [ ] 다음 프로젝트 생성 시 기획 에이전트 입력에 스타일 신호 반영
-
-## 14. 저장
-
-- [x] 프로젝트 저장 — 에디터 저장 시 Supabase `draft_versions` 새 버전 저장
-- [x] 프로젝트 불러오기 — 대시보드에서 Supabase 프로젝트 목록 조회
-- [x] 에디터 DB draft 복원 — `detail_page_projects` + `draft_versions` + `agent_runs` 조회 후 localStorage fallback 유지
-- [x] 프로젝트 수정 저장 — `current_draft_version_id` 최신 draft로 갱신
-- [x] localStorage 임시 저장
-- [x] 로컬 초안 DB 승격 저장 — `p1` fallback 초안도 저장 시 Supabase 프로젝트로 생성
-- [x] 새 프로젝트 생성 시 Supabase `detail_page_projects` 저장 — 로그인 세션이 있으면 DB 저장, 실패 시 localStorage fallback
-- [x] 에이전트 결과 저장 — 생성 시 `agent_runs` insert, localStorage fallback 유지
-- [x] 경쟁 상세페이지 URL/메모 저장 — 생성 시 `competitor_references` insert, localStorage fallback 유지
-- [x] 초안 버전 저장 — 생성 시 `draft_versions` insert 후 `current_draft_version_id` 연결
-- [x] 사용자 스타일 신호 저장 — localStorage `detail-page-style-signals:{projectId}`
-- [x] 사용자 스타일 신호 Supabase 저장 연결 — 로그인 세션이 있으면 `user_style_signals` insert, 실패 시 localStorage fallback
-- [x] Supabase PostgreSQL/RLS 스키마 초안 작성 — `docs/supabase/schema.sql`
-- [x] RLS 정책 Supabase 프로젝트에 실제 적용 — `agent_runs.parent_run_id` 컬럼 + `authenticated` GRANT 포함, MCP로 마이그레이션 적용 완료
-
-## 15. Export
-
-- [x] 플랫폼 가로폭 적용
-- [x] 전체 상세페이지 이미지 생성
-- [x] 2000px 단위 슬라이싱
-- [x] ZIP 다운로드 전 현재 draft 저장 시도
-- [x] 파일명 자동 정리
-- [x] ZIP 다운로드
-- [x] 다운로드 상태 표시
-
-## 16. 관리자 화면 (2차)
-
-- [ ] 관리자 권한 확인
-- [ ] 사용자 수 표시
-- [ ] 프로젝트 수 표시
-- [ ] AI 생성 횟수 표시
-- [ ] ZIP 다운로드 횟수 표시
-- [ ] 최근 프로젝트 메타데이터 표시
-
-## 16-1. 경쟁 상세페이지 이미지 분석 / EDA
-
-목표: 관리자가 다른 셀러의 긴 상세페이지 이미지를 업로드하면, 이미지 기반 분석 결과를 축적하고 이후 상세페이지 기획·스타일 세트·관리자 EDA에 활용한다. URL 자동 크롤링은 이 작업 범위에 포함하지 않는다.
-
-- [ ] `nav-bar.tsx`에 관리자 전용 "레퍼런스 분석" 진입 버튼 추가
-- [ ] 관리자 레퍼런스 분석 화면 `/admin/reference-analysis` 구성
-- [ ] 긴 상세페이지 이미지 다중 업로드 UI — `part1`, `part2`처럼 여러 파일을 하나의 레퍼런스로 묶고 순서 변경 지원
-- [ ] Supabase Storage `competitor-reference-assets` 버킷 및 업로드 정책 구성
-- [ ] `competitor_references` 확장 — 원본 메타데이터만 보관: `project_id` nullable, `source_url`, `platform`, `product_name`, `category`, `analysis_status`, `updated_at`
-- [ ] `competitor_reference_assets` 테이블 추가 — 레퍼런스별 이미지 파일 경로, 순서, 가로/세로 크기, MIME 타입, 파일 크기 저장
-- [ ] `competitor_analysis_runs` 테이블 추가 — 분석 모델/프롬프트 버전/상태/오류 및 페이지 전체 EDA 결과 저장
-- [ ] `competitor_reference_sections` 테이블 추가 — 분석 실행별 검출 섹션을 1행씩 저장; 13대 섹션 분류, 순서, 원본 Y 좌표, 여백·텍스트·피사체 비율, OCR 카피, 신뢰도 저장
-- [ ] `agent_runs`는 호출 이력·디버깅용으로만 연결하고, 경쟁 레퍼런스 EDA의 주 데이터 저장소로 사용하지 않음
-- [ ] RLS 설계 — 일반 사용자는 본인이 업로드한 레퍼런스만 접근, 관리자는 전체 분석 코퍼스 접근
-- [ ] 원본 저작물 관리 정책 — 원본 이미지의 보관 기간/삭제와 서비스 내부 분석 용도 범위 정의; 장기 활용 데이터는 원본보다 파생 지표 중심으로 저장
+- [ ] `nav-bar.tsx`에 관리자 전용 "레퍼런스 분석" 진입 버튼
+- [ ] 업로드·분석 상태·결과·재시도를 제공하는 `/admin/reference-analysis` 화면
+- [ ] `competitor_references` 확장: 원본 메타데이터만 저장 — nullable `project_id`, `source_url`, `platform`, `product_name`, `category`, `analysis_status`, `updated_at`
+- [ ] `competitor_reference_assets` 추가: 여러 장의 캡처 이미지 경로, 순서, 크기, MIME 타입, 파일 크기, 해시
+- [ ] `competitor_analysis_runs` 추가: 분석 모델/프롬프트 버전/상태/오류와 페이지 단위 EDA 수치
+- [ ] `competitor_reference_sections` 추가: 감지된 섹션마다 1행 — 섹션 유형, 순서, 원본 Y 좌표, 비율, OCR 카피, 카피 특징, 신뢰도
+- [ ] `agent_runs`는 필요 시 호출 추적/디버깅에만 연결하고 EDA 주 데이터 저장소로 사용하지 않음
+- [ ] 일반 사용자는 본인이 올린 원본만, 관리자는 전체 분석 코퍼스에 접근하는 RLS 정책
+- [ ] 외부 원본 이미지 보관 기간/삭제/내부 분석 범위를 정의하고, 장기 데이터는 원본보다 파생 지표 중심으로 보관
 
 ### 분석 파이프라인
 
-- [ ] 긴 이미지를 분석 가능한 높이 단위로 분할하고, 경계 누락 방지를 위한 겹침 영역을 포함
-- [ ] 분할 이미지의 원본 Y 좌표를 유지해 분석 결과를 하나의 상세페이지 좌표계로 병합
-- [ ] 이미지 처리 단계 — 캔버스 크기, 섹션 경계, 좌우/상하 여백 비율, 텍스트·이미지·피사체 점유율, 색상 팔레트 추출
-- [ ] Vision AI 단계 — 13대 섹션 분류, 제목/본문/OCR 텍스트 분리, 카피 톤·페인포인트·문장 구조 분석
-- [ ] 타이포그래피는 캡처 이미지 기준 추정값으로 저장 — `font-size`, 자간, 줄간격에는 `confidence`를 함께 기록하며 CSS 원본 값으로 간주하지 않음
-- [ ] 분석 결과 상세 화면 — 원본 미리보기 위에 섹션 경계/여백/피사체 안전영역을 오버레이하고, 섹션별 카피와 수치를 표시
-- [ ] 분석 실행 상태 UI — 업로드, 대기, 분석 중, 완료, 실패 및 재시도 표시
+- [ ] 여러 장의 긴 이미지 업로드와 수동 순서 변경
+- [ ] 지나치게 긴 이미지는 겹침 영역을 포함한 분석 단위로 분할하고 원본 Y 좌표 유지
+- [ ] 경계 중복 없이 분할 분석 결과를 하나의 상세페이지 좌표계로 병합
+- [ ] 이미지 처리로 캔버스 크기, 여백, 텍스트/이미지/피사체 비율, 정렬, 색상 팔레트 추출
+- [ ] Vision AI로 OCR, 13대 섹션 분류, 제목/본문 분리, 카피 톤·페인포인트·효익·근거·CTA 추출
+- [ ] 타이포그래피는 캡처 이미지 기반 추정값과 confidence를 저장하고, 원본 CSS 값이라고 단정하지 않음
+- [ ] 결과 화면에서 섹션 경계, 텍스트 안전영역, 여백 측정치를 원본 위에 오버레이
+- [ ] 업로드·대기·분석 중·완료·실패·재시도 상태 UI
 
-### EDA 지표
+### EDA 출력
 
-- [ ] 비주얼 가이드라인: 전체/섹션별 여백 비율, 피사체 점유율, 텍스트·이미지 비율, 정렬 규칙, 색상 팔레트
-- [ ] 타이포그래피 가이드: 제목·본문 상대 크기, 줄 수, 줄간격/자간 추정값, 텍스트 안전영역과 가독성 판정
-- [ ] 섹션 가이드: 13대 섹션 유형, 등장 순서, 섹션 높이·간격, 누락/반복 패턴
-- [ ] 카피 가이드: 제목·본문 글자 수, 문장 구조, 공감/페인포인트/효익/근거/행동유도 유형, 톤앤매너
-- [ ] 관리자 집계 화면 — 카테고리·플랫폼·레퍼런스 유형별 평균 여백, 섹션 구성, 카피 길이·톤 분포 비교
+- [ ] 비주얼: 전체/섹션 여백 비율, 피사체 비율, 텍스트/이미지 비율, 정렬, 팔레트, 안전영역
+- [ ] 타이포: 제목/본문 상대 크기, 줄 수, 추정 줄간격/자간, 대비와 가독성
+- [ ] 구조: 섹션 유형·순서·높이·간격, 누락/반복 패턴
+- [ ] 카피: 제목/본문 길이, 문장 구조, 공감·페인포인트·효익·근거·CTA 분류, 톤
+- [ ] 카테고리·플랫폼·레퍼런스 유형별 평균 여백, 섹션 흐름, 카피 길이, 톤 분포 관리자 집계
 
-## 16-2. Python/FastAPI 고도화 후보
+## 보류 / 리서치 후보
 
-현재 MVP의 메인 백엔드는 Next.js + Supabase로 유지합니다. FastAPI/Python은 아래처럼 Python 생태계가 꼭 필요한 기능이 생길 때만 별도 worker/service로 추가합니다.
+아래는 현재 구현 우선순위가 아니다.
 
-- [ ] 이미지 누끼 제거 worker 검토
-- [ ] OpenCV 기반 이미지 여백/복잡도 분석 worker 검토
-- [ ] 레퍼런스 기반 이미지 합성 worker 검토
-- [ ] 대량 상품/경쟁 데이터 분석 배치 검토
-- [ ] FastAPI가 Auth/DB/Storage를 소유하지 않도록 Supabase 중심 연동 규칙 유지
-- [ ] `enhanceProductImage`, `removeBackground`, `analyzeReferenceImage` 함수 경계 설계
+- [ ] 레퍼런스 이미지를 활용한 상품 이미지 개선/합성. 실제 상품 정보 보존 규칙이 전제
+- [ ] 누끼 제거 또는 이미지 품질 개선 worker
+- [ ] 대량 이미지 분석이 필요해질 때 OpenCV/FastAPI worker 검토
+- [ ] 사용자가 열어 둔 상세페이지에서 직접 자료를 수집하는 Chrome 확장 프로그램
+- [ ] 쇼핑몰 직접 업로드 API, 결제, 광범위한 마켓 자동화
 
-## 17. 마무리
+## 배포 전 체크리스트
 
-- [x] 샘플 상품 데이터 — `mockProductInput`이 새 프로젝트 폼 기본값으로 이미 연결됨
-- [x] 빈 상태 UI — 대시보드 로그아웃/미설정/빈 목록 상태 메시지
-- [x] 로딩 상태 UI — 대시보드/생성 화면/에디터(Supabase draft 불러오는 중 표시 추가) 모두 커버
-- [x] 오류 상태 UI — 대시보드 오류 상태, `SupabaseSaveError` 상세 메시지, AI 실패 시 mock 폴백
-- [ ] 주요 뷰포트 반응형 최종 점검 — 실제 화면 눈으로 확인 필요 (수동 QA)
-- [ ] light/dark 시각 점검 — 실제 화면 눈으로 확인 필요 (수동 QA, §9와 동일)
-- [ ] 주요 모션이 작업 흐름을 방해하지 않는지 점검 — 실제 화면 눈으로 확인 필요 (수동 QA)
-- [x] lint/build 확인 — 2026-07-10 `npm run lint`, `npx tsc --noEmit`, `npm run build` 통과
-- [x] 발표 데모 흐름 정리 — `docs/DEMO_SCRIPT.md`
+- [ ] 기능 계약이 바뀌면 README, MVP plan, schema, 환경변수 예시를 함께 갱신
+- [ ] `docs/DEMO_SCRIPT.md`를 실제 데모 흐름과 일치시킴
+- [ ] 발표 전 제한 사항과 mock fallback 동작을 정리
+- [ ] 최종 배포 전 데스크톱 반응형, 테마, 기본 접근성, 프로젝트 복원, 이미지 영속성, ZIP 파일 내용을 확인
