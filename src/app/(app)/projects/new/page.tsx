@@ -26,6 +26,7 @@ import { mockEmphasisOptions, mockProductInput, mockStyleSets } from "@/lib/mock
 import { applyLayoutPresetToSections } from "@/lib/layout-presets";
 import { loadStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { optimizeImageFile } from "@/lib/image-optimize";
 import {
   ADDITIONAL_INSTRUCTION_EXAMPLES,
   AgentWorkflowDraft,
@@ -42,10 +43,6 @@ import {
   Tone,
   UploadedImageDraft,
 } from "@/lib/types";
-
-const IMAGE_MAX_WIDTH = 1200;
-const IMAGE_QUALITY = 0.85;
-const IMAGE_OUTPUT_TYPE = "image/webp";
 
 const TONE_OPTIONS = Object.keys(TONE_LABELS) as Tone[];
 const MOOD_OPTIONS = Object.keys(MOOD_LABELS) as DesignMood[];
@@ -203,59 +200,6 @@ function GenerationProgressOverlay({
       )}
     </AnimatePresence>
   );
-}
-
-function loadImage(dataUrl: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = reject;
-    image.src = dataUrl;
-  });
-}
-
-function canvasToDataUrl(canvas: HTMLCanvasElement, type: string, quality: number) {
-  return canvas.toDataURL(type, quality);
-}
-
-async function optimizeImageFile(file: File): Promise<UploadedImageDraft> {
-  const originalDataUrl = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") resolve(reader.result);
-      else reject(new Error("Image read failed"));
-    };
-    reader.onerror = () => reject(reader.error ?? new Error("Image read failed"));
-    reader.readAsDataURL(file);
-  });
-
-  const image = await loadImage(originalDataUrl);
-  const scale = Math.min(1, IMAGE_MAX_WIDTH / image.naturalWidth);
-  const optimizedWidth = Math.max(1, Math.round(image.naturalWidth * scale));
-  const optimizedHeight = Math.max(1, Math.round(image.naturalHeight * scale));
-  const canvas = document.createElement("canvas");
-  canvas.width = optimizedWidth;
-  canvas.height = optimizedHeight;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas context is not available");
-  ctx.drawImage(image, 0, 0, optimizedWidth, optimizedHeight);
-
-  const optimizedDataUrl = canvasToDataUrl(canvas, IMAGE_OUTPUT_TYPE, IMAGE_QUALITY);
-  const estimatedSize = Math.round((optimizedDataUrl.length * 3) / 4);
-  const optimized = scale < 1 || estimatedSize < file.size;
-
-  return {
-    dataUrl: optimizedDataUrl,
-    name: file.name.replace(/\.[^.]+$/, ".webp"),
-    size: estimatedSize,
-    type: IMAGE_OUTPUT_TYPE,
-    originalSize: file.size,
-    originalWidth: image.naturalWidth,
-    originalHeight: image.naturalHeight,
-    optimizedWidth,
-    optimizedHeight,
-    optimized,
-  };
 }
 
 export default function CreateProjectPage() {

@@ -110,6 +110,8 @@
 
 목표: 관리자가 다른 셀러의 긴 상세페이지 캡처 이미지를 업로드하면, 레이아웃과 카피 신호를 추출해 내부 EDA 데이터로 축적한다. 이는 셀러가 입력하는 경쟁 URL/메모 기능과 별개이며 URL 크롤링을 전제로 하지 않는다.
 
+**MVP 착수 상태 (2026-07-15, Claude):** 아래 전체 스펙(관리자 전용, 다중 이미지, 좌표/OCR/신뢰도, Storage 3테이블 분리)과는 별개로, 동작 검증용 축소 버전을 먼저 붙였다. 관리자 게이팅 없이 로그인한 모든 사용자가 nav-bar "경쟁 분석"(`/competitor-analysis`)에서 이미지 1장만 업로드해 분석하고, 결과를 `competitor_page_analyses` 테이블(project_id nullable, jsonb 통짜 저장) 1개에 저장한다. 좌표/OCR 신뢰도/이미지 분할/오버레이/관리자 집계는 없음 — 아래 체크리스트는 그대로 두고, 이 축소 버전을 관리자 전용 다중 이미지/좌표 기반 스펙으로 확장하는 게 다음 단계다. 관련 코드: `src/lib/agents/competitor-analysis.ts`, `src/app/(app)/competitor-analysis/page.tsx`, `src/app/api/agent-workflow/analyze-competitor-page/route.ts`.
+
 ### 레퍼런스 데이터 모델
 
 - [ ] `nav-bar.tsx`에 관리자 전용 "레퍼런스 분석" 진입 버튼

@@ -150,6 +150,45 @@ export const revisionOutputSchema = z.object({
   warnings: z.array(z.string()),
 });
 
+// ---------- 경쟁 상세페이지 이미지 분석 (docs/CLAUDE_HANDOFF.md "다음 우선 작업" #6) ----------
+
+export const competitorPageAnalysisSchema = z.object({
+  summary: z.string(),
+  marginRatio: z.string(),
+  subjectOccupancyRatio: z.string(),
+  colorPalette: z.array(z.string()),
+  textDensity: z.object({
+    size: z.string(),
+    lineHeight: z.string(),
+    placement: z.string(),
+  }),
+  sectionBreakdown: z.array(
+    z.object({
+      order: z.number(),
+      sectionKind: sectionKindSchema.or(z.string()),
+      description: z.string(),
+      /** Headline/copy phrases actually legible in this section of the
+       * image, verbatim — not paraphrased or invented. Empty array if the
+       * section is image-only with no readable text. */
+      visibleCopy: z.array(z.string()),
+    })
+  ),
+  copyStyle: z.object({
+    avgSentenceLength: z.string(),
+    painPointStructure: z.string(),
+  }),
+  presenceFlags: z.object({
+    hasFaq: z.boolean(),
+    hasSpecTable: z.boolean(),
+    hasComparisonTable: z.boolean(),
+    hasHookSection: z.boolean(),
+  }),
+  needsVerification: z.array(z.string()),
+  warnings: z.array(z.string()),
+});
+
+export type CompetitorPageAnalysis = z.infer<typeof competitorPageAnalysisSchema>;
+
 export type AnalysisOutput = z.infer<typeof analysisOutputSchema>;
 export type PlanningOutput = z.infer<typeof planningOutputSchema>;
 export type ProductionOutput = z.infer<typeof productionOutputSchema>;

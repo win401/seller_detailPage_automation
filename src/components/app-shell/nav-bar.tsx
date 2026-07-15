@@ -22,6 +22,7 @@ import { ThemeSwitch } from "./theme-switch";
 const NAV_LINKS = [
   { href: "/dashboard", label: "대시보드" },
   { href: "/styles", label: "스타일 세트" },
+  { href: "/competitor-analysis", label: "경쟁 분석" },
 ] as const;
 
 export function NavBar() {

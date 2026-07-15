@@ -127,6 +127,22 @@ create table if not exists public.usage_events (
   created_at timestamptz not null default now()
 );
 
+-- Standalone competitor-detail-page-image analysis (docs/CLAUDE_HANDOFF.md
+-- "다음 우선 작업" #6, docs/TASKS.md §16-2). Not tied to a specific project
+-- (project_id nullable) since this is a nav-bar-level analysis library the
+-- user builds up across projects, unlike competitor_references which is
+-- scoped to one project's generation flow.
+create table if not exists public.competitor_page_analyses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  project_id uuid references public.detail_page_projects(id) on delete set null,
+  label text,
+  image_data_url text not null,
+  analysis jsonb not null default '{}'::jsonb,
+  source text not null default 'mock',
+  created_at timestamptz not null default now()
+);
+
 alter table public.profiles enable row level security;
 alter table public.style_sets enable row level security;
 alter table public.detail_page_projects enable row level security;
@@ -135,6 +151,7 @@ alter table public.agent_runs enable row level security;
 alter table public.draft_versions enable row level security;
 alter table public.user_style_signals enable row level security;
 alter table public.usage_events enable row level security;
+alter table public.competitor_page_analyses enable row level security;
 
 drop policy if exists "profiles select own" on public.profiles;
 create policy "profiles select own" on public.profiles
@@ -174,6 +191,10 @@ drop policy if exists "usage_events own access" on public.usage_events;
 create policy "usage_events own access" on public.usage_events
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
+drop policy if exists "competitor_page_analyses own access" on public.competitor_page_analyses;
+create policy "competitor_page_analyses own access" on public.competitor_page_analyses
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -208,3 +229,4 @@ grant select, insert, update, delete on public.agent_runs to authenticated;
 grant select, insert, update, delete on public.draft_versions to authenticated;
 grant select, insert, update, delete on public.user_style_signals to authenticated;
 grant select, insert, update, delete on public.usage_events to authenticated;
+grant select, insert, update, delete on public.competitor_page_analyses to authenticated;

@@ -8,6 +8,7 @@ import {
   GenerateDetailPageInput,
   GenerateDetailPageOutput,
 } from "./types";
+import { CompetitorPageAnalysis } from "./agents/schemas";
 
 /**
  * Mock fallback for the AI editing assistant (docs/TASKS.md §0, §12).
@@ -248,4 +249,70 @@ export function mockPlanRevision(
       ],
     };
   });
+}
+
+/** Fallback for the competitor detail-page image analysis feature
+ * (docs/CLAUDE_HANDOFF.md "다음 우선 작업" #6, docs/TASKS.md §16-2). Returns a
+ * plausible structural analysis without calling a vision model, so the
+ * upload -> analyze -> save flow stays demoable without an API key. */
+export function mockCompetitorPageAnalysis(label?: string): CompetitorPageAnalysis {
+  const subject = label?.trim() || "업로드한 경쟁 상세페이지";
+
+  return {
+    summary: `${subject} 이미지를 기준으로 한 목업 구조 분석입니다. 실제 API 키 연결 전에는 대략적인 패턴만 보여줍니다.`,
+    marginRatio: "섹션 간 여백은 화면 높이의 약 6~10% 수준으로 넉넉한 편",
+    subjectOccupancyRatio: "각 섹션에서 상품/피사체가 화면 폭의 60~80%를 차지",
+    colorPalette: ["#F5F1EA", "#2B2B2B", "#C9A46A"],
+    textDensity: {
+      size: "헤드라인 20~24px, 본문 14~16px 추정",
+      lineHeight: "본문 줄간격 1.5~1.6배 수준으로 여유 있음",
+      placement: "이미지 하단 또는 좌측 정렬 텍스트 블록 반복",
+    },
+    sectionBreakdown: [
+      {
+        order: 1,
+        sectionKind: "intro",
+        description: "브랜드/제품명이 강조된 도입부",
+        visibleCopy: ["(mock) 브랜드명 · 제품명이 큰 글씨로 표시됨"],
+      },
+      {
+        order: 2,
+        sectionKind: "problem",
+        description: "문제 제기형 후킹 문구",
+        visibleCopy: ["(mock) 아직도 이렇게 쓰고 계신가요?"],
+      },
+      {
+        order: 3,
+        sectionKind: "benefit_1",
+        description: "핵심 장점 이미지 + 짧은 카피",
+        visibleCopy: ["(mock) 핵심 장점을 한 줄로 요약한 헤드라인"],
+      },
+      {
+        order: 4,
+        sectionKind: "detail",
+        description: "제품 상세 스펙/소재 설명",
+        visibleCopy: [],
+      },
+      {
+        order: 5,
+        sectionKind: "faq",
+        description: "자주 묻는 질문 목록",
+        visibleCopy: ["(mock) Q. 세탁은 어떻게 하나요?"],
+      },
+    ],
+    copyStyle: {
+      avgSentenceLength: "문장당 15~25자 내외의 짧은 단문 위주",
+      painPointStructure: "문제 제기 -> 원인 -> 해결(제품 특징) 순서로 반복",
+    },
+    presenceFlags: {
+      hasFaq: true,
+      hasSpecTable: true,
+      hasComparisonTable: false,
+      hasHookSection: true,
+    },
+    needsVerification: [
+      "실제 이미지 없이 생성한 목업 결과이므로 색상/수치는 참고용으로만 사용",
+    ],
+    warnings: ["API 키가 없어 mock 분석 결과를 사용했습니다."],
+  };
 }

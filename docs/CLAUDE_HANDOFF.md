@@ -1,118 +1,164 @@
 # Claude Handoff
 
-> Last updated: 2026-07-15
-> Branch: `main`
-> Latest baseline commit: `58f322c docs: refresh task roadmap`
+이 문서는 `/Users/sungwoo/Desktop/work/class/mini_pj/seller-detail-page-automation` 프로젝트를 Claude가 이어받기 위한 최신 인수인계 문서입니다.
 
-## Project
+중요: `/Users/sungwoo/Documents/Codex/2026-07-07/seller-detail-page-automation/.current-repo` 경로는 이 프로젝트의 실제 작업 폴더가 아닙니다. 읽거나 수정하지 마세요.
 
-- Name: Seller Detail Page Automation
-- Repository: `https://github.com/win401/seller_detailPage_automation.git`
-- Product: a desktop-first tool that helps Coupang and Smart Store sellers create a structured long-form detail-page draft from product information and photos.
+## 프로젝트 한 줄 정의
 
-The seller works on desktop. The center editor canvas previews a narrow mobile-style detail page, which is then exported as platform-width image slices in a ZIP file.
+쿠팡/네이버 스마트스토어 셀러가 상품 정보와 이미지를 넣으면, AI와 템플릿 엔진이 실제 상세페이지처럼 보이는 모바일 세로형 상세페이지 초안을 만들고, 사용자가 PC에서 편집 후 ZIP 이미지로 내보내는 미니 프로젝트입니다.
 
-Do not mix this work with unrelated market-review, tourism, hackathon, sourcing-automation, payment, or direct marketplace-upload projects.
+## 현재 방향
 
-## Current Product State
+- 셀러는 PC에서 사용합니다.
+- 가운데 캔버스는 모바일 상세페이지 결과물을 미리 보여주는 세로형 프리뷰입니다.
+- 자유 좌표 편집 툴이 아니라, 상세페이지 섹션/블록을 조립하는 방식입니다.
+- 스타일 세트는 단순 색상 버튼이 아니라 상세페이지를 구성하는 레이아웃 조각, 즉 `blockRole + layoutType + slots` 기반의 블록 시스템이어야 합니다.
+- AI가 모든 디자인을 즉석에서 그리는 구조보다, 검증된 상세페이지 레이아웃 패턴 안에 카피와 이미지를 채우는 방식이 우선입니다.
+- 실제 크롤링은 MVP 범위에서 제외합니다. 경쟁 상세페이지는 사용자가 URL, 메모, 긴 캡처 이미지를 직접 제공하는 방식으로 갑니다.
 
-The end-to-end MVP is implemented:
+## 반드시 먼저 읽을 문서
 
-1. Supabase Auth login/signup/logout and project dashboard
-2. New-project form with product input, product/reference images, and competitor URL/memo
-3. Client-side image optimization (1200px resize, WebP/JPEG compression)
-4. Analysis → planning → production → review agent workflow
-5. Structured 13-section detail-page draft
-6. Desktop editor with copy editing, image replacement, hide/restore, DnD reorder, undo/redo, zoom, Space-drag pan, and planner-agent revision requests
-7. Supabase draft persistence with localStorage fallback
-8. ZIP export with platform-width rendering and 2000px vertical slicing
+- `README.md`
+- `AGENTS.md`
+- `docs/PROJECT_BRIEF.md`
+- `docs/MVP_PLAN.md`
+- `docs/TASKS.md`
+- `docs/PROMPTS.md`
+- `docs/REFERENCE_DETAIL_PAGE_ANALYSIS.md`
+- `docs/CLAUDE_DESIGN_PROMPT.md`
 
-### Generation Mode
+## 구현된 주요 흐름
 
-- Mock generation is the default. It is instant, deterministic, and cost-free.
-- Live AI runs only when `ENABLE_LIVE_AI=true`.
-- The default live model is `gpt-4.1-mini` through Vercel AI SDK.
-- Keep mock fallback. Do not turn live AI on by default or remove the fallback without an explicit request.
+- Next.js App Router + TypeScript + Tailwind 기반입니다.
+- Supabase Auth를 사용합니다.
+- 사용자별 프로젝트 저장을 목표로 하며, Supabase 저장 실패 시 localStorage fallback이 있습니다.
+- 새 상세페이지 생성 플로우는 상품 입력, 이미지 업로드, 경쟁 상세페이지 참고, AI/Mock 시안 생성, 편집, 저장, ZIP 다운로드 흐름입니다.
+- 편집 화면에는 좌측 섹션 목록, 중앙 모바일 캔버스, 우측 속성 패널이 있습니다.
+- dnd-kit 기반 섹션 순서 변경이 있습니다.
+- 텍스트 수정, 이미지 슬롯 수정, 섹션별 편집, 저장, ZIP 다운로드가 핵심입니다.
+- 확대/축소, Space+drag 형태의 캔버스 고도화 논의가 있었지만 최우선은 아닙니다.
+- light/dark/system 모드를 고려합니다.
+- GSAP 또는 Framer Motion 계열의 부드러운 인터랙션은 허용하지만, 기능보다 앞서면 안 됩니다.
 
-### Detail-page Rendering
+## AI 정책
 
-The current renderer is block-based. AI must not generate arbitrary HTML/CSS.
+- 실제 AI API는 비용과 속도 이슈가 있어 개발/테스트 중에는 mock 우선이 좋습니다.
+- live AI는 `ENABLE_LIVE_AI=true`일 때만 동작하는 구조가 이상적입니다.
+- OpenAI 모델은 비용을 고려해 `gpt-4.1-mini` 계열을 우선합니다.
+- Claude API도 env에 추가할 수 있지만, 현재 키/크레딧 문제 때문에 안정 테스트는 나중에 합니다.
+- Vercel AI SDK 사용은 프로젝트 방향과 잘 맞습니다. 단, AI 출력은 자유 HTML이 아니라 정해진 JSON schema와 블록 타입으로 제한해야 합니다.
+- AI는 없는 상품 효능이나 근거 없는 주장을 만들면 안 됩니다.
+- temperature는 낮게 유지하고, 사용자 입력/체크박스/선택형 UI로 근거 데이터를 충분히 받은 뒤 생성해야 합니다.
 
-- Three template families: `living`, `functional`, `wellness`
-- Draft structure: `blockRole + layoutType + slots`
-- Canvas and ZIP export use the same React block renderer.
-- Implemented layouts include hero/story, problem hook, benefit band, material detail, comparison, feature panel, option/color lineup, evidence, step guide, care guide, checklist, product information table, FAQ, and policy notice.
-- The old gradient-only visual blocks were replaced with photo-like mock visuals.
-- Legacy drafts are normalized to structured layouts on load.
+## 에이전트 구조
 
-### Style Sets
+1. 분석 에이전트
+   - 사용자가 입력한 상품 정보, 이미지, 경쟁 상세페이지 URL/메모/캡처 이미지를 분석합니다.
+   - 진짜 외부 크롤링은 하지 않습니다.
 
-- CRUD exists at `/styles`.
-- Style sets apply mood, tone, platform, and layout presets to new/existing drafts.
-- They are currently local-first (`src/lib/style-sets.ts`); Supabase sync for expanded layout fields is not implemented yet.
+2. 기획 에이전트
+   - 분석 결과를 바탕으로 상세페이지의 섹션 순서, 메시지 흐름, 강조 포인트를 설계합니다.
+   - 사용자가 직접 수정한 스타일 신호를 다음 생성에 반영하는 역할도 겸합니다.
 
-### Persistence
+3. 제작 에이전트
+   - 기획안을 기반으로 카피, 이미지 슬롯, 섹션 블록을 채워 상세페이지 초안을 만듭니다.
 
-- Schema: `docs/supabase/schema.sql`
-- Core tables: `profiles`, `style_sets`, `detail_page_projects`, `competitor_references`, `agent_runs`, `draft_versions`, `user_style_signals`, `usage_events`
-- RLS baseline exists. Validate the active Supabase project schema before changing persistence logic.
-- `competitor_references` currently stores seller-entered URL/memo per project; it is not yet the admin EDA corpus.
+4. 검수 에이전트
+   - 과장 표현, 누락 정보, 가독성, 섹션 흐름을 점검합니다.
 
-## Non-negotiable Product Decisions
+편집 에이전트를 별도로 두지 않습니다. 사용자가 수정 요청을 하면 기획 에이전트가 다시 기획하고, 제작/검수를 거쳐 새 시안을 제출하는 방식입니다.
 
-- Keep the editor block-based. Do not turn it into a free-positioned Figma clone.
-- "Mobile-first" describes the output detail-page canvas, not a mobile seller workspace.
-- Horizontal desktop workspace is the preferred working mode. Vertical-monitor-specific UI is deferred.
-- No automated crawling in the seller-facing MVP.
-- Do not use Pinterest API in the current MVP path.
-- Do not add image generation/compositing as a dependency for the next implementation step. Use seller-uploaded images first.
-- Keep app light/dark modes separate from the exported detail-page canvas appearance.
+## 데이터 저장 방향
 
-## Next Work: Follow `docs/TASKS.md`
+사용자 수정 데이터는 단순 로그가 아니라 다음 생성 품질을 높이는 스타일 신호로 저장해야 합니다.
 
-The task order has been intentionally reset. Do not skip directly to a large new feature.
+저장 대상 예시:
 
-1. Verify current local and Vercel end-to-end behavior: auth → mock generation → edit → save/reload → ZIP.
-2. Make seller-uploaded images reliably fill structured block image slots and persist through reload/export.
-3. Update live AI production output to the existing structured layout contract.
-4. Evolve style sets into reusable layout systems with a preview canvas and Supabase persistence.
-5. Only then build the admin competitor-image analysis / EDA surface.
+- 사용자가 자주 선택한 섹션 순서
+- 자주 삭제한 섹션
+- 선호하는 카피 톤
+- 선호하는 이미지 배치
+- 선호하는 여백/색감/타이포 스타일
+- 프로젝트별 최종 선택본
+- 경쟁 상세페이지 참고 데이터
 
-## Admin Competitor Image Analysis: Planned, Not Implemented
+경쟁 상세페이지 분석 데이터는 `competitor_references` 계열 테이블에 저장하는 방향이 논의되었습니다. 고도화 시에는 긴 상세페이지 이미지 업로드 후 다음 분석 값을 남깁니다.
 
-The planned admin feature accepts manually uploaded long screenshots from other seller detail pages. It does not start with URL crawling.
+- 여백 비율
+- 상품/피사체 점유율
+- 주요 색상 팔레트
+- 텍스트 크기, 줄간격, 배치 경향
+- 13대 섹션 분류
+- 카피 문장 길이와 페인포인트 구조
+- FAQ/상세정보/비교표/후킹 섹션 존재 여부
 
-Target records:
+## 상세페이지 품질 기준
 
-- `competitor_references`: source metadata only
-- `competitor_reference_assets`: uploaded screenshot files and order
-- `competitor_analysis_runs`: page-level EDA results and model/run history
-- `competitor_reference_sections`: one detected section per row, including position, ratios, OCR copy, copy classification, and confidence
+현재 가장 큰 이슈는 생성 결과가 아직 실제 셀러 상세페이지처럼 충분히 보이지 않는다는 점입니다.
 
-EDA covers whitespace, subject/text/image ratio, visual safe areas, section order, OCR, 13-section classification, copy length/tone/pain point/benefit/evidence/CTA signals. Treat typography obtained from screenshots as an estimate with confidence, not original CSS values.
+목표는 다음과 같습니다.
 
-## Important Files
+- 그라디언트 박스 나열이 아니라 실제 이미지 삽입 섹션처럼 보여야 합니다.
+- 도매꾹/쿠팡 상세페이지 캡처처럼 긴 흐름, 강한 후킹, 반복되는 근거 제시, 제품 정보표, FAQ, 구매 설득 CTA가 있어야 합니다.
+- 레이아웃은 단순 카드가 아니라 실제 상세페이지 블록이어야 합니다.
+- 스타일 세트도 캔버스 기반으로 관리되어야 합니다.
+- 사용자가 직접 넣은 이미지를 각 섹션 슬롯에 자연스럽게 배치해야 합니다.
 
-- `docs/TASKS.md` — current roadmap and source of truth for next work
-- `docs/supabase/schema.sql` — current schema baseline
-- `src/app/(app)/projects/new/page.tsx` — form, generation progress, project creation
-- `src/app/(app)/projects/[id]/editor/page.tsx` — editor state, persistence, export, style signals
-- `src/components/editor/section-canvas.tsx` — shared block renderer
-- `src/lib/detail-page-templates.ts` — structured mock template families
-- `src/lib/mock-ai.ts` — deterministic mock generation
-- `src/lib/agents/runtime-config.ts` — live/mock toggle
-- `src/lib/agents/orchestrator.ts` — agent workflow orchestration
-- `src/lib/style-sets.ts` and `src/app/(app)/styles/page.tsx` — current local-first style sets
-- `src/components/app-shell/nav-bar.tsx` — future admin reference-analysis entry point
+참고 이미지 분석에서 나온 좋은 상세페이지 패턴:
 
-## Verification Commands
+- 첫 화면에서 문제/욕구를 강하게 건드립니다.
+- 중간에 제품 장점과 사용 장면을 반복적으로 제시합니다.
+- 아이콘, 표, 비교, 체크포인트, 리뷰형 섹션을 섞습니다.
+- 하단에는 제품 상세정보, Q&A, 배송/교환 안내가 있습니다.
+- 여백은 충분하지만 정보 밀도는 낮지 않습니다.
 
-Run from the repository root:
+## 다음 우선 작업
 
-```bash
-npm run lint
-npx tsc --noEmit
-npm run build
-```
+1. 로컬과 Vercel 배포 결과 차이 원인 확인
+   - 로컬에서는 실제 상세페이지형 mock이 나오는데, 배포에서는 옛날 그라디언트형 결과가 나오는 문제가 있었습니다.
+   - 브랜치, 커밋, Vercel deployment, 환경변수, 캐시를 확인해야 합니다.
 
-Before claiming a feature complete, verify its visible workflow in the running app as well as its build.
+2. 시안 생성 로딩 UX 추가
+   - 현재 생성 시간이 길어서 사용자가 멈춘 것으로 느낄 수 있습니다.
+   - 생성 중 애니메이션, 단계별 문구, skeleton을 넣어야 합니다.
+
+3. mock 생성 품질 고도화
+   - AI API 없이도 실제 상세페이지 같은 결과가 나와야 합니다.
+   - 업로드 이미지가 없을 때도 placeholder가 실제 이미지 슬롯처럼 보여야 합니다.
+   - 업로드 이미지가 있을 때는 각 블록 슬롯에 배치해야 합니다.
+
+4. live AI 출력 schema 정렬
+   - AI가 만든 결과도 mock과 같은 `layoutType + slots` 구조로 변환되어야 합니다.
+   - 자유 텍스트 섹션 배열로 떨어지면 안 됩니다.
+
+5. 저장/복원 E2E 확인
+   - 로그인
+   - 새 상세페이지 생성
+   - 편집
+   - 저장
+   - 새로고침 후 복원
+   - ZIP 다운로드
+
+6. 관리자/경쟁 상세페이지 분석 기능 기획 반영
+   - nav-bar에 다른 셀러 상세페이지 분석 진입점을 추가하는 방향이 논의되었습니다.
+   - 사용자가 긴 상세페이지 이미지를 올리면 EDA 분석 결과를 저장하는 기능입니다.
+   - 이 기능은 MVP 이후 고도화에 가깝지만 TASKS에는 정리되어 있어야 합니다.
+
+## 이번 프로젝트에서 제외할 것
+
+- 쇼핑몰 플랫폼 자동 업로드
+- 결제
+- 실제 무단 크롤링
+- 자유 좌표 기반 Figma급 편집기
+- 고급 이미지 생성/합성 API 의존
+- 사업화/소싱 자동화 서비스 확장 내용
+
+## 작업 시 주의
+
+- 실제 작업 폴더는 반드시 `/Users/sungwoo/Desktop/work/class/mini_pj/seller-detail-page-automation` 입니다.
+- `.current-repo` 경로를 참조하지 마세요.
+- 변경 전후 `git status`를 확인하세요.
+- 사용자가 Claude로 작업한 변경이 있을 수 있으니, 덮어쓰기 전에 파일을 먼저 읽고 현재 구조를 존중하세요.
+- 문서와 구현이 충돌하면 `docs/TASKS.md`를 최신 기준으로 맞추고, 구현은 그 흐름을 따르세요.
+- 큰 리팩터링보다 현재 수업 미니프로젝트 완성도를 올리는 작업을 우선하세요.
