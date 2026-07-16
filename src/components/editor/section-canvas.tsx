@@ -5,10 +5,11 @@ import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 
 import { MarkupToolbar } from "@/components/editor/markup-toolbar";
+import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { getMockReferencesForSection } from "@/lib/mock-data";
-import { renderInlineMarkup } from "@/lib/rich-text";
+import { renderRichText, richTextToPlainText } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
-import { DetailSection, PLATFORM_EXPORT_WIDTH, Platform } from "@/lib/types";
+import { DetailSection, PLATFORM_EXPORT_WIDTH, Platform, RichText } from "@/lib/types";
 import {
   getBodyFontSizePx,
   getBodyTextClass,
@@ -498,7 +499,7 @@ function StructuredSectionBlock({
             )}
           </div>
           <ul className="mt-6 space-y-3">
-            {(slots.noticeItems ?? [section.body]).map((notice) => (
+            {(slots.noticeItems ?? [richTextToPlainText(section.body)]).map((notice) => (
               <li key={notice} className="text-[12px] font-semibold leading-[1.75] text-canvas-muted">
                 · {notice}
               </li>
@@ -575,14 +576,13 @@ export function SectionCanvas({
   onSelect: (id: string) => void;
   /** Double-click inline edit commit (docs/TASKS.md §7). before/after let the
    * caller decide whether anything actually changed. */
-  onCommitText: (sectionId: string, field: EditableField, before: string, after: string) => void;
+  onCommitText: (sectionId: string, field: EditableField, before: RichText, after: RichText) => void;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
-  const [draftValue, setDraftValue] = useState("");
   // Only one field can be actively edited at a time (editingCell is a
   // single cell), so one shared ref for the MarkupToolbar is enough.
-  const editingTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const editingContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!flashId || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -606,13 +606,11 @@ export function SectionCanvas({
   function startEdit(sec: DetailSection, field: EditableField) {
     onSelect(sec.id);
     setEditingCell({ sectionId: sec.id, field });
-    setDraftValue(field === "headline" ? sec.headline : sec.body);
   }
 
-  function commitEdit(sec: DetailSection) {
-    if (!editingCell || editingCell.sectionId !== sec.id) return;
-    const before = editingCell.field === "headline" ? sec.headline : sec.body;
-    onCommitText(sec.id, editingCell.field, before, draftValue);
+  function commitEdit(sec: DetailSection, field: EditableField, value: RichText) {
+    const before = field === "headline" ? sec.headline : sec.body;
+    onCommitText(sec.id, field, before, value);
     setEditingCell(null);
   }
 
@@ -642,23 +640,16 @@ export function SectionCanvas({
       return (
         <div onClick={(e) => e.stopPropagation()}>
           <div className="mb-1 flex justify-end">
-            <MarkupToolbar targetRef={editingTextareaRef} value={draftValue} onChange={setDraftValue} />
+            <MarkupToolbar targetRef={editingContainerRef} />
           </div>
-          <textarea
-            ref={editingTextareaRef}
-            autoFocus
-            rows={field === "headline" ? 2 : 3}
-            value={draftValue}
-            onChange={(e) => setDraftValue(e.target.value)}
-            onBlur={() => commitEdit(sec)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") cancelEdit();
-            }}
+          <RichTextEditor
+            key={`${sec.id}-${field}`}
+            containerRef={editingContainerRef}
+            initialValue={field === "headline" ? sec.headline : sec.body}
+            onCommit={(value) => commitEdit(sec, field, value)}
+            onCancel={cancelEdit}
             style={typographyStyle}
-            className={cn(
-              "w-full resize-none rounded border border-dashed bg-transparent outline-none",
-              editClassName
-            )}
+            className={cn("w-full rounded border border-dashed bg-transparent", editClassName)}
           />
         </div>
       );
@@ -673,7 +664,7 @@ export function SectionCanvas({
         style={typographyStyle}
         className={cn("cursor-text whitespace-pre-line", className)}
       >
-        {renderInlineMarkup(field === "headline" ? sec.headline : sec.body)}
+        {renderRichText(field === "headline" ? sec.headline : sec.body)}
       </div>
     );
   }
@@ -747,27 +738,28 @@ export function SectionCanvas({
                   {sec.kicker}
                 </div>
                 {editingCell?.sectionId === sec.id && editingCell.field === "headline" ? (
-                  <textarea
-                    autoFocus
-                    rows={2}
-                    value={draftValue}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => setDraftValue(e.target.value)}
-                    onBlur={() => commitEdit(sec)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") cancelEdit();
-                    }}
-                    style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
-                    className={cn(
-                      "mb-1.5 w-full resize-none rounded border border-dashed bg-transparent font-bold tracking-tight outline-none",
-                      getHeadlineTextClass(sec.textScale, isIntro || isCta),
-                      getLetterSpacingClass(sec.letterSpacing),
-                      getLineHeightClass(sec.lineHeight),
-                      isIntro || isCta
-                        ? "border-white/50 text-white"
-                        : "border-canvas-accent text-canvas-dark"
-                    )}
-                  />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <div className="mb-1 flex justify-end">
+                      <MarkupToolbar targetRef={editingContainerRef} />
+                    </div>
+                    <RichTextEditor
+                      key={`${sec.id}-headline`}
+                      containerRef={editingContainerRef}
+                      initialValue={sec.headline}
+                      onCommit={(value) => commitEdit(sec, "headline", value)}
+                      onCancel={cancelEdit}
+                      style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
+                      className={cn(
+                        "mb-1.5 w-full rounded border border-dashed bg-transparent font-bold tracking-tight",
+                        getHeadlineTextClass(sec.textScale, isIntro || isCta),
+                        getLetterSpacingClass(sec.letterSpacing),
+                        getLineHeightClass(sec.lineHeight),
+                        isIntro || isCta
+                          ? "border-white/50 text-white"
+                          : "border-canvas-accent text-canvas-dark"
+                      )}
+                    />
+                  </div>
                 ) : (
                   <div
                     onDoubleClick={(e) => {
@@ -783,31 +775,32 @@ export function SectionCanvas({
                       isIntro || isCta ? "text-white" : "text-canvas-dark"
                     )}
                   >
-                    {renderInlineMarkup(sec.headline)}
+                    {renderRichText(sec.headline)}
                   </div>
                 )}
                 {editingCell?.sectionId === sec.id && editingCell.field === "body" ? (
-                  <textarea
-                    autoFocus
-                    rows={3}
-                    value={draftValue}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => setDraftValue(e.target.value)}
-                    onBlur={() => commitEdit(sec)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape") cancelEdit();
-                    }}
-                    style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
-                    className={cn(
-                      "w-full resize-none rounded border border-dashed bg-transparent leading-relaxed outline-none",
-                      getBodyTextClass(sec.textScale),
-                      getLetterSpacingClass(sec.letterSpacing),
-                      getLineHeightClass(sec.lineHeight),
-                      isIntro || isCta
-                        ? "border-white/50 text-white/85"
-                        : "border-canvas-accent text-canvas-muted"
-                    )}
-                  />
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <div className="mb-1 flex justify-end">
+                      <MarkupToolbar targetRef={editingContainerRef} />
+                    </div>
+                    <RichTextEditor
+                      key={`${sec.id}-body`}
+                      containerRef={editingContainerRef}
+                      initialValue={sec.body}
+                      onCommit={(value) => commitEdit(sec, "body", value)}
+                      onCancel={cancelEdit}
+                      style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
+                      className={cn(
+                        "w-full rounded border border-dashed bg-transparent leading-relaxed",
+                        getBodyTextClass(sec.textScale),
+                        getLetterSpacingClass(sec.letterSpacing),
+                        getLineHeightClass(sec.lineHeight),
+                        isIntro || isCta
+                          ? "border-white/50 text-white/85"
+                          : "border-canvas-accent text-canvas-muted"
+                      )}
+                    />
+                  </div>
                 ) : (
                   <div
                     onDoubleClick={(e) => {
@@ -823,7 +816,7 @@ export function SectionCanvas({
                       isIntro || isCta ? "text-white/85" : "text-canvas-muted"
                     )}
                   >
-                    {renderInlineMarkup(sec.body)}
+                    {renderRichText(sec.body)}
                   </div>
                 )}
                 {sec.bullets.length > 0 && (

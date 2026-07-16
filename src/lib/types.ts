@@ -146,6 +146,20 @@ export interface SectionLayoutPreset {
   lineHeight?: TextLineHeight;
 }
 
+// ---------- inline rich text (headline/body spans) ----------
+// Real per-run styling (not string markers) so the editor can show bold/
+// highlight live while typing. Scoped to exactly what the editor exposes
+// today — extend only when a concrete need for more run-level properties
+// shows up (docs/TASKS.md 우선순위 4, span 마이그레이션).
+
+export interface TextRun {
+  text: string;
+  bold?: boolean;
+  highlight?: boolean;
+}
+
+export type RichText = TextRun[];
+
 // ---------- section model (13-section detail page) ----------
 
 export type SectionKind =
@@ -313,8 +327,8 @@ export interface DetailSection extends SectionLayoutPreset {
   /** Small label above the headline, e.g. "BENEFIT 01". */
   kicker: string;
   title: string;
-  headline: string;
-  body: string;
+  headline: RichText;
+  body: RichText;
   bullets: string[];
   /** What role the section's image should play, e.g. "product-on-desk". */
   imageRole: string;

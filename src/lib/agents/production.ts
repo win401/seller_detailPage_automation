@@ -3,6 +3,7 @@ import { openai } from "@ai-sdk/openai";
 
 import { getMockReferencesForSection } from "@/lib/mock-data";
 import { mockGenerateDetailPage } from "@/lib/mock-ai";
+import { toRichText } from "@/lib/rich-text";
 import {
   GenerateDetailPageInput,
   GenerateDetailPageOutput,
@@ -101,8 +102,8 @@ export async function runProductionAgent(
         kind,
         kicker: section.kicker,
         title: SECTION_KIND_LABELS[kind],
-        headline: section.headline,
-        body: section.body,
+        headline: toRichText(section.headline),
+        body: toRichText(section.body),
         bullets: section.bullets,
         imageRole: section.imageRole,
         imagePrompt: section.imagePrompt,

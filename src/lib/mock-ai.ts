@@ -1,5 +1,6 @@
 import { getMockReferencesForSection } from "./mock-data";
 import { createTemplateSections } from "./detail-page-templates";
+import { richTextToPlainText, toRichText } from "./rich-text";
 import {
   AgentWorkflowDraft,
   AiEditAction,
@@ -17,7 +18,7 @@ import { CompetitorPageAnalysis } from "./agents/schemas";
  * same input/output shape so the UI doesn't need to change.
  */
 export function mockAiRewrite(section: DetailSection, action: AiEditAction): string {
-  const body = section.body;
+  const body = richTextToPlainText(section.body);
   switch (action) {
     case "shorten_section":
       return body.split(/[.!?]/)[0]?.trim() + ".";
@@ -70,19 +71,33 @@ export function upgradeLegacyMockSections(
   input: GenerateDetailPageInput,
   legacySections: DetailSection[]
 ): DetailSection[] {
-  if (legacySections.some((section) => section.layoutType)) return legacySections;
+  // Runs unconditionally, before the layoutType gate below — a draft can
+  // already have layoutType set (true for virtually all real data, since
+  // that's a separate, older migration) while its headline/body are still
+  // plain strings from before the RichText migration. legacySections is
+  // typed as RichText already, but real stored JSON from before this
+  // migration (or from the intermediate **bold**/==highlight== marker
+  // phase) can still be a plain string at runtime — toRichText upgrades
+  // either case; it's a no-op for data that's already RichText.
+  const normalizedLegacy = legacySections.map((section) => ({
+    ...section,
+    headline: toRichText(section.headline),
+    body: toRichText(section.body),
+  }));
+
+  if (normalizedLegacy.some((section) => section.layoutType)) return normalizedLegacy;
 
   const templateSections = mockGenerateDetailPage(input).sections;
   return templateSections.map((template, index) => {
-    const legacy = legacySections.find((section) => section.kind === template.kind) ?? legacySections[index];
+    const legacy = normalizedLegacy.find((section) => section.kind === template.kind) ?? normalizedLegacy[index];
     if (!legacy) return template;
 
     const keepOwnVisual = legacy.imageSource === "uploaded" || legacy.imageSource === "generated";
     return {
       ...template,
       kicker: legacy.kicker || template.kicker,
-      headline: legacy.headline || template.headline,
-      body: legacy.body || template.body,
+      headline: richTextToPlainText(legacy.headline).trim() ? legacy.headline : template.headline,
+      body: richTextToPlainText(legacy.body).trim() ? legacy.body : template.body,
       bullets: legacy.bullets.length ? legacy.bullets : template.bullets,
       alternatives: legacy.alternatives.length ? legacy.alternatives : template.alternatives,
       ...(keepOwnVisual && {
@@ -241,8 +256,8 @@ export function mockPlanRevision(
 
     return {
       ...section,
-      headline: isSelected ? `${section.headline} 더 선명하게` : section.headline,
-      body: `${section.body}${suffix}`,
+      headline: isSelected ? [...section.headline, { text: " 더 선명하게" }] : section.headline,
+      body: [...section.body, { text: suffix }],
       alternatives: [
         `요청 "${normalizedRequest}"을 반영한 대안 문구`,
         ...section.alternatives.slice(0, 2),

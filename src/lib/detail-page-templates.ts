@@ -1,3 +1,4 @@
+import { toRichText } from "./rich-text";
 import {
   DetailBlockLayoutType,
   DetailBlockRole,
@@ -41,8 +42,8 @@ function section(index: number, draft: SectionDraft): DetailSection {
     layoutType: draft.layout,
     kicker: draft.kicker,
     title: SECTION_KIND_LABELS[draft.kind],
-    headline: draft.headline,
-    body: draft.body,
+    headline: toRichText(draft.headline),
+    body: toRichText(draft.body),
     bullets: draft.bullets ?? [],
     imageRole: draft.imageRole,
     slots: draft.slots,

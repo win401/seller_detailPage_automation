@@ -1,3 +1,4 @@
+import { toRichText } from "./rich-text";
 import {
   DetailBlockLayoutType,
   DetailBlockRole,
@@ -378,8 +379,8 @@ export const mockSections: DetailSection[] = sectionSeeds.map((seed, i) => {
     kind: seed.kind,
     kicker: seed.kicker,
     title: SECTION_KIND_LABELS[seed.kind],
-    headline: seed.headline,
-    body: seed.body,
+    headline: toRichText(seed.headline),
+    body: toRichText(seed.body),
     bullets: seed.bullets ?? [],
     imageRole: seed.imageRole,
     blockRole: seed.blockRole,

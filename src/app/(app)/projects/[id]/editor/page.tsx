@@ -35,6 +35,7 @@ import { mockPlanRevision, upgradeLegacyMockSections } from "@/lib/mock-ai";
 import { applyLayoutPresetToSections } from "@/lib/layout-presets";
 import { loadStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { richTextToPlainText } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
 import {
   AgentRunDraft,
@@ -46,6 +47,7 @@ import {
   PLATFORM_EXPORT_WIDTH,
   PLATFORM_LABELS,
   ProjectSummary,
+  RichText,
   SectionLayoutPreset,
   SectionImageAsset,
   StyleSet,
@@ -856,28 +858,25 @@ export default function DetailPageEditor() {
     return { saved: true, projectId: remoteProjectId };
   }
 
-  function updateSelectedBody(value: string) {
-    pushHistory();
-    setSections((prev) => prev.map((s) => (s.id === selectedId ? { ...s, body: value } : s)));
-  }
-
-  function commitSelectedBody(before: string, after: string) {
-    recordStyleSignal({ kind: "copy_manual_edit", before, after });
-  }
-
-  /** Canvas double-click inline edit commit for either headline or body (docs/TASKS.md §7). */
+  /** Canvas double-click inline edit commit for either headline or body
+   * (docs/TASKS.md §7), and also used directly by the side panel's 본문
+   * editor — both are RichTextEditor instances that only report a change on
+   * blur now (docs/TASKS.md span 마이그레이션), so one commit handler covers
+   * both surfaces. */
   function handleCanvasTextCommit(
     sectionId: string,
     field: "headline" | "body",
-    before: string,
-    after: string
+    before: RichText,
+    after: RichText
   ) {
-    if (before === after) return;
+    const beforeText = richTextToPlainText(before);
+    const afterText = richTextToPlainText(after);
+    if (beforeText === afterText) return;
     const target = sections.find((s) => s.id === sectionId);
     pushHistory();
     setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, [field]: after } : s)));
     if (target) {
-      recordStyleSignal({ kind: "copy_manual_edit", section: target, before, after });
+      recordStyleSignal({ kind: "copy_manual_edit", section: target, before: beforeText, after: afterText });
     }
   }
 
@@ -986,7 +985,7 @@ export default function DetailPageEditor() {
     ];
     const newBody = rewrites[Math.floor(Math.random() * rewrites.length)];
     setSections((prev) =>
-      prev.map((s) => (s.id === selectedId ? { ...s, body: newBody } : s))
+      prev.map((s) => (s.id === selectedId ? { ...s, body: [{ text: newBody }] } : s))
     );
     flash(selectedId);
   }
@@ -1001,13 +1000,14 @@ export default function DetailPageEditor() {
     if (!candidate) return;
 
     pushHistory();
+    const previousHeadlineText = richTextToPlainText(target.headline);
     setSections((prev) =>
       prev.map((s) =>
         s.id === selectedId
           ? {
               ...s,
-              headline: candidate,
-              alternatives: s.alternatives.map((alt, i) => (i === index ? target.headline : alt)),
+              headline: [{ text: candidate }],
+              alternatives: s.alternatives.map((alt, i) => (i === index ? previousHeadlineText : alt)),
             }
           : s
       )
@@ -1016,7 +1016,7 @@ export default function DetailPageEditor() {
     recordStyleSignal({
       kind: "headline_choice",
       section: target,
-      before: target.headline,
+      before: previousHeadlineText,
       after: candidate,
     });
   }
@@ -1215,7 +1215,7 @@ export default function DetailPageEditor() {
     setPendingSections(null);
     recordStyleSignal({
       kind: "planner_revision_apply",
-      before: selectedSection.body,
+      before: richTextToPlainText(selectedSection.body),
       after: revisionRequest.trim() || "기획자 에이전트 수정 시안 적용",
     });
     toast("재기획 시안이 캔버스에 반영되었습니다");
@@ -1627,8 +1627,7 @@ export default function DetailPageEditor() {
             <SectionEditPanel
               section={selectedSection}
               hidden={hiddenIds.has(selectedId)}
-              onChangeBody={updateSelectedBody}
-              onCommitBody={commitSelectedBody}
+              onCommitBody={(before, after) => handleCanvasTextCommit(selectedId, "body", before, after)}
               onMoveUp={() => moveSelected(-1)}
               onMoveDown={() => moveSelected(1)}
               onToggleHide={() => toggleHide(selectedId)}

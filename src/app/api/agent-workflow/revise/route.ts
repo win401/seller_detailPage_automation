@@ -11,13 +11,20 @@ import {
 
 export const runtime = "nodejs";
 
+const textRunSchema = z.object({
+  text: z.string(),
+  bold: z.boolean().optional(),
+  highlight: z.boolean().optional(),
+});
+const richTextSchema = z.array(textRunSchema);
+
 const detailSectionSchema = z.object({
   id: z.string(),
   kind: sectionKindSchema,
   kicker: z.string(),
   title: z.string(),
-  headline: z.string(),
-  body: z.string(),
+  headline: richTextSchema,
+  body: richTextSchema,
   bullets: z.array(z.string()),
   imageRole: z.string(),
   imageUrl: z.string().optional(),

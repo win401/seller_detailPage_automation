@@ -5,6 +5,7 @@ import { gsap } from "gsap";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { renderRichText } from "@/lib/rich-text";
 import { DetailSection } from "@/lib/types";
 
 const REVISION_EXAMPLES = [
@@ -103,11 +104,11 @@ export function AiAssistantPanel({
         <div ref={pendingRef} className="flex flex-col gap-2">
           <div className="rounded-lg border border-border bg-card-soft p-2.5">
             <div className="mb-0.5 text-[10.5px] font-bold text-muted-foreground">적용 전</div>
-            <p className="text-xs leading-6 text-muted-foreground">{section.body}</p>
+            <p className="text-xs leading-6 text-muted-foreground">{renderRichText(section.body)}</p>
           </div>
           <div className="rounded-lg border border-primary bg-chip-active p-2.5">
             <div className="mb-0.5 text-[10.5px] font-bold text-primary">새 시안 후보</div>
-            <p className="text-xs leading-6">{pendingSection.body}</p>
+            <p className="text-xs leading-6">{renderRichText(pendingSection.body)}</p>
           </div>
           <div className="flex gap-2">
             <Button onClick={onApply} className="h-[34px] flex-1 text-[12.5px] font-bold">

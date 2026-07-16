@@ -2,37 +2,21 @@
 
 import type { RefObject } from "react";
 
-import { toggleMarkup, type MarkupMarker } from "@/lib/rich-text";
+import { toggleInlineStyle } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
 
 /**
- * Bold/highlight buttons for the currently selected text in `targetRef`'s
- * textarea. Uses onMouseDown + preventDefault (not onClick) so the browser
- * never blurs the textarea before the handler runs — losing focus would
- * also lose selectionStart/selectionEnd, which is the whole point.
+ * Bold/highlight buttons for the current selection inside `targetRef`'s
+ * contentEditable element. Uses onMouseDown + preventDefault (not onClick)
+ * so the browser never blurs the element before the handler runs — losing
+ * focus would also lose the window.getSelection() range, which is the whole
+ * point.
  */
-export function MarkupToolbar({
-  targetRef,
-  value,
-  onChange,
-}: {
-  targetRef: RefObject<HTMLTextAreaElement | null>;
-  value: string;
-  onChange: (next: string) => void;
-}) {
-  function apply(marker: MarkupMarker) {
+export function MarkupToolbar({ targetRef }: { targetRef: RefObject<HTMLDivElement | null> }) {
+  function apply(style: "bold" | "highlight") {
     const el = targetRef.current;
     if (!el) return;
-    const start = el.selectionStart ?? value.length;
-    const end = el.selectionEnd ?? value.length;
-    const result = toggleMarkup(value, start, end, marker);
-    onChange(result.value);
-    // Write the DOM value directly so the selection can be restored in
-    // this same synchronous handler, ahead of React's re-render (which
-    // will reconcile to the same string and leave the selection alone).
-    el.value = result.value;
-    el.setSelectionRange(result.start, result.end);
-    el.focus();
+    toggleInlineStyle(el, style);
   }
 
   const buttonClass =
@@ -43,10 +27,10 @@ export function MarkupToolbar({
       <button
         type="button"
         aria-label="굵게"
-        title="굵게 (**강조**)"
+        title="굵게"
         onMouseDown={(e) => {
           e.preventDefault();
-          apply("**");
+          apply("bold");
         }}
         className={cn(buttonClass, "w-6 font-extrabold")}
       >
@@ -55,10 +39,10 @@ export function MarkupToolbar({
       <button
         type="button"
         aria-label="강조 색상"
-        title="강조 색상 (==강조==)"
+        title="강조 색상"
         onMouseDown={(e) => {
           e.preventDefault();
-          apply("==");
+          apply("highlight");
         }}
         className={buttonClass}
       >

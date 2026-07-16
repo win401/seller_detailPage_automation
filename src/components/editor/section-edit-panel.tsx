@@ -5,7 +5,6 @@ import { ImagePlus, RefreshCw, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   DetailSection,
   FONT_FAMILY_LABELS,
@@ -13,6 +12,7 @@ import {
   IMAGE_HEIGHT_LABELS,
   LETTER_SPACING_LABELS,
   LINE_HEIGHT_LABELS,
+  RichText,
   SECTION_SPACING_LABELS,
   SectionImageAsset,
   SectionLayoutPreset,
@@ -21,6 +21,7 @@ import {
 } from "@/lib/types";
 import { ImagePositionGrid, PresetToggleGroup } from "./layout-preset-controls";
 import { MarkupToolbar } from "./markup-toolbar";
+import { RichTextEditor } from "./rich-text-editor";
 
 const IMAGE_FIT_OPTIONS = (Object.keys(IMAGE_FIT_LABELS) as (keyof typeof IMAGE_FIT_LABELS)[]).map(
   (value) => ({ value, label: IMAGE_FIT_LABELS[value] })
@@ -47,7 +48,6 @@ const LINE_HEIGHT_OPTIONS = (
 export function SectionEditPanel({
   section,
   hidden,
-  onChangeBody,
   onCommitBody,
   onMoveUp,
   onMoveDown,
@@ -65,8 +65,7 @@ export function SectionEditPanel({
 }: {
   section: DetailSection;
   hidden: boolean;
-  onChangeBody: (value: string) => void;
-  onCommitBody: (before: string, after: string) => void;
+  onCommitBody: (before: RichText, after: RichText) => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onToggleHide: () => void;
@@ -83,8 +82,7 @@ export function SectionEditPanel({
   onGenerateImage: () => void;
   isGeneratingImage: boolean;
 }) {
-  const bodyFocusValueRef = useRef(section.body);
-  const bodyTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const bodyContainerRef = useRef<HTMLDivElement>(null);
   const currentImageStyle = section.imageUrl
     ? { backgroundImage: `url(${section.imageUrl})` }
     : section.imageGradient
@@ -96,22 +94,18 @@ export function SectionEditPanel({
       <div className="grid gap-1.5">
         <div className="flex items-center justify-between">
           <Label>본문</Label>
-          <MarkupToolbar targetRef={bodyTextareaRef} value={section.body} onChange={onChangeBody} />
+          <MarkupToolbar targetRef={bodyContainerRef} />
         </div>
-        <Textarea
-          ref={bodyTextareaRef}
-          rows={5}
-          value={section.body}
-          onFocus={() => {
-            bodyFocusValueRef.current = section.body;
-          }}
-          onBlur={() => {
-            onCommitBody(bodyFocusValueRef.current, section.body);
-          }}
-          onChange={(e) => onChangeBody(e.target.value)}
+        <RichTextEditor
+          key={section.id}
+          containerRef={bodyContainerRef}
+          initialValue={section.body}
+          onCommit={(next) => onCommitBody(section.body, next)}
+          onCancel={() => {}}
+          className="field-sizing-content min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
         />
         <span className="text-[10.5px] text-muted-foreground">
-          선택 후 버튼을 누르거나 **강조**(굵게)·==강조==(색상)를 직접 입력해도 됩니다
+          부분 선택 후 버튼을 눌러 굵게·강조 색상을 적용하세요
         </span>
       </div>
       <div className="flex gap-2">
