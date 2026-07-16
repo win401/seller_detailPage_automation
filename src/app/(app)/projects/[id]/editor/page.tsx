@@ -869,13 +869,19 @@ export default function DetailPageEditor() {
     before: RichText,
     after: RichText
   ) {
+    // Compares the full RichText structure, not just the plain text — a
+    // style-only edit (bold/highlight/fontFamily on an existing word, no
+    // characters added or removed) has beforeText === afterText, and used to
+    // be treated as a no-op here, silently dropping the just-committed DOM
+    // change once the editor swapped back to the static renderRichText
+    // display (looked like the style "reverted" on blur).
+    if (JSON.stringify(before) === JSON.stringify(after)) return;
     const beforeText = richTextToPlainText(before);
     const afterText = richTextToPlainText(after);
-    if (beforeText === afterText) return;
     const target = sections.find((s) => s.id === sectionId);
     pushHistory();
     setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, [field]: after } : s)));
-    if (target) {
+    if (target && beforeText !== afterText) {
       recordStyleSignal({ kind: "copy_manual_edit", section: target, before: beforeText, after: afterText });
     }
   }
