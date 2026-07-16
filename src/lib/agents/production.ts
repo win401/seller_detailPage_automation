@@ -70,7 +70,7 @@ ${sectionPlan.map((section) => `- ${section.id}: ${section.kind} (${section.titl
 - bullets는 필요 없으면 빈 배열
 - alternatives는 대체 카피 후보 2개
 - imageRole은 섹션에 필요한 이미지 역할
-- imagePrompt는 Pinterest 스타일 레퍼런스나 이미지 생성에 넘길 수 있는 안전한 이미지 연출 프롬프트
+- imagePrompt는 Pinterest 스타일 레퍼런스나 이미지 생성에 넘길 수 있는 안전한 이미지 연출 프롬프트. 반드시 그 섹션 자신의 headline/body가 강조하는 구체적 포인트(예: 소재감, 흡수력, 크기 체감 등 문구에 실제로 등장하는 내용)를 이미지로 시각화하도록 작성하고, 모든 섹션에 동일한 범용 상품 컷을 반복하지 않는다
 - warnings는 근거가 부족하거나 사용자가 확인해야 할 사항이 있을 때만 작성하고, 없으면 빈 배열로 반환한다.
 `.trim();
 }

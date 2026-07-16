@@ -159,7 +159,7 @@ export async function runOrchestratedGeneration(
       output: {
         ...mockOutput,
         sections: await generateSectionImages(mockOutput.sections, input.productImageDataUrl),
-        warnings: [getMockReason()],
+        warnings: [getMockReason(), ...(mockOutput.warnings ?? [])],
       },
     };
   }

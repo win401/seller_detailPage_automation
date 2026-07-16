@@ -10,6 +10,18 @@ import {
   GenerateDetailPageOutput,
 } from "./types";
 import { CompetitorPageAnalysis } from "./agents/schemas";
+import frozenDemoSectionsJson from "./data/frozen-demo-sections.json";
+
+// TEMPORARY (2026-07-16): the Gemini/AI Studio project hit its monthly
+// spending cap mid-testing, so fresh per-project image generation
+// (generateSectionImages) is paused. Until the cap resets, every new draft
+// is frozen to this known-good "프리미엄 뱀부 대형 타올" result (real
+// Gemini-generated images, captured earlier the same day) so demos stay
+// fast and reliable instead of racing a billing error. Flip this back to
+// false — and see the matching PAUSED_FOR_SPEND_CAP flag in
+// src/lib/agents/section-images.ts — once live generation should resume.
+const FROZEN_DEMO_MODE = true;
+const frozenDemoSections = frozenDemoSectionsJson as unknown as DetailSection[];
 
 /**
  * Mock fallback for the AI editing assistant (docs/TASKS.md §0, §12).
@@ -38,6 +50,14 @@ export function mockAiRewrite(section: DetailSection, action: AiEditAction): str
 }
 
 export function mockGenerateDetailPage(input: GenerateDetailPageInput): GenerateDetailPageOutput {
+  if (FROZEN_DEMO_MODE) {
+    return {
+      sections: frozenDemoSections,
+      source: "mock",
+      warnings: ["시연용으로 고정된 시안입니다 (Gemini 지출 한도 해제 후 원복 예정)."],
+    };
+  }
+
   const sections = createTemplateSections(input).map((section) => {
 
     // Re-pick the reference image for the selected design mood so a fresh
@@ -45,6 +65,14 @@ export function mockGenerateDetailPage(input: GenerateDetailPageInput): Generate
     // reusing mockSections' fixed "minimal" palette (docs/TASKS.md §7).
     const moodImage =
       section.imageRole === "none" ? null : getMockReferencesForSection(section, input.designMood)[0];
+
+    // Section-specific copy comes after the product identity so each
+    // section's generated image emphasizes what THAT section's headline/body
+    // actually talks about (e.g. absorption vs. material texture vs. size)
+    // instead of every section rendering the same generic product shot.
+    const sectionHeadline = richTextToPlainText(section.headline).trim();
+    const sectionBody = richTextToPlainText(section.body).trim();
+    const sectionCopy = [sectionHeadline, sectionBody].filter(Boolean).join(". ");
 
     return {
       ...section,
@@ -54,7 +82,7 @@ export function mockGenerateDetailPage(input: GenerateDetailPageInput): Generate
       // copy but still doubles as the real image-generation prompt.
       imagePrompt: `${input.productName}, ${input.category}${
         input.keywords.length ? `, ${input.keywords.join(", ")}` : ""
-      } — ${input.designMood} mood, ${section.imageRole}, product detail page section image, keep real product facts unchanged`,
+      } — ${input.designMood} mood, ${section.imageRole}${sectionCopy ? `. Visually emphasize what this section says: ${sectionCopy}` : ""}, product detail page section image, keep real product facts unchanged`,
       ...(moodImage && {
         imageUrl: moodImage.dataUrl,
         imageGradient: moodImage.gradient,

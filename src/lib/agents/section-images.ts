@@ -3,6 +3,13 @@ import { runImageAgent } from "./image";
 
 const MAX_CONCURRENT = 3;
 
+// TEMPORARY (2026-07-16): the Gemini/AI Studio project hit its monthly
+// spending cap mid-testing (see docs/TASKS.md). Every call would just fail
+// after 3 retries and burn ~30s per draft for nothing, so generation is
+// paused here until the cap resets — flip back to false then. mock-ai.ts's
+// FROZEN_DEMO_MODE covers the demo-content side of the same pause.
+const PAUSED_FOR_SPEND_CAP = true;
+
 async function generateOneSectionImage(
   section: DetailSection,
   referenceImageDataUrl?: string
@@ -34,6 +41,7 @@ export async function generateSectionImages(
   sections: DetailSection[],
   referenceImageDataUrl?: string
 ): Promise<DetailSection[]> {
+  if (PAUSED_FOR_SPEND_CAP) return sections;
   if (!process.env.GEMINI_API_KEY) return sections;
 
   const result = [...sections];
