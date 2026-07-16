@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 
 import { getMockReferencesForSection } from "@/lib/mock-data";
+import { renderInlineMarkup } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
 import { DetailSection, PLATFORM_EXPORT_WIDTH, Platform } from "@/lib/types";
 import {
@@ -692,7 +693,7 @@ export function SectionCanvas({
         style={typographyStyle}
         className={cn("cursor-text", className)}
       >
-        {field === "headline" ? sec.headline : sec.body}
+        {renderInlineMarkup(field === "headline" ? sec.headline : sec.body)}
       </div>
     );
   }
@@ -806,7 +807,7 @@ export function SectionCanvas({
                       isIntro || isCta ? "text-white" : "text-canvas-dark"
                     )}
                   >
-                    {sec.headline}
+                    {renderInlineMarkup(sec.headline)}
                   </div>
                 )}
                 {editingCell?.sectionId === sec.id && editingCell.field === "body" ? (
@@ -846,7 +847,7 @@ export function SectionCanvas({
                       isIntro || isCta ? "text-white/85" : "text-canvas-muted"
                     )}
                   >
-                    {sec.body}
+                    {renderInlineMarkup(sec.body)}
                   </div>
                 )}
                 {sec.bullets.length > 0 && (

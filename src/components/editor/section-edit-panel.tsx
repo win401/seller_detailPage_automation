@@ -92,7 +92,12 @@ export function SectionEditPanel({
   return (
     <div className="flex flex-col gap-3">
       <div className="grid gap-1.5">
-        <Label>본문</Label>
+        <div className="flex items-baseline justify-between">
+          <Label>본문</Label>
+          <span className="text-[10.5px] text-muted-foreground">
+            **강조**는 굵게, ==강조==는 색상 강조
+          </span>
+        </div>
         <Textarea
           rows={5}
           value={section.body}
