@@ -89,9 +89,12 @@
 스타일 세트는 색상/무드 프리셋이 아니라 재사용 가능한 상세페이지 디자인 시스템이 되어야 한다.
 
 - [ ] local-first 스타일 세트를 Supabase로 동기화하되 안전한 local fallback 유지
-- [x] 텍스트 관련 스키마 필드 추가: 글자 크기 5단계(x-small~x-large), 글꼴(Pretendard/Gmarket Sans/에스코어드림, `next/font/local`로 self-host), 자간, 줄간격. 스타일 세트 다이얼로그와 섹션별 오버라이드 패널 모두에 적용. ZIP export는 `SectionCanvas`를 `html-to-image`로 직접 캡처하므로 별도 작업 없이 자동 반영됨 (2026-07-16 확인)
+- [x] 텍스트 관련 스키마 필드 추가: 글자 크기 5단계(x-small~x-large), 글꼴(Pretendard/Gmarket Sans/에스코어드림, `next/font/local`로 self-host), 자간, 줄간격. 스타일 세트 다이얼로그와 섹션별 오버라이드 패널 모두에 UI는 추가됨 (2026-07-15)
+- [x] 브라우저 QA(2026-07-16) 중 발견 및 수정: 글꼴/자간/줄간격 스타일링이 `section-canvas.tsx`의 legacy(`!sec.layoutType`) 렌더 경로에만 연결돼 있어, 실제 데이터의 기본 형태인 `blockRole+layoutType+slots` 구조화 섹션(`StructuredSectionBlock` → `renderEditableText`)에는 전혀 적용되지 않던 버그. 패널에서 값을 바꿔도 캔버스가 그대로였음. `renderEditableText`에 세 헬퍼를 연결해 수정 — 이제 실제 프로젝트에서도 동작함. 동시에 `getLetterSpacingClass`/`getLineHeightClass`가 "미설정"일 때 `undefined`를 반환하도록 바꿔, 사용자가 값을 명시적으로 고르기 전까지는 각 layoutType 블록의 기존 tracking/leading 디자인을 덮어쓰지 않게 함
+- [x] 스타일 세트 다이얼로그 레이아웃 버그 수정(2026-07-16): 글꼴 4옵션이 자간/줄간격과 같은 `grid-cols-3` 한 칸에 끼어 텍스트가 세로로 쪼개지고 다이얼로그 밖(브랜드 메모 영역)으로 넘침 — 글꼴을 자체 전체 너비 행으로 분리
+- [ ] (2026-07-16 QA 중 발견, 별개의 기존 버그) 텍스트 크기(textScale)·섹션 여백(spacing)·이미지 채우기/높이(imageFit/imageHeight) 프리셋도 같은 이유로 구조화 섹션(`StructuredSectionBlock`)엔 적용되지 않음 — 각 layoutType 블록이 폰트 크기/패딩을 하드코딩된 Tailwind 클래스로 갖고 있어서 `getHeadlineTextClass`/`getBodyTextClass`/`getSpacingClasses`/`getImageFitClass`/`getImageHeightClass` 호출 자체가 없음. commit `253d3ba`(2026-07-10)부터 있던 문제로, 오늘 고친 글꼴/자간/줄간격 버그보다 범위가 큼(layoutType 분기 15개 각각 손대야 함) — 별도 작업으로 분리
 - [ ] 레이아웃 기본값, 선호 블록 역할/타입, 섹션 표시, 여백, 이미지 처리용 나머지 스키마 필드 추가
-- [ ] 캔버스·스타일 세트 다이얼로그·ZIP export에서 새 글꼴/자간/줄간격 시각 QA — 특히 export 캡처(`toCanvas`) 시점에 self-host 폰트 로드가 끝나 있는지 확인 (미확인 시 fallback 폰트로 캡처될 위험)
+- [ ] ZIP export 캡처(`toCanvas`) 시점에 self-host 폰트 로드가 끝나 있는지 확인 (미확인 시 fallback 폰트로 캡처될 위험) — 캔버스 자체의 글꼴/자간/줄간격 적용은 2026-07-16 확인 완료
 - [ ] 편집기와 같은 블록 렌더러를 쓰는 스타일 세트 미리보기 캔버스
 - [ ] 프리미엄 리빙, 따뜻한 라이프스타일, 정보 밀도 기능성, 클린 웰니스 기본 세트 정의
 - [ ] 스타일 세트별 섹션 역할 기본값과 이미지 슬롯 우선순위 제공

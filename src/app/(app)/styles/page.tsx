@@ -279,18 +279,16 @@ function StyleSetFormDialog({
                 />
               </div>
             </div>
-            <div className="mt-2 grid grid-cols-3 gap-3">
-              <div>
-                <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
-                  글꼴
-                </div>
-                <PresetToggleGroup
-                  options={FONT_FAMILY_OPTIONS}
-                  value={draft.fontFamily}
-                  defaultValue="system"
-                  onChange={(fontFamily) => setDraft((d) => ({ ...d, fontFamily }))}
-                />
-              </div>
+            <div className="mt-2">
+              <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">글꼴</div>
+              <PresetToggleGroup
+                options={FONT_FAMILY_OPTIONS}
+                value={draft.fontFamily}
+                defaultValue="system"
+                onChange={(fontFamily) => setDraft((d) => ({ ...d, fontFamily }))}
+              />
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-3">
               <div>
                 <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
                   자간

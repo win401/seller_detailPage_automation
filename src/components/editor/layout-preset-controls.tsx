@@ -77,7 +77,7 @@ export function PresetToggleGroup<T extends string>({
           type="button"
           onClick={() => onChange(option.value)}
           className={cn(
-            "h-7 flex-1 rounded-md text-[11.5px] font-semibold transition-colors",
+            "h-7 flex-1 whitespace-nowrap rounded-md px-1 text-[11.5px] font-semibold transition-colors",
             current === option.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
           )}
         >

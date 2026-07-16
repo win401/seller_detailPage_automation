@@ -92,25 +92,35 @@ export function getFontFamilyCss(family: FontFamily | undefined): string | undef
   }
 }
 
-export function getLetterSpacingClass(spacing: LetterSpacing | undefined): string {
-  switch (spacing ?? "default") {
+/** Returns undefined (no override) when `spacing` is untouched, so callers
+ * that merge this into a layoutType block's own hand-tuned tracking class
+ * via `cn`/twMerge only override that design once the user makes an
+ * explicit choice — including "기본", which is a real choice distinct from
+ * "never touched this control". */
+export function getLetterSpacingClass(spacing: LetterSpacing | undefined): string | undefined {
+  switch (spacing) {
     case "tight":
       return "tracking-[-0.01em]";
     case "wide":
       return "tracking-[0.04em]";
-    default:
+    case "default":
       return "tracking-normal";
+    default:
+      return undefined;
   }
 }
 
-export function getLineHeightClass(lineHeight: TextLineHeight | undefined): string {
-  switch (lineHeight ?? "default") {
+/** Same untouched-vs-explicit-"기본" distinction as {@link getLetterSpacingClass}. */
+export function getLineHeightClass(lineHeight: TextLineHeight | undefined): string | undefined {
+  switch (lineHeight) {
     case "compact":
       return "leading-[1.25]";
     case "relaxed":
       return "leading-[1.75]";
-    default:
+    case "default":
       return "leading-[1.5]";
+    default:
+      return undefined;
   }
 }
 

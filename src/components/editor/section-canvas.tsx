@@ -599,6 +599,10 @@ export function SectionCanvas({
     multiline = false
   ) {
     const isEditing = editingCell?.sectionId === sec.id && editingCell.field === field;
+    // Only overrides the layoutType block's own hand-tuned tracking/leading
+    // once the user makes an explicit choice — see getLetterSpacingClass.
+    const typographyStyle = { fontFamily: getFontFamilyCss(sec.fontFamily) };
+    const typographyClasses = cn(getLetterSpacingClass(sec.letterSpacing), getLineHeightClass(sec.lineHeight));
 
     if (isEditing && multiline) {
       return (
@@ -612,9 +616,11 @@ export function SectionCanvas({
           onKeyDown={(e) => {
             if (e.key === "Escape") cancelEdit();
           }}
+          style={typographyStyle}
           className={cn(
             "w-full resize-none rounded border border-dashed bg-transparent outline-none",
-            editClassName
+            editClassName,
+            typographyClasses
           )}
         />
       );
@@ -636,7 +642,12 @@ export function SectionCanvas({
               cancelEdit();
             }
           }}
-          className={cn("w-full rounded border border-dashed bg-transparent outline-none", editClassName)}
+          style={typographyStyle}
+          className={cn(
+            "w-full rounded border border-dashed bg-transparent outline-none",
+            editClassName,
+            typographyClasses
+          )}
         />
       );
     }
@@ -647,7 +658,8 @@ export function SectionCanvas({
           e.stopPropagation();
           startEdit(sec, field);
         }}
-        className={cn("cursor-text", className)}
+        style={typographyStyle}
+        className={cn("cursor-text", className, typographyClasses)}
       >
         {field === "headline" ? sec.headline : sec.body}
       </div>
@@ -739,7 +751,7 @@ export function SectionCanvas({
                     }}
                     style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
                     className={cn(
-                      "mb-1.5 w-full rounded border border-dashed bg-transparent font-bold outline-none",
+                      "mb-1.5 w-full rounded border border-dashed bg-transparent font-bold tracking-tight outline-none",
                       getHeadlineTextClass(sec.textScale, isIntro || isCta),
                       getLetterSpacingClass(sec.letterSpacing),
                       getLineHeightClass(sec.lineHeight),
@@ -756,7 +768,7 @@ export function SectionCanvas({
                     }}
                     style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
                     className={cn(
-                      "mb-1.5 cursor-text font-bold",
+                      "mb-1.5 cursor-text font-bold tracking-tight",
                       getHeadlineTextClass(sec.textScale, isIntro || isCta),
                       getLetterSpacingClass(sec.letterSpacing),
                       getLineHeightClass(sec.lineHeight),
@@ -779,7 +791,7 @@ export function SectionCanvas({
                     }}
                     style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
                     className={cn(
-                      "w-full resize-none rounded border border-dashed bg-transparent outline-none",
+                      "w-full resize-none rounded border border-dashed bg-transparent leading-relaxed outline-none",
                       getBodyTextClass(sec.textScale),
                       getLetterSpacingClass(sec.letterSpacing),
                       getLineHeightClass(sec.lineHeight),
@@ -796,7 +808,7 @@ export function SectionCanvas({
                     }}
                     style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
                     className={cn(
-                      "cursor-text",
+                      "cursor-text leading-relaxed",
                       getBodyTextClass(sec.textScale),
                       getLetterSpacingClass(sec.letterSpacing),
                       getLineHeightClass(sec.lineHeight),
