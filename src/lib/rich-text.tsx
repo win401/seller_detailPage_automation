@@ -9,7 +9,11 @@ import type { ReactNode } from "react";
  * see docs/TASKS.md 우선순위 4, "자유 편집 확장 방향" (light-weight first step
  * before a full span-based rich text model).
  */
-const MARKUP_PATTERN = /\*\*(.+?)\*\*|==(.+?)==/g;
+// [\s\S] instead of "." (with the "s"/dotAll flag, which needs ES2018 —
+// this repo targets ES2017) so a marked span can contain a manual line
+// break (headline and body both support multi-line editing) without
+// breaking the match.
+const MARKUP_PATTERN = /\*\*([\s\S]+?)\*\*|==([\s\S]+?)==/g;
 
 export function renderInlineMarkup(text: string): ReactNode {
   if (!text) return text;

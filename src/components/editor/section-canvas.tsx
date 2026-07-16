@@ -129,8 +129,12 @@ function StructuredSectionBlock({
     isSelected && "outline outline-2 outline-canvas-accent",
     isFlash && "animate-[flashHighlight_0.9s_ease]"
   );
+  // multiline=true so Enter inserts a line break instead of committing the
+  // edit (headline previously used a single-line <input> where Enter had no
+  // way to mean "new line") — headline text often wants a manual break
+  // rather than relying purely on CSS auto-wrap.
   const headline = (className: string, editClassName = className) =>
-    renderEditableText(section, "headline", className, editClassName);
+    renderEditableText(section, "headline", className, editClassName, true);
   const body = (className: string, editClassName = className) =>
     renderEditableText(section, "body", className, editClassName, true);
   // Only overrides each block's own hand-tuned padding once the user
@@ -691,7 +695,7 @@ export function SectionCanvas({
           startEdit(sec, field);
         }}
         style={typographyStyle}
-        className={cn("cursor-text", className)}
+        className={cn("cursor-text whitespace-pre-line", className)}
       >
         {renderInlineMarkup(field === "headline" ? sec.headline : sec.body)}
       </div>
@@ -767,23 +771,19 @@ export function SectionCanvas({
                   {sec.kicker}
                 </div>
                 {editingCell?.sectionId === sec.id && editingCell.field === "headline" ? (
-                  <input
+                  <textarea
                     autoFocus
+                    rows={2}
                     value={draftValue}
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) => setDraftValue(e.target.value)}
                     onBlur={() => commitEdit(sec)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        commitEdit(sec);
-                      } else if (e.key === "Escape") {
-                        cancelEdit();
-                      }
+                      if (e.key === "Escape") cancelEdit();
                     }}
                     style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
                     className={cn(
-                      "mb-1.5 w-full rounded border border-dashed bg-transparent font-bold tracking-tight outline-none",
+                      "mb-1.5 w-full resize-none rounded border border-dashed bg-transparent font-bold tracking-tight outline-none",
                       getHeadlineTextClass(sec.textScale, isIntro || isCta),
                       getLetterSpacingClass(sec.letterSpacing),
                       getLineHeightClass(sec.lineHeight),
@@ -800,7 +800,7 @@ export function SectionCanvas({
                     }}
                     style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
                     className={cn(
-                      "mb-1.5 cursor-text font-bold tracking-tight",
+                      "mb-1.5 cursor-text whitespace-pre-line font-bold tracking-tight",
                       getHeadlineTextClass(sec.textScale, isIntro || isCta),
                       getLetterSpacingClass(sec.letterSpacing),
                       getLineHeightClass(sec.lineHeight),
@@ -840,7 +840,7 @@ export function SectionCanvas({
                     }}
                     style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
                     className={cn(
-                      "cursor-text leading-relaxed",
+                      "cursor-text whitespace-pre-line leading-relaxed",
                       getBodyTextClass(sec.textScale),
                       getLetterSpacingClass(sec.letterSpacing),
                       getLineHeightClass(sec.lineHeight),
