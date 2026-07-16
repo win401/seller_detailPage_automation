@@ -40,6 +40,7 @@ export const generateDetailPageInputSchema = z.object({
   designMood: moodSchema.default("minimal"),
   platform: platformSchema.default("smartstore"),
   imageDescription: z.string().optional(),
+  productImageDataUrl: z.string().optional(),
   additionalInstruction: z.string().optional(),
 });
 

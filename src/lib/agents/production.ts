@@ -12,6 +12,7 @@ import {
   SectionKind,
 } from "@/lib/types";
 import { PlanningOutput, productionOutputSchema } from "./schemas";
+import { generateSectionImages } from "./section-images";
 import { getMockReason, isLiveAiEnabled } from "./runtime-config";
 
 const sectionPlan = SECTION_KIND_ORDER.map((kind, index) => ({
@@ -20,10 +21,12 @@ const sectionPlan = SECTION_KIND_ORDER.map((kind, index) => ({
   title: SECTION_KIND_LABELS[kind],
 }));
 
-function fallback(input: GenerateDetailPageInput, reason?: string): GenerateDetailPageOutput {
+async function fallback(input: GenerateDetailPageInput, reason?: string): Promise<GenerateDetailPageOutput> {
   const result = mockGenerateDetailPage(input);
+  const sections = await generateSectionImages(result.sections, input.productImageDataUrl);
   return {
     ...result,
+    sections,
     warnings: reason ? [...(result.warnings ?? []), reason] : result.warnings,
   };
 }
@@ -77,11 +80,11 @@ export async function runProductionAgent(
   planningOutput?: PlanningOutput
 ): Promise<GenerateDetailPageOutput> {
   if (!isLiveAiEnabled()) {
-    return fallback(input, getMockReason());
+    return await fallback(input, getMockReason());
   }
 
   if (!process.env.OPENAI_API_KEY) {
-    return fallback(input, "OPENAI_API_KEY가 없어 mock 초안을 사용했습니다.");
+    return await fallback(input, "OPENAI_API_KEY가 없어 mock 초안을 사용했습니다.");
   }
 
   try {
@@ -124,12 +127,12 @@ export async function runProductionAgent(
     });
 
     return {
-      sections,
+      sections: await generateSectionImages(sections, input.productImageDataUrl),
       source: "ai",
       warnings: output.warnings,
     };
   } catch (error) {
     console.error("production agent failed", error);
-    return fallback(input, "OpenAI 호출 실패로 mock 초안을 사용했습니다.");
+    return await fallback(input, "OpenAI 호출 실패로 mock 초안을 사용했습니다.");
   }
 }

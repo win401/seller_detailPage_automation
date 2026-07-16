@@ -48,8 +48,13 @@ export function mockGenerateDetailPage(input: GenerateDetailPageInput): Generate
 
     return {
       ...section,
-      imagePrompt:
-        `${input.designMood} mood, ${section.imageRole}, product detail page section image, keep real product facts unchanged`,
+      // Product name/category/keywords go first so Gemini image generation
+      // (src/lib/agents/section-images.ts) actually renders the entered
+      // product instead of an unrelated generic object — this text is mock
+      // copy but still doubles as the real image-generation prompt.
+      imagePrompt: `${input.productName}, ${input.category}${
+        input.keywords.length ? `, ${input.keywords.join(", ")}` : ""
+      } — ${input.designMood} mood, ${section.imageRole}, product detail page section image, keep real product facts unchanged`,
       ...(moodImage && {
         imageUrl: moodImage.dataUrl,
         imageGradient: moodImage.gradient,

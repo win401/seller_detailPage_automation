@@ -27,6 +27,7 @@ import { runProductionAgent } from "./production";
 import { runReviewAgent } from "./review";
 import { runRevisionAgent } from "./revision";
 import { getMockReason, isLiveAiEnabled } from "./runtime-config";
+import { generateSectionImages } from "./section-images";
 import { AgentRunResult, AnalysisOutput, PlanningOutput, ReviewOutput } from "./schemas";
 
 const MAX_STEPS = 8;
@@ -152,10 +153,12 @@ export async function runOrchestratedGeneration(
   competitorReferences: CompetitorReferenceInput[]
 ): Promise<{ workflow: AgentWorkflowDraft; output: GenerateDetailPageOutput }> {
   if (!isLiveAiEnabled() || !process.env.OPENAI_API_KEY) {
+    const mockOutput = mockGenerateDetailPage(input);
     return {
       workflow: mockBuildAgentWorkflow(input, competitorReferences),
       output: {
-        ...mockGenerateDetailPage(input),
+        ...mockOutput,
+        sections: await generateSectionImages(mockOutput.sections, input.productImageDataUrl),
         warnings: [getMockReason()],
       },
     };
@@ -300,9 +303,13 @@ export async function runOrchestratedGeneration(
     };
   } catch (error) {
     console.error("orchestrator agent failed", error);
+    const mockOutput = mockGenerateDetailPage(input);
     return {
       workflow: mockBuildAgentWorkflow(input, competitorReferences),
-      output: mockGenerateDetailPage(input),
+      output: {
+        ...mockOutput,
+        sections: await generateSectionImages(mockOutput.sections, input.productImageDataUrl),
+      },
     };
   }
 }

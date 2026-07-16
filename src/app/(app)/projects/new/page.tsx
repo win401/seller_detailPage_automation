@@ -444,6 +444,7 @@ export default function CreateProjectPage() {
       designMood: mood,
       platform,
       imageDescription: referenceMemo || productImage?.name || "",
+      productImageDataUrl: productImage?.dataUrl,
       additionalInstruction,
     };
     const normalizedCompetitorReferences = competitorReferences.filter(

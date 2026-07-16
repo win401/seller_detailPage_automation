@@ -436,6 +436,10 @@ export interface GenerateDetailPageInput {
   designMood: DesignMood;
   platform: Platform;
   imageDescription?: string;
+  /** Uploaded product photo as a data URL — used as image-editing reference input
+   * for per-section AI image generation (docs/MVP_PLAN.md §5), not sent to the
+   * copywriting agents. */
+  productImageDataUrl?: string;
   additionalInstruction?: string;
 }
 

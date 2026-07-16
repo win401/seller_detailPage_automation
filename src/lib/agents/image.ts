@@ -1,11 +1,28 @@
 import { generateText } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import sharp from "sharp";
 
 const IMAGE_MODEL_ID = "gemini-2.5-flash-image";
+
+// Matches the client-side optimizeImageFile convention (src/lib/image-optimize.ts)
+// so uploaded and AI-generated images end up in the same size range. Gemini
+// returns full-resolution PNGs (1.5-2MB+ each); left unresized, a 13-section
+// draft balloons past 20MB and blows the ~5-10MB localStorage quota, silently
+// discarding the whole generated draft (caller falls back to mock/stock images).
+const IMAGE_MAX_WIDTH = 1200;
+const IMAGE_QUALITY = 85;
 
 function parseDataUrl(dataUrl: string): { mediaType: string } | null {
   const match = /^data:([^;]+);base64,/.exec(dataUrl);
   return match ? { mediaType: match[1] } : null;
+}
+
+async function compressToDataUrl(base64: string): Promise<string> {
+  const buffer = await sharp(Buffer.from(base64, "base64"))
+    .resize({ width: IMAGE_MAX_WIDTH, withoutEnlargement: true })
+    .webp({ quality: IMAGE_QUALITY })
+    .toBuffer();
+  return `data:image/webp;base64,${buffer.toString("base64")}`;
 }
 
 export type ImageAgentResult = { dataUrl: string } | { error: string };
@@ -60,7 +77,7 @@ export async function runImageAgent(
       return { error: "Gemini가 이미지를 반환하지 않았습니다. 응답: " + (result.text || "(빈 응답)") };
     }
 
-    return { dataUrl: `data:${imageFile.mediaType};base64,${imageFile.base64}` };
+    return { dataUrl: await compressToDataUrl(imageFile.base64) };
   } catch (error) {
     console.error("image agent failed", error);
     return { error: error instanceof Error ? error.message : "이미지 생성 중 알 수 없는 오류가 발생했습니다." };
