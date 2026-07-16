@@ -9,7 +9,7 @@
 쿠팡·스마트스토어 셀러가 상품 정보와 사진을 입력하면, 구조화된 세로형 상세페이지 초안을 만들고 편집·저장·ZIP 내보내기까지 수행하는 데스크톱 작업 도구다.
 
 - 셀러는 PC에서 작업하며, 중앙 캔버스는 모바일 상세페이지 비율의 긴 결과물을 미리 보여준다.
-- 현재 기본은 검증된 블록을 조립하는 템플릿 편집이지만, "피그마식 자유 편집은 하지 않는다"는 더 이상 고정 원칙이 아니다. 구현 난이도 때문에 배제했던 이전 결정을 뒤집고, 좌표 배치·레이어·인라인(문장/단어 단위) 텍스트 스타일링 등 더 자유로운 편집으로 단계적으로 확장하는 것을 장기 방향으로 삼는다 (2026-07-16 결정).
+- 현재 기본은 검증된 블록을 조립하는 템플릿 편집이지만, "피그마식 자유 편집은 하지 않는다"는 더 이상 고정 원칙이 아니다(2026-07-16 결정). 인라인(문장/단어 단위) 텍스트 스타일링은 span 기반 RichText + WYSIWYG 에디터로 이미 구현 완료. 좌표 배치·레이어는 다음 단계로 계속 남아 있으며, Supabase 스키마·AI 스키마·undo/redo·export까지 동시에 손대야 하는 별도 규모의 작업이라 별도 계획으로 진행한다.
 - 개발과 데모 중에는 mock 생성이 기본이다. 실제 AI 호출은 비용과 품질을 의도적으로 확인할 때만 켠다.
 - 현재 경쟁 상세페이지 URL은 참고 링크다. 셀러용 흐름에서 외부 사이트 자동 크롤링은 하지 않는다.
 
@@ -24,6 +24,8 @@
 - [x] 분석 → 기획 → 제작 → 검수 워크플로우와 Zod structured output, mock fallback
 - [x] Vercel AI SDK 기반 실제 AI 호출 경로. `ENABLE_LIVE_AI=true`일 때만 실행하며 기본 모델은 `gpt-4.1-mini`
 - [x] 편집기 직접 문구 수정, 이미지 교체, 섹션 숨김/복구, 드래그 정렬, 카피 후보, 섹션 재생성, undo/redo, 확대/축소, Space+drag 이동
+- [x] headline/body가 span 기반 RichText(`TextRun[]`)이고, `contentEditable` 기반 에디터로 굵게·강조색을 타이핑 중 실시간(WYSIWYG)으로 편집 (2026-07-16)
+- [x] 섹션별 레이아웃 프리셋(이미지 위치/채우기/높이, 여백, 텍스트 크기, 글꼴, 자간, 줄간격)이 구조화 섹션(`StructuredSectionBlock`)에서 실제로 적용됨 — 미설정 필드는 각 블록 고유 디자인을 그대로 유지 (2026-07-16)
 - [x] 기획자 에이전트 수정 루프: 요청 → 기획 → 제작 → 검수 → 새 시안 비교/적용
 - [x] 스타일 세트 CRUD 및 새/기존 초안에 무드·톤·플랫폼·레이아웃 프리셋 적용 (현재 local-first)
 - [x] 전체 상세페이지 렌더링, 플랫폼 폭 적용, 2000px 슬라이싱, ZIP 생성·다운로드
@@ -89,12 +91,8 @@
 스타일 세트는 색상/무드 프리셋이 아니라 재사용 가능한 상세페이지 디자인 시스템이 되어야 한다.
 
 - [ ] local-first 스타일 세트를 Supabase로 동기화하되 안전한 local fallback 유지
-- [x] 텍스트 관련 스키마 필드 추가: 글자 크기 5단계(x-small~x-large), 글꼴(Pretendard/Gmarket Sans/에스코어드림, `next/font/local`로 self-host), 자간, 줄간격. 스타일 세트 다이얼로그와 섹션별 오버라이드 패널 모두에 UI는 추가됨 (2026-07-15)
-- [x] 브라우저 QA(2026-07-16) 중 발견 및 수정: 글꼴/자간/줄간격 스타일링이 `section-canvas.tsx`의 legacy(`!sec.layoutType`) 렌더 경로에만 연결돼 있어, 실제 데이터의 기본 형태인 `blockRole+layoutType+slots` 구조화 섹션(`StructuredSectionBlock` → `renderEditableText`)에는 전혀 적용되지 않던 버그. 패널에서 값을 바꿔도 캔버스가 그대로였음. `renderEditableText`에 세 헬퍼를 연결해 수정 — 이제 실제 프로젝트에서도 동작함. 동시에 `getLetterSpacingClass`/`getLineHeightClass`가 "미설정"일 때 `undefined`를 반환하도록 바꿔, 사용자가 값을 명시적으로 고르기 전까지는 각 layoutType 블록의 기존 tracking/leading 디자인을 덮어쓰지 않게 함
-- [x] 스타일 세트 다이얼로그 레이아웃 버그 수정(2026-07-16): 글꼴 4옵션이 자간/줄간격과 같은 `grid-cols-3` 한 칸에 끼어 텍스트가 세로로 쪼개지고 다이얼로그 밖(브랜드 메모 영역)으로 넘침 — 글꼴을 자체 전체 너비 행으로 분리
-- [x] (2026-07-16, 같은 QA에서 발견·수정) 텍스트 크기(textScale)·섹션 여백(spacing)·이미지 채우기/높이(imageFit/imageHeight) 프리셋도 같은 이유(commit `253d3ba`부터, 구조화 섹션 미적용)로 안 되던 것을 수정. `BlockImage`에 imageFit(무조건 적용)/imageHeight(명시 설정 시만) 연결, `StructuredSectionBlock`에 `content()` 헬퍼로 섹션 여백을 layoutType 분기 19곳 모두에 연결. textScale은 `renderEditableText`를 Tailwind 클래스 병합 대신 inline `style`로 전환해서 처리 — `twMerge("text-[20px] leading-[1.3]", "text-[22px]")`가 `leading-[1.3]`을 통째로 지워버리는 걸 확인함(tailwind-merge가 font-size와 line-height를 같은 충돌 그룹으로 취급). 미설정 필드는 전부 해당 블록 고유의 하드코딩된 기본값을 그대로 두고, 명시적으로 값을 고른 경우에만 덮어씀 — 브라우저에서 개별 섹션 단위로 검증 완료
+- [x] 텍스트 스키마 필드(글자 크기 5단계, 글꼴 self-host 3종, 자간, 줄간격) 추가와 구조화 섹션 실제 적용 완료 — 스타일 세트 다이얼로그 레이아웃 버그, legacy 렌더 경로에만 연결돼 구조화 섹션엔 미적용이던 버그 포함 수정 (2026-07-15~16, 세부 내용은 git log 참고)
 - [ ] 레이아웃 기본값, 선호 블록 역할/타입, 섹션 표시, 여백, 이미지 처리용 나머지 스키마 필드 추가
-- [ ] ZIP export 캡처(`toCanvas`) 시점에 self-host 폰트 로드가 끝나 있는지 확인 (미확인 시 fallback 폰트로 캡처될 위험) — 캔버스 자체의 글꼴/자간/줄간격 적용은 2026-07-16 확인 완료
 - [ ] 편집기와 같은 블록 렌더러를 쓰는 스타일 세트 미리보기 캔버스
 - [ ] 프리미엄 리빙, 따뜻한 라이프스타일, 정보 밀도 기능성, 클린 웰니스 기본 세트 정의
 - [ ] 스타일 세트별 섹션 역할 기본값과 이미지 슬롯 우선순위 제공
@@ -103,8 +101,9 @@
 
 ## 우선순위 4: 편집기 작업 환경
 
-- [x] (2026-07-16, 1~3단계) 마커 문자열 기반 가벼운 강조(굵게/강조색) → 선택 영역 토글 버튼 → 문장 중간 줄바꿈까지 순서대로 쌓음. 자세한 내용은 git log 참고, 아래 4단계로 대체됨.
-- [x] (2026-07-16, 4단계) **문장/단어 단위 span 리치텍스트로 전환 완료.** `headline`/`body`가 `string`에서 `RichText`(`TextRun[]`, `src/lib/types.ts`)로 바뀜 — plain string이 아니라 실제 구조화된 런 배열. `src/components/editor/rich-text-editor.tsx`의 `<RichTextEditor>`가 contentEditable 기반으로 타이핑 중에도 즉시 굵게/강조가 보이는 진짜 WYSIWYG 제공(이전 마커 방식의 "blur해야 보임" 문제 해결). DOM을 편집 중 소스오브트루스로 둬서(React가 매 키입력마다 재렌더 안 함) 한글 IME 조합과 커서 위치가 브라우저 네이티브 동작 그대로 — 실제 한글 타이핑으로 확인함. `src/lib/rich-text.tsx`: `renderRichText`(표시), `toRichText`(마이그레이션 — 기존 마커 문자열도 실제 run으로 승격), `domToRichText`/`buildRichTextDom`(직렬화), `toggleInlineStyle`(Range 기반 토글, 선택 영역이 기존 스타일 구간 *안*에 있으면 정확한 경계 없이도 전체 해제 — 이전 버그 수정 유지). AI 스키마(`generatedSectionSchema`)는 안 건드림 — AI는 계속 plain string 생성, `production.ts`/`mock-ai.ts`/`detail-page-templates.ts`/`mock-data.ts`의 단일 조립 지점에서 `toRichText`로 감쌈. `upgradeLegacyMockSections`(`mock-ai.ts`)가 `layoutType` 존재 여부 게이트보다 먼저 무조건 `toRichText` 정규화를 돌리도록 순서 수정 — 안 그러면 이미 구조화된(사실상 전부) 기존 draft의 문자열 headline/body가 그대로 통과해서 `renderRichText`에서 "`runs.map is not a function`" 런타임 에러 발생함을 실제로 재현하고 고침. 브라우저에서 실제 프로젝트(1일 전 · 7일 전 둘 다) 열어서 마이그레이션 확인, 굵게/강조 적용·해제(커서만/부분 재선택 포함)·undo-redo·붙여넣기 시 HTML/스크립트 유입 차단까지 확인. Supabase 저장/새로고침 실동작은 실제 프로젝트 데이터 오염을 피하려 직접 실행하지 않음 — RichText가 plain `{text, bold?, highlight?}[]`라 JSON 직렬화 자체는 구조적으로 안전(별도 검증 필요시 후속으로)
+- [x] 문장/단어 단위 텍스트 스타일링 완료: 마커 문자열(1~3단계) → span 기반 RichText + `contentEditable` WYSIWYG 에디터(4단계, 최종)로 대체. AI 스키마는 안 건드림(계속 plain string 생성, 조립 지점에서 감쌈). 세부 설계·발견한 버그는 git log 참고 (2026-07-16)
+- [ ] Supabase 저장 → 새로고침 복원의 RichText 실동작 확인 (JSON 직렬화 구조상 안전하지만 실제 프로젝트로는 아직 미검증 — 테스트 계정/프로젝트로 확인 필요)
+- [ ] ZIP export 캡처(`toCanvas`) 시점에 self-host 폰트 로드가 끝나 있는지, RichText(굵게/강조) 렌더링이 export에서도 캔버스와 동일하게 나오는지 확인 (미확인 시 fallback 폰트로 캡처될 위험 — 캔버스 자체의 글꼴/자간/줄간격 적용은 2026-07-16 확인 완료, export 결과물 자체는 미확인)
 - [ ] 자유 좌표 배치 + 레이어 패널은 여전히 별도 세션의 별도 계획으로 보류 (span 마이그레이션과 달리 Supabase 스키마·AI 스키마·undo-redo 재설계·export 파이프라인까지 동시에 손대야 하는 멀티세션급 작업 — 2026-07-16 조사 결과)
 - [ ] 현재 3열 레이아웃을 노트북과 와이드 데스크톱에서 검증
 - [ ] 화면이 좁은 데스크톱에서 좌/우 보조 패널 접기 기능
