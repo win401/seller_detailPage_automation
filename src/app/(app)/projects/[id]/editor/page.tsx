@@ -35,6 +35,7 @@ import { getMockReferencesForSection, mockSections } from "@/lib/mock-data";
 import { mockPlanRevision, upgradeLegacyMockSections } from "@/lib/mock-ai";
 import { applyLayoutPresetToSections } from "@/lib/layout-presets";
 import { createDefaultCanvasData } from "@/lib/canvas-elements";
+import { renderCanvasDataToDataUrl } from "@/lib/canvas-export";
 import { loadStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { richTextToPlainText } from "@/lib/rich-text";
@@ -202,6 +203,7 @@ export default function DetailPageEditor() {
   const [redoStack, setRedoStack] = useState<Snapshot[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportImageOverrides, setExportImageOverrides] = useState<Record<string, string> | null>(null);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [isRevising, setIsRevising] = useState(false);
   const [exportSuccessKey, setExportSuccessKey] = useState(0);
@@ -1391,6 +1393,23 @@ export default function DetailPageEditor() {
     setIsExporting(true);
     try {
       await handleSave({ silent: true });
+
+      // html-to-image (used below for every plain-DOM section) doesn't
+      // capture a live Konva <canvas> reliably — real exports came out with
+      // canvas-mode sections stretched. Render those sections separately,
+      // straight from canvasData, through Konva's own toDataURL, and swap
+      // them for plain <img>s (which html-to-image handles like any other
+      // element) for the duration of the capture below.
+      const canvasSections = sections.filter((s) => s.canvasData);
+      if (canvasSections.length) {
+        const overrides: Record<string, string> = {};
+        for (const s of canvasSections) {
+          overrides[s.id] = await renderCanvasDataToDataUrl(s.canvasData!);
+        }
+        setExportImageOverrides(overrides);
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }
+
       const { toCanvas } = await import("html-to-image");
       const JSZip = (await import("jszip")).default;
       const exportWidth = PLATFORM_EXPORT_WIDTH[projectSummary.platform];
@@ -1459,6 +1478,7 @@ export default function DetailPageEditor() {
       });
       setExportSuccessKey((key) => key + 1);
     } finally {
+      setExportImageOverrides(null);
       setIsExporting(false);
     }
   }
@@ -1646,7 +1666,7 @@ export default function DetailPageEditor() {
             )}
           >
             <div style={{ transform: `scale(${canvasZoom})`, transformOrigin: "top center" }}>
-              <div ref={canvasWrapRef}>
+              <div>
                 <SectionCanvas
                   sections={visibleSections}
                   selectedId={selectedId}
@@ -1657,6 +1677,8 @@ export default function DetailPageEditor() {
                   selectedElementId={selectedElementId}
                   onSelectElement={handleSelectElement}
                   onChangeElement={handleChangeElement}
+                  exportImageOverrides={exportImageOverrides ?? undefined}
+                  sectionsRootRef={canvasWrapRef}
                 />
               </div>
             </div>
