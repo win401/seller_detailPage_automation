@@ -1,4 +1,5 @@
 import { IMAGE_MAX_HEIGHT } from "./image-optimize";
+import { canvasToPngFile, stitchVertically } from "./stitch-canvases";
 
 // Sanity cap so an accidental huge PDF doesn't hang the browser rendering
 // dozens of pages client-side.
@@ -31,9 +32,6 @@ export async function pdfFileToImageFile(file: File): Promise<File> {
   }
 
   const pageCanvases: HTMLCanvasElement[] = [];
-  let totalHeight = 0;
-  let maxWidth = 0;
-
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
     const page = await pdf.getPage(pageNumber);
     const viewport = page.getViewport({ scale: PDF_RENDER_SCALE });
@@ -44,39 +42,11 @@ export async function pdfFileToImageFile(file: File): Promise<File> {
     if (!ctx) throw new Error("Canvas context is not available");
     await page.render({ canvasContext: ctx, viewport, canvas }).promise;
     pageCanvases.push(canvas);
-    totalHeight += canvas.height;
-    maxWidth = Math.max(maxWidth, canvas.width);
   }
 
-  // Chrome/Skia silently returns an empty canvas past ~16384px in one
-  // dimension with no error (see IMAGE_MAX_HEIGHT in image-optimize.ts) —
-  // stitching pages naively could cross that well before
-  // optimizeImageFile() ever gets a chance to downscale it downstream, so
-  // cap the *stitched* canvas itself here, before it's created.
-  const stitchScale = Math.min(1, IMAGE_MAX_HEIGHT / totalHeight);
-  const stitchedWidth = Math.max(1, Math.round(maxWidth * stitchScale));
-  const stitchedHeight = Math.max(1, Math.round(totalHeight * stitchScale));
-
-  const stitched = document.createElement("canvas");
-  stitched.width = stitchedWidth;
-  stitched.height = stitchedHeight;
-  const stitchedCtx = stitched.getContext("2d");
-  if (!stitchedCtx) throw new Error("Canvas context is not available");
-  stitchedCtx.fillStyle = "#ffffff";
-  stitchedCtx.fillRect(0, 0, stitchedWidth, stitchedHeight);
-
-  let yOffset = 0;
-  for (const pageCanvas of pageCanvases) {
-    const drawHeight = pageCanvas.height * stitchScale;
-    const drawWidth = pageCanvas.width * stitchScale;
-    stitchedCtx.drawImage(pageCanvas, 0, yOffset, drawWidth, drawHeight);
-    yOffset += drawHeight;
-  }
-
-  const blob = await new Promise<Blob | null>((resolve) => stitched.toBlob(resolve, "image/png"));
-  if (!blob) {
-    throw new Error("PDF를 이미지로 변환하지 못했습니다.");
-  }
-
-  return new File([blob], file.name.replace(/\.pdf$/i, ".png"), { type: "image/png" });
+  const stitched = stitchVertically(
+    pageCanvases.map((c) => ({ source: c, width: c.width, height: c.height })),
+    IMAGE_MAX_HEIGHT
+  );
+  return canvasToPngFile(stitched, file.name.replace(/\.pdf$/i, ".png"));
 }

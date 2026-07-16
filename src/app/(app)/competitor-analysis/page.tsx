@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { optimizeImageFile } from "@/lib/image-optimize";
 import { pdfFileToImageFile } from "@/lib/pdf-to-image";
+import { stitchImageFiles } from "@/lib/stitch-images";
 import type { CompetitorPageAnalysis } from "@/lib/agents/schemas";
 import type { UploadedImageDraft } from "@/lib/types";
 
@@ -173,6 +174,7 @@ function AnalysisResultCard({ analysis, source }: { analysis: CompetitorPageAnal
 
 export default function CompetitorAnalysisPage() {
   const [image, setImage] = useState<UploadedImageDraft | null>(null);
+  const [stitchedCount, setStitchedCount] = useState<number | null>(null);
   const [label, setLabel] = useState("");
   const [isConverting, setIsConverting] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -225,17 +227,36 @@ export default function CompetitorAnalysisPage() {
     void loadHistory(supabase);
   }, []);
 
-  async function handleImageChange(file: File | undefined) {
-    if (!file) return;
+  async function handleFilesChange(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+    const files = Array.from(fileList);
     setError(null);
     setResult(null);
-    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
-    setIsConverting(isPdf);
+    setStitchedCount(null);
+
+    const pdfFiles = files.filter((f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name));
+    if (pdfFiles.length > 0 && files.length > 1) {
+      setError("PDF는 한 번에 1개만 올릴 수 있습니다. 나눠진 캡처는 이미지(PNG/JPG) 여러 장으로 올려주세요.");
+      return;
+    }
+
+    setIsConverting(true);
     try {
-      // PDF pages get rendered + stitched into one long image client-side
-      // first, then flow through the same resize/compress pipeline as a
-      // real screenshot upload — see src/lib/pdf-to-image.ts.
-      const rasterFile = isPdf ? await pdfFileToImageFile(file) : file;
+      // Long capture split into several PNGs gets sorted by filename and
+      // stitched into one image (src/lib/stitch-images.ts) — same "긴 캡처
+      // 이미지 1장" model as the single-file and PDF paths, just multiple
+      // source files instead of one. A lone PDF still renders+stitches its
+      // own pages (src/lib/pdf-to-image.ts); either way the result then
+      // flows through the same resize/compress pipeline unchanged.
+      let rasterFile: File;
+      if (pdfFiles.length === 1) {
+        rasterFile = await pdfFileToImageFile(pdfFiles[0]);
+      } else if (files.length === 1) {
+        rasterFile = files[0];
+      } else {
+        rasterFile = await stitchImageFiles(files);
+        setStitchedCount(files.length);
+      }
       const optimized = await optimizeImageFile(rasterFile);
       setImage(optimized);
     } catch (err) {
@@ -343,16 +364,27 @@ export default function CompetitorAnalysisPage() {
           <label className="flex h-28 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-card-soft text-muted-foreground">
             {isConverting ? <Loader2 className="size-5 animate-spin" /> : <ImagePlus className="size-5" />}
             <span className="text-[12.5px] font-semibold">
-              {isConverting ? "PDF를 이미지로 변환 중..." : image ? image.name : "이미지 또는 PDF를 선택하세요"}
+              {isConverting
+                ? "이미지로 변환 중..."
+                : image
+                  ? image.name
+                  : "이미지 또는 PDF를 선택하세요"}
             </span>
             <input
               type="file"
               accept="image/*,application/pdf"
+              multiple
               className="hidden"
               disabled={isConverting}
-              onChange={(e) => void handleImageChange(e.target.files?.[0])}
+              onChange={(e) => void handleFilesChange(e.target.files)}
             />
           </label>
+          <p className="text-[11px] text-muted-foreground">
+            너무 길어서 캡처 도구가 PNG 여러 장으로 나눠줬다면, 한 번에 전부 선택하세요 — 파일명 순서대로 이어붙입니다.
+          </p>
+          {stitchedCount && (
+            <p className="text-[11.5px] font-semibold text-accent">이미지 {stitchedCount}장을 순서대로 이어붙였습니다.</p>
+          )}
           {image && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
