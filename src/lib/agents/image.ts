@@ -32,6 +32,12 @@ export async function runImageAgent(
 
     const result = await generateText({
       model: google(IMAGE_MODEL_ID),
+      // Without this, Gemini defaults to text-only output for this model —
+      // result.files stays empty regardless of prompt/key validity, and
+      // every call falls into the "no image returned" branch below.
+      providerOptions: {
+        google: { responseModalities: ["TEXT", "IMAGE"] },
+      },
       prompt: referenceMeta
         ? [
             {

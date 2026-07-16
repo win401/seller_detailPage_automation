@@ -102,6 +102,7 @@
 ## 우선순위 4: 편집기 작업 환경
 
 - [x] 문장/단어 단위 텍스트 스타일링 완료: 마커 문자열(1~3단계) → span 기반 RichText + `contentEditable` WYSIWYG 에디터(4단계, 최종)로 대체. AI 스키마는 안 건드림(계속 plain string 생성, 조립 지점에서 감쌈). 세부 설계·발견한 버그는 git log 참고 (2026-07-16)
+- [x] (2026-07-16) "AI로 이미지 생성" 버튼 실동작 확인 — `src/lib/agents/image.ts`의 `generateText` 호출에 `providerOptions: { google: { responseModalities: ["TEXT", "IMAGE"] } }`가 빠져 있어 `gemini-2.5-flash-image`가 항상 텍스트만 반환하고 `result.files`가 비어 "이미지를 반환하지 않았습니다" 에러로 귀결되던 버그. 새 `GEMINI_API_KEY`로 교체 후 이 옵션을 추가해 실제 이미지가 반환되도록 수정. 브라우저에서 버튼을 두 번 클릭해 매번 실제 Gemini 응답(200, 서로 다른 이미지)이 섹션에 적용되는 것 확인
 - [ ] Supabase 저장 → 새로고침 복원의 RichText 실동작 확인 (JSON 직렬화 구조상 안전하지만 실제 프로젝트로는 아직 미검증 — 테스트 계정/프로젝트로 확인 필요)
 - [ ] ZIP export 캡처(`toCanvas`) 시점에 self-host 폰트 로드가 끝나 있는지, RichText(굵게/강조) 렌더링이 export에서도 캔버스와 동일하게 나오는지 확인 (미확인 시 fallback 폰트로 캡처될 위험 — 캔버스 자체의 글꼴/자간/줄간격 적용은 2026-07-16 확인 완료, export 결과물 자체는 미확인)
 - [ ] 자유 좌표 배치 + 레이어 패널은 여전히 별도 세션의 별도 계획으로 보류 (span 마이그레이션과 달리 Supabase 스키마·AI 스키마·undo-redo 재설계·export 파이프라인까지 동시에 손대야 하는 멀티세션급 작업 — 2026-07-16 조사 결과)
