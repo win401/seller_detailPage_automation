@@ -113,7 +113,14 @@
   - **후속 버그**: 위 정리 후에도 반복 테스트로 localStorage가 다시 쌓여 동일한 `QuotaExceededError`가 재발했고, 이번엔 `handleGenerate`의 catch-폴백 분기 안 `saveGeneratedDraftLocally` 호출이 try/catch로 감싸여 있지 않아 예외가 그대로 전파되어 "생성" 버튼을 눌러도 아무 반응이 없는(에디터로 진입 못 하는) 실사용 버그로 이어짐. `saveGeneratedDraftLocally`(`new/page.tsx`) 자체를 두 가지로 강화: (1) 매 저장 전 현재 projectId를 제외한 과거 `detail-page-project/generation/agent-workflow/draft-assets:*` 캐시를 모두 정리(`pruneOldLocalDrafts`) — Supabase가 원본이라 캐시 삭제는 안전, (2) 쓰기 자체를 try/catch로 감싸 quota 초과 시에도 조용히 건너뛰고 생성 흐름은 계속 진행. 같은 프로젝트로 연속 생성해도 브라우저 저장 용량이 항상 프로젝트 1개분(~2.2MB)으로 고정되는 것을 반복 확인.
 - [ ] Supabase 저장 → 새로고침 복원의 RichText 실동작 확인 (JSON 직렬화 구조상 안전하지만 실제 프로젝트로는 아직 미검증 — 테스트 계정/프로젝트로 확인 필요)
 - [ ] ZIP export 캡처(`toCanvas`) 시점에 self-host 폰트 로드가 끝나 있는지, RichText(굵게/강조) 렌더링이 export에서도 캔버스와 동일하게 나오는지 확인 (미확인 시 fallback 폰트로 캡처될 위험 — 캔버스 자체의 글꼴/자간/줄간격 적용은 2026-07-16 확인 완료, export 결과물 자체는 미확인)
-- [ ] 자유 좌표 배치 + 레이어 패널은 여전히 별도 세션의 별도 계획으로 보류 (span 마이그레이션과 달리 Supabase 스키마·AI 스키마·undo-redo 재설계·export 파이프라인까지 동시에 손대야 하는 멀티세션급 작업 — 2026-07-16 조사 결과)
+- [x] (2026-07-16) **Konva 기반 자유 편집(Figma-style) 마이그레이션 — 1단계 수직 슬라이스** 착수. 유료 Polotno SDK($899/월~) 대신 오픈소스 `react-konva`/`konva`(MIT) 채택. "intro" 섹션 1개만 대상으로 전체 파이프라인(선택→우측 속성 패널→드래그/리사이즈→텍스트 편집→undo/redo→export) 검증 완료, 나머지 18개 layoutType 전환은 의도적으로 다음 세션들로 남김.
+  - 데이터 모델: `DetailSection.canvasData?: SectionCanvasData`(신규, additive) — `background{fill,cornerRadius}` + `elements: CanvasElement[]`(`text`/`image`/`shape`, 각각 x/y/width/height/rotation). `canvasData` 있으면 Konva 렌더러, 없으면 기존 `StructuredSectionBlock` 그대로 — 섹션 단위로 두 방식 공존. `src/lib/canvas-elements.ts`의 `createDefaultCanvasData()`가 기존 headline/body/imageUrl을 1회성으로 캔버스 엘리먼트로 변환(배지 그리드 등 slots는 이번 범위에서 트림).
+  - **단어별 스타일링 → 박스 단위로 축소**: 리치텍스트(`TextRun.fontFamily` 등)는 Konva.Text가 멀티스타일을 기본 지원하지 않아 캔버스 텍스트박스에는 적용 안 함 — 대신 Figma 실제 동작과 동일하게 폰트/굵게/크기(자유 px)/줄간격/자간/정렬/색상을 텍스트박스 전체 단위로 적용(`canvas-element-panel.tsx`). 기존 구조화 블록의 단어별 스타일은 그대로 유지.
+  - 드래그/리사이즈/회전은 Konva 내장 `Transformer`로 처리(별도 라이브러리 불필요). 텍스트 편집은 Konva에 contentEditable이 없어 더블클릭 시 절대좌표 HTML `<textarea>`를 겹쳐 띄우는 표준 패턴(blur 시 커밋) 사용.
+  - undo/redo는 조사대로 코드 변경 없이 그대로 작동(값 스냅샷이라 스키마 무관) 확인.
+  - **실제 겪은 버그 2건**: (1) 미리보기가 360px 고정 컨테이너인데 `canvasData`는 실제 export 해상도(860px) 좌표계라 텍스트가 잘려 보임 — Konva `Stage`의 `scaleX/scaleY`로 축소 렌더링하도록 수정(좌표값 자체는 그대로 두고 Konva가 드래그/리사이즈 결과를 스케일 반영해서 돌려주므로 이벤트 핸들러 쪽 추가 계산 불필요). (2) 섹션 전체를 감싸는 div의 `onClick={() => onSelect(sec.id)}`가 Konva의 엘리먼트 선택 이후에 버블링으로 실행되며 `selectedElementId`를 매번 `null`로 되돌려 우측 패널이 절대 안 바뀌던 버그 — 캔버스 모드 섹션에서는 이 onClick을 제거(Konva 스테이지 자체의 배경 클릭이 이미 같은 역할을 함).
+  - **미확인 채로 남긴 것**: ZIP export 시 Konva `<canvas>`가 `html-to-image` 캡처에 실제로 잡히는지 — 브라우저에서 export 자체는 에러 없이 "9개 PNG" 성공 토스트까지 확인했지만, 다운로드된 파일을 직접 열어 Intro 섹션 이미지가 비어있지 않은지는 사용자가 직접 확인 필요(자동화 환경에서 다운로드 파일 접근 불가).
+- [ ] 나머지 18개 layoutType의 Konva 전환, export 파이프라인의 Konva 전면 대응, 구조화 블록 ↔ 캔버스 되돌리기, 레이어 패널/z-index, AI 생성이 처음부터 canvasData를 만들도록 확장 — 모두 다음 세션 (2026-07-16 계획서 `transient-humming-puppy` 참고)
 - [ ] 현재 3열 레이아웃을 노트북과 와이드 데스크톱에서 검증
 - [ ] 화면이 좁은 데스크톱에서 좌/우 보조 패널 접기 기능
 - [ ] 다양한 화면 높이에서 섹션 목록·캔버스·편집 패널의 독립 스크롤 유지

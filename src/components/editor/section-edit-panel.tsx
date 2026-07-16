@@ -62,6 +62,7 @@ export function SectionEditPanel({
   onUploadSectionImage,
   onGenerateImage,
   isGeneratingImage,
+  onEnableCanvasMode,
 }: {
   section: DetailSection;
   hidden: boolean;
@@ -81,6 +82,9 @@ export function SectionEditPanel({
   /** Gemini("Nano Banana")로 실제 이미지를 생성 (docs/MVP_PLAN.md §5). */
   onGenerateImage: () => void;
   isGeneratingImage: boolean;
+  /** Konva 자유 편집 모드로 1회성 전환 (docs/TASKS.md — 1단계 수직 슬라이스,
+   * intro kind에만 노출, 되돌리기는 아직 없음). */
+  onEnableCanvasMode?: () => void;
 }) {
   const bodyContainerRef = useRef<HTMLDivElement>(null);
   const currentImageStyle = section.imageUrl
@@ -134,6 +138,16 @@ export function SectionEditPanel({
       >
         <RefreshCw className="size-3.5" />이 섹션 다시 생성
       </Button>
+
+      {onEnableCanvasMode && !section.canvasData && section.kind === "intro" && (
+        <Button
+          onClick={onEnableCanvasMode}
+          variant="outline"
+          className="h-[38px] text-[12.5px] font-bold"
+        >
+          자유 편집으로 전환 (실험적)
+        </Button>
+      )}
 
       {section.alternatives.length > 0 && (
         <div className="mt-1 border-t border-border pt-3">
