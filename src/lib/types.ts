@@ -95,12 +95,42 @@ export const SECTION_SPACING_LABELS: Record<SectionSpacing, string> = {
   spacious: "넉넉하게",
 };
 
-export type TextScale = "compact" | "default" | "large";
+// "compact"/"default"/"large" are the original 3 steps — kept as-is so
+// already-saved drafts (Supabase draft_versions.sections jsonb) stay valid.
+// "x-small"/"x-large" were added around them for finer control.
+export type TextScale = "x-small" | "compact" | "default" | "large" | "x-large";
 
 export const TEXT_SCALE_LABELS: Record<TextScale, string> = {
+  "x-small": "아주 작게",
   compact: "작게",
   default: "기본",
   large: "크게",
+  "x-large": "아주 크게",
+};
+
+export type FontFamily = "system" | "pretendard" | "gmarket-sans" | "s-core-dream";
+
+export const FONT_FAMILY_LABELS: Record<FontFamily, string> = {
+  system: "기본",
+  pretendard: "Pretendard",
+  "gmarket-sans": "Gmarket Sans",
+  "s-core-dream": "에스코어드림",
+};
+
+export type LetterSpacing = "tight" | "default" | "wide";
+
+export const LETTER_SPACING_LABELS: Record<LetterSpacing, string> = {
+  tight: "좁게",
+  default: "기본",
+  wide: "넓게",
+};
+
+export type TextLineHeight = "compact" | "default" | "relaxed";
+
+export const LINE_HEIGHT_LABELS: Record<TextLineHeight, string> = {
+  compact: "좁게",
+  default: "기본",
+  relaxed: "넉넉하게",
 };
 
 /** Layout preset fields shared by both a single section's override and a
@@ -111,6 +141,9 @@ export interface SectionLayoutPreset {
   imageHeight?: ImageHeight;
   spacing?: SectionSpacing;
   textScale?: TextScale;
+  fontFamily?: FontFamily;
+  letterSpacing?: LetterSpacing;
+  lineHeight?: TextLineHeight;
 }
 
 // ---------- section model (13-section detail page) ----------

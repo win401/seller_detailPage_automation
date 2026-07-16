@@ -1,11 +1,14 @@
 import {
   DetailSection,
+  FontFamily,
   IMAGE_POSITION_CSS,
   ImageFit,
   ImageHeight,
   ImagePosition,
+  LetterSpacing,
   SectionLayoutPreset,
   SectionSpacing,
+  TextLineHeight,
   TextScale,
 } from "./types";
 
@@ -48,10 +51,14 @@ export function getSpacingClasses(spacing: SectionSpacing | undefined, prominent
 
 export function getHeadlineTextClass(scale: TextScale | undefined, prominent: boolean): string {
   switch (scale ?? "default") {
+    case "x-small":
+      return prominent ? "text-[15px]" : "text-[11px]";
     case "compact":
       return prominent ? "text-[17px]" : "text-[13px]";
     case "large":
       return prominent ? "text-[22px]" : "text-[17px]";
+    case "x-large":
+      return prominent ? "text-[25px]" : "text-[19px]";
     default:
       return prominent ? "text-[19px]" : "text-[15px]";
   }
@@ -59,12 +66,51 @@ export function getHeadlineTextClass(scale: TextScale | undefined, prominent: bo
 
 export function getBodyTextClass(scale: TextScale | undefined): string {
   switch (scale ?? "default") {
+    case "x-small":
+      return "text-[10.5px]";
     case "compact":
       return "text-[12px]";
     case "large":
       return "text-[14.5px]";
+    case "x-large":
+      return "text-[16px]";
     default:
       return "text-[13px]";
+  }
+}
+
+export function getFontFamilyCss(family: FontFamily | undefined): string | undefined {
+  switch (family) {
+    case "pretendard":
+      return "var(--font-pretendard)";
+    case "gmarket-sans":
+      return "var(--font-gmarket-sans)";
+    case "s-core-dream":
+      return "var(--font-s-core-dream)";
+    default:
+      return undefined;
+  }
+}
+
+export function getLetterSpacingClass(spacing: LetterSpacing | undefined): string {
+  switch (spacing ?? "default") {
+    case "tight":
+      return "tracking-[-0.01em]";
+    case "wide":
+      return "tracking-[0.04em]";
+    default:
+      return "tracking-normal";
+  }
+}
+
+export function getLineHeightClass(lineHeight: TextLineHeight | undefined): string {
+  switch (lineHeight ?? "default") {
+    case "compact":
+      return "leading-[1.25]";
+    case "relaxed":
+      return "leading-[1.75]";
+    default:
+      return "leading-[1.5]";
   }
 }
 
@@ -83,5 +129,8 @@ export function applyLayoutPresetToSections(
     ...(preset.imageHeight && { imageHeight: preset.imageHeight }),
     ...(preset.spacing && { spacing: preset.spacing }),
     ...(preset.textScale && { textScale: preset.textScale }),
+    ...(preset.fontFamily && { fontFamily: preset.fontFamily }),
+    ...(preset.letterSpacing && { letterSpacing: preset.letterSpacing }),
+    ...(preset.lineHeight && { lineHeight: preset.lineHeight }),
   }));
 }

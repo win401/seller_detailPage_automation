@@ -21,8 +21,11 @@ import { loadStyleSets, saveStyleSets } from "@/lib/style-sets";
 import { cn } from "@/lib/utils";
 import {
   DesignMood,
+  FONT_FAMILY_LABELS,
   IMAGE_FIT_LABELS,
   IMAGE_HEIGHT_LABELS,
+  LETTER_SPACING_LABELS,
+  LINE_HEIGHT_LABELS,
   MOOD_LABELS,
   PLATFORM_LABELS,
   Platform,
@@ -49,6 +52,15 @@ const SPACING_OPTIONS = (
 const TEXT_SCALE_OPTIONS = (
   Object.keys(TEXT_SCALE_LABELS) as (keyof typeof TEXT_SCALE_LABELS)[]
 ).map((value) => ({ value, label: TEXT_SCALE_LABELS[value] }));
+const FONT_FAMILY_OPTIONS = (
+  Object.keys(FONT_FAMILY_LABELS) as (keyof typeof FONT_FAMILY_LABELS)[]
+).map((value) => ({ value, label: FONT_FAMILY_LABELS[value] }));
+const LETTER_SPACING_OPTIONS = (
+  Object.keys(LETTER_SPACING_LABELS) as (keyof typeof LETTER_SPACING_LABELS)[]
+).map((value) => ({ value, label: LETTER_SPACING_LABELS[value] }));
+const LINE_HEIGHT_OPTIONS = (
+  Object.keys(LINE_HEIGHT_LABELS) as (keyof typeof LINE_HEIGHT_LABELS)[]
+).map((value) => ({ value, label: LINE_HEIGHT_LABELS[value] }));
 
 function Chip({
   active,
@@ -267,6 +279,39 @@ function StyleSetFormDialog({
                 />
               </div>
             </div>
+            <div className="mt-2 grid grid-cols-3 gap-3">
+              <div>
+                <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
+                  글꼴
+                </div>
+                <PresetToggleGroup
+                  options={FONT_FAMILY_OPTIONS}
+                  value={draft.fontFamily}
+                  defaultValue="system"
+                  onChange={(fontFamily) => setDraft((d) => ({ ...d, fontFamily }))}
+                />
+              </div>
+              <div>
+                <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
+                  자간
+                </div>
+                <PresetToggleGroup
+                  options={LETTER_SPACING_OPTIONS}
+                  value={draft.letterSpacing}
+                  onChange={(letterSpacing) => setDraft((d) => ({ ...d, letterSpacing }))}
+                />
+              </div>
+              <div>
+                <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
+                  줄 간격
+                </div>
+                <PresetToggleGroup
+                  options={LINE_HEIGHT_OPTIONS}
+                  value={draft.lineHeight}
+                  onChange={(lineHeight) => setDraft((d) => ({ ...d, lineHeight }))}
+                />
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-1.5">
@@ -405,6 +450,11 @@ export default function StyleSetsPage() {
                 {ss.textScale && (
                   <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
                     텍스트 {TEXT_SCALE_LABELS[ss.textScale]}
+                  </span>
+                )}
+                {ss.fontFamily && (
+                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+                    글꼴 {FONT_FAMILY_LABELS[ss.fontFamily]}
                   </span>
                 )}
               </div>

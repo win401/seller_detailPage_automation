@@ -8,8 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   DetailSection,
+  FONT_FAMILY_LABELS,
   IMAGE_FIT_LABELS,
   IMAGE_HEIGHT_LABELS,
+  LETTER_SPACING_LABELS,
+  LINE_HEIGHT_LABELS,
   SECTION_SPACING_LABELS,
   SectionImageAsset,
   SectionLayoutPreset,
@@ -30,6 +33,15 @@ const SPACING_OPTIONS = (
 const TEXT_SCALE_OPTIONS = (
   Object.keys(TEXT_SCALE_LABELS) as (keyof typeof TEXT_SCALE_LABELS)[]
 ).map((value) => ({ value, label: TEXT_SCALE_LABELS[value] }));
+const FONT_FAMILY_OPTIONS = (
+  Object.keys(FONT_FAMILY_LABELS) as (keyof typeof FONT_FAMILY_LABELS)[]
+).map((value) => ({ value, label: FONT_FAMILY_LABELS[value] }));
+const LETTER_SPACING_OPTIONS = (
+  Object.keys(LETTER_SPACING_LABELS) as (keyof typeof LETTER_SPACING_LABELS)[]
+).map((value) => ({ value, label: LETTER_SPACING_LABELS[value] }));
+const LINE_HEIGHT_OPTIONS = (
+  Object.keys(LINE_HEIGHT_LABELS) as (keyof typeof LINE_HEIGHT_LABELS)[]
+).map((value) => ({ value, label: LINE_HEIGHT_LABELS[value] }));
 
 export function SectionEditPanel({
   section,
@@ -273,6 +285,37 @@ export function SectionEditPanel({
               options={TEXT_SCALE_OPTIONS}
               value={section.textScale}
               onChange={(textScale) => onChangeLayout({ textScale })}
+            />
+          </div>
+          <div>
+            <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
+              글꼴
+            </div>
+            <PresetToggleGroup
+              options={FONT_FAMILY_OPTIONS}
+              value={section.fontFamily}
+              defaultValue="system"
+              onChange={(fontFamily) => onChangeLayout({ fontFamily })}
+            />
+          </div>
+          <div>
+            <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
+              자간
+            </div>
+            <PresetToggleGroup
+              options={LETTER_SPACING_OPTIONS}
+              value={section.letterSpacing}
+              onChange={(letterSpacing) => onChangeLayout({ letterSpacing })}
+            />
+          </div>
+          <div>
+            <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
+              줄 간격
+            </div>
+            <PresetToggleGroup
+              options={LINE_HEIGHT_OPTIONS}
+              value={section.lineHeight}
+              onChange={(lineHeight) => onChangeLayout({ lineHeight })}
             />
           </div>
         </div>

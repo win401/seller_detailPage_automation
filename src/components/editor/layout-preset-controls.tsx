@@ -51,17 +51,24 @@ export function ImagePositionGrid({
   );
 }
 
-/** Generic labeled preset toggle (fit / height / spacing / text scale). */
+/** Generic labeled preset toggle (fit / height / spacing / text scale /
+ * font family / letter spacing / line height). `defaultValue` overrides the
+ * middle-index fallback used to highlight a button when `value` is
+ * undefined — the middle option is the sensible "default" for a 3-step
+ * compact/default/large-style scale, but not for a 4-option font-family
+ * picker where "기본(system)" isn't in the middle. */
 export function PresetToggleGroup<T extends string>({
   options,
   value,
+  defaultValue,
   onChange,
 }: {
   options: { value: T; label: string }[];
   value: T | undefined;
+  defaultValue?: T;
   onChange: (next: T) => void;
 }) {
-  const current = value ?? options[Math.floor(options.length / 2)]?.value;
+  const current = value ?? defaultValue ?? options[Math.floor(options.length / 2)]?.value;
   return (
     <div className="flex gap-1 rounded-lg border border-border bg-muted p-1">
       {options.map((option) => (

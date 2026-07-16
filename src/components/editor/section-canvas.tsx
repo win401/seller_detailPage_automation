@@ -9,10 +9,13 @@ import { cn } from "@/lib/utils";
 import { DetailSection, PLATFORM_EXPORT_WIDTH, Platform } from "@/lib/types";
 import {
   getBodyTextClass,
+  getFontFamilyCss,
   getHeadlineTextClass,
   getImageFitClass,
   getImageHeightClass,
   getImagePositionCss,
+  getLetterSpacingClass,
+  getLineHeightClass,
   getSpacingClasses,
 } from "@/lib/layout-presets";
 
@@ -734,9 +737,12 @@ export function SectionCanvas({
                         cancelEdit();
                       }
                     }}
+                    style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
                     className={cn(
-                      "mb-1.5 w-full rounded border border-dashed bg-transparent font-bold tracking-tight outline-none",
+                      "mb-1.5 w-full rounded border border-dashed bg-transparent font-bold outline-none",
                       getHeadlineTextClass(sec.textScale, isIntro || isCta),
+                      getLetterSpacingClass(sec.letterSpacing),
+                      getLineHeightClass(sec.lineHeight),
                       isIntro || isCta
                         ? "border-white/50 text-white"
                         : "border-canvas-accent text-canvas-dark"
@@ -748,9 +754,12 @@ export function SectionCanvas({
                       e.stopPropagation();
                       startEdit(sec, "headline");
                     }}
+                    style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
                     className={cn(
-                      "mb-1.5 cursor-text font-bold tracking-tight",
+                      "mb-1.5 cursor-text font-bold",
                       getHeadlineTextClass(sec.textScale, isIntro || isCta),
+                      getLetterSpacingClass(sec.letterSpacing),
+                      getLineHeightClass(sec.lineHeight),
                       isIntro || isCta ? "text-white" : "text-canvas-dark"
                     )}
                   >
@@ -768,9 +777,12 @@ export function SectionCanvas({
                     onKeyDown={(e) => {
                       if (e.key === "Escape") cancelEdit();
                     }}
+                    style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
                     className={cn(
-                      "w-full resize-none rounded border border-dashed bg-transparent leading-relaxed outline-none",
+                      "w-full resize-none rounded border border-dashed bg-transparent outline-none",
                       getBodyTextClass(sec.textScale),
+                      getLetterSpacingClass(sec.letterSpacing),
+                      getLineHeightClass(sec.lineHeight),
                       isIntro || isCta
                         ? "border-white/50 text-white/85"
                         : "border-canvas-accent text-canvas-muted"
@@ -782,9 +794,12 @@ export function SectionCanvas({
                       e.stopPropagation();
                       startEdit(sec, "body");
                     }}
+                    style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
                     className={cn(
-                      "cursor-text leading-relaxed",
+                      "cursor-text",
                       getBodyTextClass(sec.textScale),
+                      getLetterSpacingClass(sec.letterSpacing),
+                      getLineHeightClass(sec.lineHeight),
                       isIntro || isCta ? "text-white/85" : "text-canvas-muted"
                     )}
                   >
