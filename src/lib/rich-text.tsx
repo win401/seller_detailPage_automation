@@ -53,14 +53,23 @@ export function renderInlineMarkup(text: string): ReactNode {
 
 export type MarkupMarker = "**" | "==";
 
+function escapeForRegExp(marker: string): string {
+  return marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
- * Toggle-wraps the [start, end) range of `value` with `marker`: if the
- * selection is already exactly wrapped (marker immediately before and
- * after), strips it; otherwise wraps it. With no selection (start === end),
- * inserts an empty pair and places the cursor between them so typing lands
- * inside the markup. Returns the new string plus a selection range to
- * restore, so the toolbar can keep the same text highlighted/cursor placed
- * after the DOM value updates.
+ * Toggle-wraps [start, end) of `value` with `marker`. First checks whether
+ * the range already sits *inside* an existing span of this marker type —
+ * not just whether it's exactly the previously-selected range — and if so
+ * removes that whole span. Without this, "undo the emphasis" only works if
+ * you reselect the exact original boundaries; placing the cursor anywhere
+ * inside already-bold text (or re-selecting a subset of it) would instead
+ * wrap a second, nested marker pair around it, and the only way out would
+ * be manually deleting the ** or == characters by hand.
+ *
+ * With no selection (start === end) and no surrounding span, inserts an
+ * empty pair and places the cursor between them so typing lands inside the
+ * markup. Returns the new string plus a selection range to restore.
  */
 export function toggleMarkup(
   value: string,
@@ -69,18 +78,24 @@ export function toggleMarkup(
   marker: MarkupMarker
 ): { value: string; start: number; end: number } {
   const markerLen = marker.length;
+  const escaped = escapeForRegExp(marker);
+  const spanPattern = new RegExp(`${escaped}([\\s\\S]+?)${escaped}`, "g");
+  let match: RegExpExecArray | null;
+  while ((match = spanPattern.exec(value))) {
+    const innerStart = match.index + markerLen;
+    const innerEnd = match.index + match[0].length - markerLen;
+    if (start >= innerStart && end <= innerEnd) {
+      const next = value.slice(0, match.index) + match[1] + value.slice(match.index + match[0].length);
+      return { value: next, start: start - markerLen, end: end - markerLen };
+    }
+  }
+
   if (start === end) {
     const next = value.slice(0, start) + marker + marker + value.slice(end);
     const cursor = start + markerLen;
     return { value: next, start: cursor, end: cursor };
   }
   const selected = value.slice(start, end);
-  const before = value.slice(Math.max(0, start - markerLen), start);
-  const after = value.slice(end, end + markerLen);
-  if (before === marker && after === marker) {
-    const next = value.slice(0, start - markerLen) + selected + value.slice(end + markerLen);
-    return { value: next, start: start - markerLen, end: end - markerLen };
-  }
   const next = value.slice(0, start) + marker + selected + marker + value.slice(end);
   return { value: next, start: start + markerLen, end: end + markerLen };
 }
