@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
-import type { RichText } from "./types";
+import { getFontFamilyCss } from "./layout-presets";
+import type { FontFamily, RichText } from "./types";
 
 /**
  * Span-based rich text for headline/body: each TextRun carries its own
@@ -28,6 +29,13 @@ export function renderRichText(runs: RichText): ReactNode {
       // know the surrounding block's text color.
       node = (
         <span key={run.bold ? `${i}-h` : i} className="rounded-[2px] bg-canvas-accent/25 px-0.5">
+          {node}
+        </span>
+      );
+    }
+    if (run.fontFamily && run.fontFamily !== "system") {
+      node = (
+        <span key={`${i}-f`} style={{ fontFamily: getFontFamilyCss(run.fontFamily) }}>
           {node}
         </span>
       );
@@ -86,7 +94,12 @@ function mergeAdjacentRuns(runs: RichText): RichText {
   const merged: RichText = [];
   for (const run of runs) {
     const prev = merged[merged.length - 1];
-    if (prev && !!prev.bold === !!run.bold && !!prev.highlight === !!run.highlight) {
+    if (
+      prev &&
+      !!prev.bold === !!run.bold &&
+      !!prev.highlight === !!run.highlight &&
+      (prev.fontFamily ?? "system") === (run.fontFamily ?? "system")
+    ) {
       prev.text += run.text;
     } else {
       merged.push({ ...run });
@@ -105,13 +118,20 @@ function mergeAdjacentRuns(runs: RichText): RichText {
 export function domToRichText(root: HTMLElement): RichText {
   const runs: RichText = [];
 
-  function walk(node: Node, bold: boolean, highlight: boolean) {
+  function walk(node: Node, bold: boolean, highlight: boolean, fontFamily: FontFamily | undefined) {
     if (node.nodeType === Node.TEXT_NODE) {
       // Strip the zero-width space used to seed an empty toggled span (see
       // toggleInlineStyle) — it's only there so the cursor has somewhere to
       // land, never meant to be persisted.
       const text = (node.textContent ?? "").replace(/​/g, "");
-      if (text) runs.push({ text, ...(bold && { bold }), ...(highlight && { highlight }) });
+      if (text) {
+        runs.push({
+          text,
+          ...(bold && { bold }),
+          ...(highlight && { highlight }),
+          ...(fontFamily && fontFamily !== "system" && { fontFamily }),
+        });
+      }
       return;
     }
     if (node.nodeType !== Node.ELEMENT_NODE) return;
@@ -122,15 +142,16 @@ export function domToRichText(root: HTMLElement): RichText {
     }
     const nextBold = bold || el.tagName === "STRONG" || el.tagName === "B";
     const nextHighlight = highlight || el.classList.contains("rich-highlight");
+    const nextFontFamily = (el.dataset.font as FontFamily | undefined) ?? fontFamily;
     // A block-level child (e.g. a wrapping <div> some browsers insert for
     // Enter) starts a new line — only add the separator if this isn't the
     // subtree's very first content, to avoid a leading blank line.
     const isBlock = el.tagName === "DIV" || el.tagName === "P";
     if (isBlock && runs.length > 0) runs.push({ text: "\n" });
-    node.childNodes.forEach((child) => walk(child, nextBold, nextHighlight));
+    node.childNodes.forEach((child) => walk(child, nextBold, nextHighlight, nextFontFamily));
   }
 
-  root.childNodes.forEach((child) => walk(child, false, false));
+  root.childNodes.forEach((child) => walk(child, false, false, undefined));
   const merged = mergeAdjacentRuns(runs);
   return merged.length ? merged : [{ text: "" }];
 }
@@ -157,6 +178,13 @@ export function buildRichTextDom(root: HTMLElement, runs: RichText): void {
       if (run.highlight) {
         const span = document.createElement("span");
         span.className = "rich-highlight rounded-[2px] bg-canvas-accent/25 px-0.5";
+        span.appendChild(node);
+        node = span;
+      }
+      if (run.fontFamily && run.fontFamily !== "system") {
+        const span = document.createElement("span");
+        span.dataset.font = run.fontFamily;
+        span.style.fontFamily = getFontFamilyCss(run.fontFamily) ?? "";
         span.appendChild(node);
         node = span;
       }
@@ -235,6 +263,70 @@ export function toggleInlineStyle(root: HTMLElement, style: "bold" | "highlight"
     // Range partially overlaps an element boundary (e.g. selection spans
     // across an existing <strong>) — surroundContents throws in that case;
     // extract-and-reinsert works for arbitrary ranges.
+    const fragment = range.extractContents();
+    el.appendChild(fragment);
+    range.insertNode(el);
+  }
+  const newRange = document.createRange();
+  newRange.selectNodeContents(el);
+  selection.removeAllRanges();
+  selection.addRange(newRange);
+}
+
+function findFontAncestor(node: Node | null, root: HTMLElement): HTMLElement | null {
+  let el = node?.nodeType === Node.TEXT_NODE ? node.parentElement : (node as HTMLElement | null);
+  while (el && el !== root) {
+    if (el.dataset.font) return el;
+    el = el.parentElement;
+  }
+  return null;
+}
+
+function makeFontElement(family: FontFamily): HTMLElement {
+  const span = document.createElement("span");
+  span.dataset.font = family;
+  span.style.fontFamily = getFontFamilyCss(family) ?? "";
+  return span;
+}
+
+/**
+ * Set (or clear, for "system") the font family on the current selection
+ * within `root`. Unlike bold/highlight this is a value, not a boolean, so it
+ * gets its own function rather than reusing toggleInlineStyle: any existing
+ * font span fully covering the selection is unwrapped first (a run can't
+ * carry two font families at once), then — unless the new value is "system"
+ * — the (now plain) selection is wrapped in a fresh font span. Mirrors
+ * toggleInlineStyle's collapsed-selection and surroundContents-failure
+ * handling so behavior stays consistent with bold/highlight.
+ */
+export function applyFontFamily(root: HTMLElement, family: FontFamily): void {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.commonAncestorContainer)) return;
+
+  const existing = findFontAncestor(range.startContainer, root);
+  if (existing && existing.contains(range.endContainer)) {
+    unwrapElement(existing);
+  }
+
+  if (family === "system") return;
+
+  if (range.collapsed) {
+    const el = makeFontElement(family);
+    el.appendChild(document.createTextNode("​"));
+    range.insertNode(el);
+    const newRange = document.createRange();
+    newRange.selectNodeContents(el);
+    selection.removeAllRanges();
+    selection.addRange(newRange);
+    return;
+  }
+
+  const el = makeFontElement(family);
+  try {
+    range.surroundContents(el);
+  } catch {
     const fragment = range.extractContents();
     el.appendChild(fragment);
     range.insertNode(el);

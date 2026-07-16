@@ -156,6 +156,7 @@ export interface TextRun {
   text: string;
   bold?: boolean;
   highlight?: boolean;
+  fontFamily?: FontFamily;
 }
 
 export type RichText = TextRun[];
