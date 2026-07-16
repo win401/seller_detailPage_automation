@@ -97,6 +97,28 @@ function AnalysisResultCard({ analysis, source }: { analysis: CompetitorPageAnal
         </div>
       </div>
 
+      {/* keywordAnalysis is optional-chained because analysis is jsonb read
+          straight from Supabase with no runtime schema validation — history
+          rows saved before this field existed won't have it. */}
+      {(analysis.keywordAnalysis?.topKeywords?.length ?? 0) > 0 && (
+        <div className="mt-3">
+          <div className="mb-1.5 text-[12.5px] font-semibold text-muted-foreground">키워드 분석</div>
+          <div className="flex flex-wrap gap-1.5">
+            {analysis.keywordAnalysis.topKeywords.map((keyword, index) => (
+              <span
+                key={`${keyword}-${index}`}
+                className="rounded-full bg-accent-soft px-2.5 py-1 text-[11.5px] font-semibold text-accent"
+              >
+                {keyword}
+              </span>
+            ))}
+          </div>
+          {analysis.keywordAnalysis.summary && (
+            <p className="mt-1.5 text-[12px] leading-5 text-muted-foreground">{analysis.keywordAnalysis.summary}</p>
+          )}
+        </div>
+      )}
+
       <div className="mt-3">
         <div className="mb-1.5 text-[12.5px] font-semibold text-muted-foreground">섹션 구성</div>
         <ol className="grid gap-1">

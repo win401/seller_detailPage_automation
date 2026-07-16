@@ -319,6 +319,10 @@ export function mockCompetitorPageAnalysis(label?: string): CompetitorPageAnalys
       avgSentenceLength: "문장당 15~25자 내외의 짧은 단문 위주",
       painPointStructure: "문제 제기 -> 원인 -> 해결(제품 특징) 순서로 반복",
     },
+    keywordAnalysis: {
+      topKeywords: ["(mock) 저자극", "(mock) 촉촉함", "(mock) 무료배송", "(mock) 당일발송"],
+      summary: "(mock) 순하고 자극 없는 사용감을 중심 키워드로 반복 강조하고, 배송 관련 혜택 키워드를 보조로 배치한 패턴입니다.",
+    },
     presenceFlags: {
       hasFaq: true,
       hasSpecTable: true,

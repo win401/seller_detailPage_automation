@@ -119,6 +119,8 @@
 
 **MVP 착수 상태 (2026-07-15, Claude):** 아래 전체 스펙(관리자 전용, 다중 이미지, 좌표/OCR/신뢰도, Storage 3테이블 분리)과는 별개로, 동작 검증용 축소 버전을 먼저 붙였다. 관리자 게이팅 없이 로그인한 모든 사용자가 nav-bar "경쟁 분석"(`/competitor-analysis`)에서 이미지 1장만 업로드해 분석하고, 결과를 `competitor_page_analyses` 테이블(project_id nullable, jsonb 통짜 저장) 1개에 저장한다. 좌표/OCR 신뢰도/이미지 분할/오버레이/관리자 집계는 없음 — 아래 체크리스트는 그대로 두고, 이 축소 버전을 관리자 전용 다중 이미지/좌표 기반 스펙으로 확장하는 게 다음 단계다. 관련 코드: `src/lib/agents/competitor-analysis.ts`, `src/app/(app)/competitor-analysis/page.tsx`, `src/app/api/agent-workflow/analyze-competitor-page/route.ts`.
 
+- [x] (2026-07-16) 분석 결과에 키워드 분석(`keywordAnalysis: { topKeywords, summary }`) 추가 — 경쟁사 카피에서 반복/강조되는 핵심 키워드 5~10개와 요약을 뽑음(내 상품 키워드와의 비교는 아님, 별도 입력 없이 이미지만으로 동작). Zod 스키마·AI 비전 프롬프트·mock·UI(칩 목록 + 요약)까지 반영. `analysis`가 jsonb라 마이그레이션은 불필요하지만, 이 필드가 없던 기존 저장 이력과의 호환을 위해 UI에서 optional chaining으로 방어 처리(구버전 이력은 이 섹션만 표시 안 됨) — 실제 기존 이력으로 크래시 없음 확인
+
 ### 레퍼런스 데이터 모델
 
 - [ ] `nav-bar.tsx`에 관리자 전용 "레퍼런스 분석" 진입 버튼

@@ -177,6 +177,14 @@ export const competitorPageAnalysisSchema = z.object({
     avgSentenceLength: z.string(),
     painPointStructure: z.string(),
   }),
+  keywordAnalysis: z.object({
+    /** 5~10 core keywords/short phrases repeated or emphasized across the
+     * page, verbatim or near-verbatim from visible copy — not invented. */
+    topKeywords: z.array(z.string()),
+    /** One or two sentences on what theme/tone the page's keyword choices
+     * center on. */
+    summary: z.string(),
+  }),
   presenceFlags: z.object({
     hasFaq: z.boolean(),
     hasSpecTable: z.boolean(),
