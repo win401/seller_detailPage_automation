@@ -8,14 +8,18 @@ import { getMockReferencesForSection } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { DetailSection, PLATFORM_EXPORT_WIDTH, Platform } from "@/lib/types";
 import {
+  getBodyFontSizePx,
   getBodyTextClass,
   getFontFamilyCss,
+  getHeadlineFontSizePx,
   getHeadlineTextClass,
   getImageFitClass,
   getImageHeightClass,
   getImagePositionCss,
   getLetterSpacingClass,
+  getLetterSpacingEm,
   getLineHeightClass,
+  getLineHeightValue,
   getSpacingClasses,
 } from "@/lib/layout-presets";
 
@@ -49,12 +53,20 @@ function BlockImage({
   const backgroundImage = image ? `url(${image})` : section.imageGradient;
   const isMockImage = !savedImage && !!fallbackMockImage || section.imageSource === "reference";
 
+  // imageFit's "cover" default matches this component's own prior hardcoded
+  // bg-cover, so it's safe to apply unconditionally. imageHeight is only
+  // applied when the user explicitly set it — each layoutType block below
+  // hardcodes its own hand-tuned height (h-[390px], h-[240px], ...), and an
+  // unconditional default (e.g. h-36) would shrink every one of them.
+  const explicitHeightClass = section.imageHeight ? getImageHeightClass(section.imageHeight) : undefined;
+
   if (!backgroundImage) {
     return (
       <div
         className={cn(
           "flex min-h-[156px] items-center justify-center bg-[linear-gradient(135deg,#f4f0e8,#d7cab8)] text-center text-[11px] font-bold text-canvas-muted",
-          className
+          className,
+          explicitHeightClass
         )}
       >
         이미지 슬롯
@@ -64,7 +76,12 @@ function BlockImage({
 
   return (
     <div
-      className={cn("relative overflow-hidden bg-cover bg-center", className)}
+      className={cn(
+        "relative overflow-hidden bg-center",
+        getImageFitClass(section.imageFit),
+        className,
+        explicitHeightClass
+      )}
       style={{
         backgroundImage,
         backgroundPosition: getImagePositionCss(section.imagePosition),
@@ -599,10 +616,21 @@ export function SectionCanvas({
     multiline = false
   ) {
     const isEditing = editingCell?.sectionId === sec.id && editingCell.field === field;
-    // Only overrides the layoutType block's own hand-tuned tracking/leading
-    // once the user makes an explicit choice — see getLetterSpacingClass.
-    const typographyStyle = { fontFamily: getFontFamilyCss(sec.fontFamily) };
-    const typographyClasses = cn(getLetterSpacingClass(sec.letterSpacing), getLineHeightClass(sec.lineHeight));
+    // Every value here is only set when the user has explicitly touched
+    // that control — undefined means "don't set this style prop," letting
+    // the layoutType block's own hardcoded Tailwind classes (text-[Npx],
+    // leading-[N], varying 20-29px across blocks) show through untouched.
+    // This uses inline style rather than a Tailwind class merge because
+    // tailwind-merge treats font-size and line-height as one conflicting
+    // group: merging in a "text-[Npx]" override silently drops any earlier
+    // `leading-*` class, including a block's own hand-tuned one.
+    const prominent = sec.kind === "intro" || sec.kind === "cta";
+    const typographyStyle = {
+      fontFamily: getFontFamilyCss(sec.fontFamily),
+      fontSize: field === "headline" ? getHeadlineFontSizePx(sec.textScale, prominent) : getBodyFontSizePx(sec.textScale),
+      letterSpacing: getLetterSpacingEm(sec.letterSpacing),
+      lineHeight: getLineHeightValue(sec.lineHeight),
+    };
 
     if (isEditing && multiline) {
       return (
@@ -619,8 +647,7 @@ export function SectionCanvas({
           style={typographyStyle}
           className={cn(
             "w-full resize-none rounded border border-dashed bg-transparent outline-none",
-            editClassName,
-            typographyClasses
+            editClassName
           )}
         />
       );
@@ -643,11 +670,7 @@ export function SectionCanvas({
             }
           }}
           style={typographyStyle}
-          className={cn(
-            "w-full rounded border border-dashed bg-transparent outline-none",
-            editClassName,
-            typographyClasses
-          )}
+          className={cn("w-full rounded border border-dashed bg-transparent outline-none", editClassName)}
         />
       );
     }
@@ -659,7 +682,7 @@ export function SectionCanvas({
           startEdit(sec, field);
         }}
         style={typographyStyle}
-        className={cn("cursor-text", className, typographyClasses)}
+        className={cn("cursor-text", className)}
       >
         {field === "headline" ? sec.headline : sec.body}
       </div>
