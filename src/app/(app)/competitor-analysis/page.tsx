@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { optimizeImageFile } from "@/lib/image-optimize";
+import { pdfFileToImageFile } from "@/lib/pdf-to-image";
 import type { CompetitorPageAnalysis } from "@/lib/agents/schemas";
 import type { UploadedImageDraft } from "@/lib/types";
 
@@ -173,6 +174,7 @@ function AnalysisResultCard({ analysis, source }: { analysis: CompetitorPageAnal
 export default function CompetitorAnalysisPage() {
   const [image, setImage] = useState<UploadedImageDraft | null>(null);
   const [label, setLabel] = useState("");
+  const [isConverting, setIsConverting] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<{ analysis: CompetitorPageAnalysis; source: "ai" | "mock" } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -227,12 +229,20 @@ export default function CompetitorAnalysisPage() {
     if (!file) return;
     setError(null);
     setResult(null);
+    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    setIsConverting(isPdf);
     try {
-      const optimized = await optimizeImageFile(file);
+      // PDF pages get rendered + stitched into one long image client-side
+      // first, then flow through the same resize/compress pipeline as a
+      // real screenshot upload — see src/lib/pdf-to-image.ts.
+      const rasterFile = isPdf ? await pdfFileToImageFile(file) : file;
+      const optimized = await optimizeImageFile(rasterFile);
       setImage(optimized);
     } catch (err) {
       setImage(null);
       setError(err instanceof Error ? err.message : "이미지를 처리하지 못했습니다.");
+    } finally {
+      setIsConverting(false);
     }
   }
 
@@ -329,16 +339,17 @@ export default function CompetitorAnalysisPage() {
         </div>
 
         <div className="mb-3 grid gap-1.5">
-          <Label>상세페이지 캡처 이미지</Label>
+          <Label>상세페이지 캡처 이미지 또는 PDF</Label>
           <label className="flex h-28 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-card-soft text-muted-foreground">
-            <ImagePlus className="size-5" />
+            {isConverting ? <Loader2 className="size-5 animate-spin" /> : <ImagePlus className="size-5" />}
             <span className="text-[12.5px] font-semibold">
-              {image ? image.name : "이미지를 선택하세요"}
+              {isConverting ? "PDF를 이미지로 변환 중..." : image ? image.name : "이미지 또는 PDF를 선택하세요"}
             </span>
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,application/pdf"
               className="hidden"
+              disabled={isConverting}
               onChange={(e) => void handleImageChange(e.target.files?.[0])}
             />
           </label>
