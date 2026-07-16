@@ -355,6 +355,28 @@ export default function CreateProjectPage() {
     return projectId;
   }
 
+  // Purely a fast-path read cache — Supabase (persistGeneratedProject) is the
+  // source of truth, and the editor already falls back to fetching from
+  // Supabase when a project's local cache is missing ("DB draft 불러옴").
+  // Every past project's blob stays under its own key forever otherwise, so
+  // repeated draft generation (e.g. demoing the same flow several times in a
+  // row) silently fills the ~5-10MB per-origin quota within a handful of
+  // clicks. Evict everything but the project just generated before writing.
+  function pruneOldLocalDrafts(keepProjectId: string) {
+    const prefixes = [
+      "detail-page-project:",
+      "detail-page-generation:",
+      "detail-page-agent-workflow:",
+      "detail-page-draft-assets:",
+    ];
+    for (const key of Object.keys(window.localStorage)) {
+      const isManaged = prefixes.some((prefix) => key.startsWith(prefix));
+      if (isManaged && key !== `${prefixes.find((p) => key.startsWith(p))}${keepProjectId}`) {
+        window.localStorage.removeItem(key);
+      }
+    }
+  }
+
   function saveGeneratedDraftLocally({
     projectId,
     input,
@@ -368,27 +390,35 @@ export default function CreateProjectPage() {
     workflow: AgentWorkflowDraft;
     output: GenerateDetailPageOutput;
   }) {
-    if (productImage || referenceImage) {
+    try {
+      pruneOldLocalDrafts(projectId);
+      if (productImage || referenceImage) {
+        window.localStorage.setItem(
+          `detail-page-draft-assets:${projectId}`,
+          JSON.stringify({ productImage, referenceImage })
+        );
+      }
+      window.localStorage.setItem(`detail-page-agent-workflow:${projectId}`, JSON.stringify(workflow));
       window.localStorage.setItem(
-        `detail-page-draft-assets:${projectId}`,
-        JSON.stringify({ productImage, referenceImage })
+        `detail-page-project:${projectId}`,
+        JSON.stringify({ sections: output.sections, hiddenIds: [] })
       );
+      window.localStorage.setItem(
+        `detail-page-generation:${projectId}`,
+        JSON.stringify({
+          input,
+          competitorReferences,
+          agentWorkflow: workflow,
+          source: output.source ?? "ai",
+          warnings: output.warnings ?? [],
+        })
+      );
+    } catch {
+      // Best-effort cache only — Supabase (if it saved) or the in-memory
+      // output already computed by the caller is what actually matters, so a
+      // quota error here must never break draft generation itself.
+      setGenerationMessage((prev) => `${prev ?? ""} (브라우저 임시 저장 용량 부족으로 로컬 캐시는 건너뜀)`);
     }
-    window.localStorage.setItem(`detail-page-agent-workflow:${projectId}`, JSON.stringify(workflow));
-    window.localStorage.setItem(
-      `detail-page-project:${projectId}`,
-      JSON.stringify({ sections: output.sections, hiddenIds: [] })
-    );
-    window.localStorage.setItem(
-      `detail-page-generation:${projectId}`,
-      JSON.stringify({
-        input,
-        competitorReferences,
-        agentWorkflow: workflow,
-        source: output.source ?? "ai",
-        warnings: output.warnings ?? [],
-      })
-    );
   }
 
   function toggleEmphasis(key: string) {
