@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 
+import { MarkupToolbar } from "@/components/editor/markup-toolbar";
 import { getMockReferencesForSection } from "@/lib/mock-data";
 import { renderInlineMarkup } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
@@ -30,8 +31,7 @@ type RenderEditableText = (
   sec: DetailSection,
   field: EditableField,
   className: string,
-  editClassName: string,
-  multiline?: boolean
+  editClassName: string
 ) => ReactNode;
 
 function BlockImage({
@@ -129,14 +129,10 @@ function StructuredSectionBlock({
     isSelected && "outline outline-2 outline-canvas-accent",
     isFlash && "animate-[flashHighlight_0.9s_ease]"
   );
-  // multiline=true so Enter inserts a line break instead of committing the
-  // edit (headline previously used a single-line <input> where Enter had no
-  // way to mean "new line") — headline text often wants a manual break
-  // rather than relying purely on CSS auto-wrap.
   const headline = (className: string, editClassName = className) =>
-    renderEditableText(section, "headline", className, editClassName, true);
+    renderEditableText(section, "headline", className, editClassName);
   const body = (className: string, editClassName = className) =>
-    renderEditableText(section, "body", className, editClassName, true);
+    renderEditableText(section, "body", className, editClassName);
   // Only overrides each block's own hand-tuned padding once the user
   // explicitly sets 섹션 여백 — px-N/py-N have no cross-property conflict
   // with the bg-color/text-align/text-color classes sharing the same
@@ -584,6 +580,9 @@ export function SectionCanvas({
   const canvasRef = useRef<HTMLDivElement>(null);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
   const [draftValue, setDraftValue] = useState("");
+  // Only one field can be actively edited at a time (editingCell is a
+  // single cell), so one shared ref for the MarkupToolbar is enough.
+  const editingTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!flashId || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -621,13 +620,7 @@ export function SectionCanvas({
     setEditingCell(null);
   }
 
-  function renderEditableText(
-    sec: DetailSection,
-    field: EditableField,
-    className: string,
-    editClassName: string,
-    multiline = false
-  ) {
+  function renderEditableText(sec: DetailSection, field: EditableField, className: string, editClassName: string) {
     const isEditing = editingCell?.sectionId === sec.id && editingCell.field === field;
     // Every value here is only set when the user has explicitly touched
     // that control — undefined means "don't set this style prop," letting
@@ -645,46 +638,29 @@ export function SectionCanvas({
       lineHeight: getLineHeightValue(sec.lineHeight),
     };
 
-    if (isEditing && multiline) {
-      return (
-        <textarea
-          autoFocus
-          rows={3}
-          value={draftValue}
-          onClick={(e) => e.stopPropagation()}
-          onChange={(e) => setDraftValue(e.target.value)}
-          onBlur={() => commitEdit(sec)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") cancelEdit();
-          }}
-          style={typographyStyle}
-          className={cn(
-            "w-full resize-none rounded border border-dashed bg-transparent outline-none",
-            editClassName
-          )}
-        />
-      );
-    }
-
     if (isEditing) {
       return (
-        <input
-          autoFocus
-          value={draftValue}
-          onClick={(e) => e.stopPropagation()}
-          onChange={(e) => setDraftValue(e.target.value)}
-          onBlur={() => commitEdit(sec)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              commitEdit(sec);
-            } else if (e.key === "Escape") {
-              cancelEdit();
-            }
-          }}
-          style={typographyStyle}
-          className={cn("w-full rounded border border-dashed bg-transparent outline-none", editClassName)}
-        />
+        <div onClick={(e) => e.stopPropagation()}>
+          <div className="mb-1 flex justify-end">
+            <MarkupToolbar targetRef={editingTextareaRef} value={draftValue} onChange={setDraftValue} />
+          </div>
+          <textarea
+            ref={editingTextareaRef}
+            autoFocus
+            rows={field === "headline" ? 2 : 3}
+            value={draftValue}
+            onChange={(e) => setDraftValue(e.target.value)}
+            onBlur={() => commitEdit(sec)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") cancelEdit();
+            }}
+            style={typographyStyle}
+            className={cn(
+              "w-full resize-none rounded border border-dashed bg-transparent outline-none",
+              editClassName
+            )}
+          />
+        </div>
       );
     }
 

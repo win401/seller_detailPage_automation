@@ -105,7 +105,8 @@
 
 - [x] (2026-07-16) 문장/단어 단위 텍스트 스타일링 1단계: 가벼운 강조만 지원. `headline`/`body`는 여전히 plain string이고, `**강조**`(굵게)·`==강조==`(악센트 하이라이트, `bg-canvas-accent/25` 반투명 오버레이라 밝은/어두운 배경 모두에서 무난) 마커를 `src/lib/rich-text.tsx`의 `renderInlineMarkup`으로 파싱해 표시 시점에만 렌더링. 데이터 모델 변경이 없어 localStorage/Supabase 저장, undo/redo, ZIP export(같은 캔버스 DOM 캡처)에 별도 작업 없이 그대로 흘러감. 섹션 편집 패널 "본문" 라벨 옆에 문법 힌트 표시. 캔버스 더블클릭 편집(헤드라인 포함)과 패널 본문 textarea 양쪽에서 브라우저로 확인 완료
 - [x] (2026-07-16) 문장 중간 줄바꿈: 헤드라인 편집을 단일행 `<input>`에서 `renderEditableText`의 기존 multiline(textarea) 경로로 전환해 Enter가 편집 종료 대신 줄바꿈을 삽입하도록 수정 (본문은 원래 textarea라 Enter 자체는 이미 되고 있었음). 캔버스 표시 div에 `whitespace-pre-line` 추가해 저장된 `\n`이 실제로 렌더링되게 함 — 이전엔 textarea에 줄바꿈이 저장은 됐지만 화면엔 무시되고 있었음. `rich-text.tsx`의 마커 정규식도 `[\s\S]`로 바꿔 강조 구간에 줄바꿈이 걸쳐도 매칭되게 함. 레거시(`!layoutType`) 경로도 동일하게 맞춤. 브라우저에서 헤드라인·본문 양쪽 확인 완료
-- [ ] 문장/단어 단위 텍스트 스타일링 2단계(필요시): `headline`/`body`를 span 배열 구조로 바꿔 선택 영역 기반 툴바 UI 제공. 지금은 마커를 직접 타이핑하는 방식 — 좌표 배치·레이어 패널은 그 다음 단계로 계속 보류
+- [x] (2026-07-16) 선택 영역 기반 강조 툴바: `src/components/editor/markup-toolbar.tsx`의 `<MarkupToolbar>` (B/강조 버튼)를 패널 "본문" textarea와 캔버스 인라인 편집(헤드라인+본문) 양쪽에 연결. span 구조 없이 `src/lib/rich-text.tsx`의 `toggleMarkup`이 선택 영역을 `**`/`==`로 감싸거나 해제 — 데이터 모델 변경 없음. `onMouseDown` + `preventDefault`로 textarea blur를 막아 selectionStart/End를 유지하고, DOM `value`/`setSelectionRange`를 직접 써서 React 재렌더 전에 선택을 복원. 브라우저에서 굵게/강조 적용·해제, 패널·캔버스 양쪽 다 확인 완료. `renderEditableText`가 항상 multiline이라 미사용이던 단일행 `<input>` 분기는 제거
+- [ ] 문장/단어 단위 텍스트 스타일링 3단계(필요시만): `headline`/`body`를 span 배열 구조로 전환. 마커 방식이 감당 못 하는 두 경우—① 타이핑 즉시 눈에 보이는 진짜 WYSIWYG 편집, ② 굵게/강조를 넘어서는 단어별 임의 폰트·크기·색상—중 하나가 실제로 필요해질 때만 진행. 그 전까지는 마커 종류를 늘리는 쪽(예: 밑줄)이 훨씬 저렴함. 좌표 배치·레이어 패널은 그 다음 단계로 계속 보류
 - [ ] 현재 3열 레이아웃을 노트북과 와이드 데스크톱에서 검증
 - [ ] 화면이 좁은 데스크톱에서 좌/우 보조 패널 접기 기능
 - [ ] 다양한 화면 높이에서 섹션 목록·캔버스·편집 패널의 독립 스크롤 유지

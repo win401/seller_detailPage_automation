@@ -20,6 +20,7 @@ import {
   UploadedImageDraft,
 } from "@/lib/types";
 import { ImagePositionGrid, PresetToggleGroup } from "./layout-preset-controls";
+import { MarkupToolbar } from "./markup-toolbar";
 
 const IMAGE_FIT_OPTIONS = (Object.keys(IMAGE_FIT_LABELS) as (keyof typeof IMAGE_FIT_LABELS)[]).map(
   (value) => ({ value, label: IMAGE_FIT_LABELS[value] })
@@ -83,6 +84,7 @@ export function SectionEditPanel({
   isGeneratingImage: boolean;
 }) {
   const bodyFocusValueRef = useRef(section.body);
+  const bodyTextareaRef = useRef<HTMLTextAreaElement>(null);
   const currentImageStyle = section.imageUrl
     ? { backgroundImage: `url(${section.imageUrl})` }
     : section.imageGradient
@@ -92,13 +94,12 @@ export function SectionEditPanel({
   return (
     <div className="flex flex-col gap-3">
       <div className="grid gap-1.5">
-        <div className="flex items-baseline justify-between">
+        <div className="flex items-center justify-between">
           <Label>본문</Label>
-          <span className="text-[10.5px] text-muted-foreground">
-            **강조**는 굵게, ==강조==는 색상 강조
-          </span>
+          <MarkupToolbar targetRef={bodyTextareaRef} value={section.body} onChange={onChangeBody} />
         </div>
         <Textarea
+          ref={bodyTextareaRef}
           rows={5}
           value={section.body}
           onFocus={() => {
@@ -109,6 +110,9 @@ export function SectionEditPanel({
           }}
           onChange={(e) => onChangeBody(e.target.value)}
         />
+        <span className="text-[10.5px] text-muted-foreground">
+          선택 후 버튼을 누르거나 **강조**(굵게)·==강조==(색상)를 직접 입력해도 됩니다
+        </span>
       </div>
       <div className="flex gap-2">
         <Button onClick={onMoveUp} variant="outline" className="h-8 flex-1 text-xs font-semibold">

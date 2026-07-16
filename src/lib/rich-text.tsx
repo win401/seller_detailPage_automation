@@ -50,3 +50,37 @@ export function renderInlineMarkup(text: string): ReactNode {
   }
   return parts;
 }
+
+export type MarkupMarker = "**" | "==";
+
+/**
+ * Toggle-wraps the [start, end) range of `value` with `marker`: if the
+ * selection is already exactly wrapped (marker immediately before and
+ * after), strips it; otherwise wraps it. With no selection (start === end),
+ * inserts an empty pair and places the cursor between them so typing lands
+ * inside the markup. Returns the new string plus a selection range to
+ * restore, so the toolbar can keep the same text highlighted/cursor placed
+ * after the DOM value updates.
+ */
+export function toggleMarkup(
+  value: string,
+  start: number,
+  end: number,
+  marker: MarkupMarker
+): { value: string; start: number; end: number } {
+  const markerLen = marker.length;
+  if (start === end) {
+    const next = value.slice(0, start) + marker + marker + value.slice(end);
+    const cursor = start + markerLen;
+    return { value: next, start: cursor, end: cursor };
+  }
+  const selected = value.slice(start, end);
+  const before = value.slice(Math.max(0, start - markerLen), start);
+  const after = value.slice(end, end + markerLen);
+  if (before === marker && after === marker) {
+    const next = value.slice(0, start - markerLen) + selected + value.slice(end + markerLen);
+    return { value: next, start: start - markerLen, end: end - markerLen };
+  }
+  const next = value.slice(0, start) + marker + selected + marker + value.slice(end);
+  return { value: next, start: start + markerLen, end: end + markerLen };
+}
