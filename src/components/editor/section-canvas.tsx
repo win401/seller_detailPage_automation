@@ -132,6 +132,14 @@ function StructuredSectionBlock({
     renderEditableText(section, "headline", className, editClassName);
   const body = (className: string, editClassName = className) =>
     renderEditableText(section, "body", className, editClassName, true);
+  // Only overrides each block's own hand-tuned padding once the user
+  // explicitly sets 섹션 여백 — px-N/py-N have no cross-property conflict
+  // with the bg-color/text-align/text-color classes sharing the same
+  // className string, so unlike textScale this is safe as a plain class
+  // merge via cn()/twMerge.
+  const prominent = section.kind === "intro" || section.kind === "cta";
+  const spacingOverride = section.spacing ? getSpacingClasses(section.spacing, prominent) : undefined;
+  const content = (className: string) => cn(className, spacingOverride);
 
   return (
     <section
@@ -140,7 +148,7 @@ function StructuredSectionBlock({
       className={sectionFrameClass}
     >
       {layoutType === "top_notice_banner" && (
-        <div className="bg-[#273b34] px-6 py-7 text-center text-white">
+        <div className={content("bg-[#273b34] px-6 py-7 text-center text-white")}>
           <div className="text-[9px] font-extrabold tracking-[0.22em] text-white/62">{section.kicker}</div>
           {headline("mt-3 text-[20px] font-extrabold leading-[1.3] text-white")}
           {body("mx-auto mt-2 max-w-[270px] text-[11px] leading-[1.65] text-white/76")}
@@ -156,7 +164,7 @@ function StructuredSectionBlock({
       {layoutType === "brand_mood_story" && (
         <div className="bg-[#f7f4ec]">
           <BlockImage section={section} className="h-[390px]" />
-          <div className="px-8 py-10 text-center">
+          <div className={content("px-8 py-10 text-center")}>
             {slots.brandName && (
               <div className="mb-5 font-serif text-[22px] font-semibold text-[#263126]">{slots.brandName}</div>
             )}
@@ -183,7 +191,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "big_claim_band" && (
-        <div className="bg-[#405f48] px-7 py-11 text-center text-white">
+        <div className={content("bg-[#405f48] px-7 py-11 text-center text-white")}>
           <div className="mb-3 text-[10px] font-extrabold tracking-[0.28em] text-white/70">
             {section.kicker}
           </div>
@@ -206,7 +214,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "problem_hook" && (
-        <div className="bg-white px-7 py-10">
+        <div className={content("bg-white px-7 py-10")}>
           <div className="mb-4 inline-flex rounded-full bg-[#f1e8dc] px-3 py-1 text-[10px] font-extrabold text-[#6e5b49]">
             {section.kicker}
           </div>
@@ -231,7 +239,7 @@ function StructuredSectionBlock({
 
       {layoutType === "material_closeup" && (
         <div className="bg-[#fbfaf7]">
-          <div className="px-7 py-8">
+          <div className={content("px-7 py-8")}>
             <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-[#6e8068]">
               {section.kicker}
             </div>
@@ -250,7 +258,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "before_after_compare" && (
-        <div className="bg-[#f6f7f4] px-7 py-10">
+        <div className={content("bg-[#f6f7f4] px-7 py-10")}>
           <div className="text-center">
             <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#466451]">{section.kicker}</div>
             {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
@@ -283,7 +291,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "feature_blue_panel" && (
-        <div className="bg-[#1676ba] px-7 py-10 text-white">
+        <div className={content("bg-[#1676ba] px-7 py-10 text-white")}>
           <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-white/75">
             {section.kicker}
           </div>
@@ -303,7 +311,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "color_lineup" && (
-        <div className="bg-white px-7 py-10">
+        <div className={content("bg-white px-7 py-10")}>
           <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-[#526f58]">
             {section.kicker}
           </div>
@@ -325,7 +333,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "option_grid" && (
-        <div className="bg-white px-7 py-10">
+        <div className={content("bg-white px-7 py-10")}>
           <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#526f58]">{section.kicker}</div>
           {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
           {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
@@ -342,7 +350,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "evidence_card" && (
-        <div className="bg-[#f4f1ea] px-7 py-10">
+        <div className={content("bg-[#f4f1ea] px-7 py-10")}>
           <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#7b6651]">{section.kicker}</div>
           {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
           {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
@@ -360,7 +368,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "step_guide" && (
-        <div className="bg-white px-7 py-10">
+        <div className={content("bg-white px-7 py-10")}>
           <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#1676ba]">{section.kicker}</div>
           {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
           {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
@@ -381,7 +389,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "comparison_table" && (
-        <div className="bg-[#f8f8f6] px-7 py-10">
+        <div className={content("bg-[#f8f8f6] px-7 py-10")}>
           <div className="text-center text-[10px] font-extrabold tracking-[0.2em] text-[#526f58]">{section.kicker}</div>
           {headline("mt-3 text-center text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
           {body("mx-auto mt-3 max-w-[280px] text-center text-[12px] leading-[1.7] text-canvas-muted")}
@@ -401,7 +409,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "certification_stack" && (
-        <div className="bg-[#eef5ef] px-7 py-10">
+        <div className={content("bg-[#eef5ef] px-7 py-10")}>
           <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#3f704f]">{section.kicker}</div>
           {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
           {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
@@ -418,7 +426,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "care_guide" && (
-        <div className="bg-[#f6f8f1] px-7 py-10">
+        <div className={content("bg-[#f6f8f1] px-7 py-10")}>
           <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-[#526f58]">
             {section.kicker}
           </div>
@@ -441,7 +449,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "check_point_cards" && (
-        <div className="bg-[#a1846b] px-7 py-11 text-white">
+        <div className={content("bg-[#a1846b] px-7 py-11 text-white")}>
           <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-white/70">
             {section.kicker}
           </div>
@@ -464,7 +472,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "product_info_table" && (
-        <div className="bg-white px-7 py-11">
+        <div className={content("bg-white px-7 py-11")}>
           <div className="text-[10px] font-extrabold tracking-[0.22em] text-[#526f58]">PRODUCT INFO</div>
           {headline("mt-3 text-[28px] font-extrabold leading-[1.2] text-canvas-dark")}
           <div className="mt-2 text-[14px] text-canvas-muted">Product Information</div>
@@ -481,7 +489,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "policy_notice" && (
-        <div className="bg-[#f8f8f8] px-7 py-10">
+        <div className={content("bg-[#f8f8f8] px-7 py-10")}>
           <div className="border-l-4 border-[#526f58] pl-4">
             {headline("text-[23px] font-extrabold leading-[1.25] text-canvas-dark")}
             {slots.emphasis && (
@@ -499,7 +507,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "qa_list" && (
-        <div className="bg-white px-7 py-10">
+        <div className={content("bg-white px-7 py-10")}>
           <div className="mb-3 text-center text-[32px] font-black tracking-tight text-canvas-dark">FAQ</div>
           {body("mx-auto max-w-[260px] text-center text-[12px] leading-[1.7] text-canvas-muted")}
           <div className="mt-7 space-y-3">
@@ -533,7 +541,7 @@ function StructuredSectionBlock({
         "policy_notice",
         "qa_list",
       ].includes(layoutType ?? "") && (
-        <div className="bg-white px-7 py-10">
+        <div className={content("bg-white px-7 py-10")}>
           <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-canvas-accent">
             {section.kicker}
           </div>
