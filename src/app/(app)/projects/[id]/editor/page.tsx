@@ -224,6 +224,9 @@ export default function DetailPageEditor() {
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const canvasScrollRef = useRef<HTMLDivElement>(null);
   const exportSuccessRef = useRef<HTMLDivElement>(null);
+  const aiCloseButtonRef = useRef<HTMLButtonElement>(null);
+  const aiFabButtonRef = useRef<HTMLButtonElement>(null);
+  const wasAiOpenRef = useRef(false);
   const panStateRef = useRef<{ startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(
     null
   );
@@ -1350,6 +1353,29 @@ export default function DetailPageEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sections, hiddenIds, undoStack, redoStack]);
 
+  // AI 도우미 패널 키보드 접근성 (docs/TASKS.md 우선순위 4): 열리면 닫기 버튼으로
+  // 포커스 이동, 닫히면 FAB 버튼으로 복귀, Escape로 닫기. FAB 포커스 복귀는
+  // closeAiPanel(클릭 핸들러) 안에서 바로 하면 안 됨 — setState는 비동기라
+  // 그 시점엔 AnimatePresence가 아직 FAB를 마운트하기 전이라 ref가 비어 있음.
+  // wasAiOpenRef로 "열림→닫힘" 전환만 감지해서, 최초 마운트(둘 다 false) 때는
+  // FAB에 원치 않는 포커스가 가지 않도록 함.
+  useEffect(() => {
+    if (aiOpen) {
+      aiCloseButtonRef.current?.focus();
+    } else if (wasAiOpenRef.current) {
+      aiFabButtonRef.current?.focus();
+    }
+    wasAiOpenRef.current = aiOpen;
+
+    if (!aiOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      closeAiPanel();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [aiOpen]);
+
   // Space + drag canvas panning (docs/TASKS.md §7). Ignored while the user is
   // typing (inline canvas edit, side-panel textarea, etc.) so Space still
   // types a literal space there instead of arming pan mode.
@@ -1812,7 +1838,12 @@ export default function DetailPageEditor() {
                   <Sparkles className="size-4" />
                   <span className="font-bold">기획자 에이전트</span>
                 </div>
-                <button onClick={closeAiPanel} className="rounded-md p-0.5">
+                <button
+                  ref={aiCloseButtonRef}
+                  onClick={closeAiPanel}
+                  aria-label="기획자 에이전트 닫기"
+                  className="rounded-md p-0.5"
+                >
                   <X className="size-3.5" />
                 </button>
               </div>
@@ -1847,6 +1878,7 @@ export default function DetailPageEditor() {
                 scale: { duration: 0.22 },
                 y: { duration: 0.22 },
               }}
+              ref={aiFabButtonRef}
               onClick={openAiPanel}
               className="fixed right-7 bottom-7 z-40 flex size-[54px] items-center justify-center rounded-full bg-accent text-white shadow-[0_10px_24px_rgba(204,95,51,0.4)] motion-safe:animate-[aiPulse_2.4s_ease-in-out_infinite] transform-gpu will-change-transform"
               aria-label="기획자 에이전트 열기"

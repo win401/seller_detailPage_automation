@@ -692,8 +692,20 @@ export function SectionCanvas({
           e.stopPropagation();
           startEdit(sec, field);
         }}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter" && e.key !== " ") return;
+          e.preventDefault();
+          e.stopPropagation();
+          startEdit(sec, field);
+        }}
+        tabIndex={0}
+        role="button"
+        aria-label={`${field === "headline" ? "헤드라인" : "본문"} 편집 (Enter)`}
         style={typographyStyle}
-        className={cn("cursor-text whitespace-pre-line", className)}
+        className={cn(
+          "cursor-text whitespace-pre-line focus-visible:outline focus-visible:outline-2 focus-visible:outline-canvas-accent",
+          className
+        )}
       >
         {renderRichText(field === "headline" ? sec.headline : sec.body)}
       </div>
@@ -742,7 +754,17 @@ export function SectionCanvas({
           onSelect(sec.id);
           setEditingLabelKey({ sectionId: sec.id, key });
         }}
-        className="cursor-text"
+        onKeyDown={(e) => {
+          if (e.key !== "Enter" && e.key !== " ") return;
+          e.preventDefault();
+          e.stopPropagation();
+          onSelect(sec.id);
+          setEditingLabelKey({ sectionId: sec.id, key });
+        }}
+        tabIndex={0}
+        role="button"
+        aria-label="문구 편집 (Enter)"
+        className="cursor-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-canvas-accent"
       >
         {value}
       </span>
