@@ -87,27 +87,6 @@ export const IMAGE_HEIGHT_LABELS: Record<ImageHeight, string> = {
   tall: "높게",
 };
 
-export type SectionSpacing = "compact" | "default" | "spacious";
-
-export const SECTION_SPACING_LABELS: Record<SectionSpacing, string> = {
-  compact: "좁게",
-  default: "기본",
-  spacious: "넉넉하게",
-};
-
-// "compact"/"default"/"large" are the original 3 steps — kept as-is so
-// already-saved drafts (Supabase draft_versions.sections jsonb) stay valid.
-// "x-small"/"x-large" were added around them for finer control.
-export type TextScale = "x-small" | "compact" | "default" | "large" | "x-large";
-
-export const TEXT_SCALE_LABELS: Record<TextScale, string> = {
-  "x-small": "아주 작게",
-  compact: "작게",
-  default: "기본",
-  large: "크게",
-  "x-large": "아주 크게",
-};
-
 export type FontFamily = "system" | "pretendard" | "gmarket-sans" | "s-core-dream";
 
 export const FONT_FAMILY_LABELS: Record<FontFamily, string> = {
@@ -117,33 +96,29 @@ export const FONT_FAMILY_LABELS: Record<FontFamily, string> = {
   "s-core-dream": "에스코어드림",
 };
 
-export type LetterSpacing = "tight" | "default" | "wide";
-
-export const LETTER_SPACING_LABELS: Record<LetterSpacing, string> = {
-  tight: "좁게",
-  default: "기본",
-  wide: "넓게",
-};
-
-export type TextLineHeight = "compact" | "default" | "relaxed";
-
-export const LINE_HEIGHT_LABELS: Record<TextLineHeight, string> = {
-  compact: "좁게",
-  default: "기본",
-  relaxed: "넉넉하게",
-};
-
 /** Layout preset fields shared by both a single section's override and a
- * style set's project-wide defaults. */
+ * style set's project-wide defaults. `spacing`/`textScale`/`letterSpacing`/
+ * `lineHeight` are continuous px values (not presets) — see
+ * layout-presets.ts's *_RANGE/*_DEFAULT constants and getSpacingStyle/
+ * getHeadlineFontSizePx/getBodyFontSizePx/getLetterSpacingPx/getLineHeightPx
+ * for how each is applied. Older saved drafts may still hold the retired
+ * preset strings ("compact"/"default"/etc.) — every reader guards with
+ * `typeof x === "number"`, so a legacy string is silently treated as unset
+ * rather than crashing. */
 export interface SectionLayoutPreset {
   imagePosition?: ImagePosition;
   imageFit?: ImageFit;
   imageHeight?: ImageHeight;
-  spacing?: SectionSpacing;
-  textScale?: TextScale;
+  /** Section padding, all sides, px. */
+  spacing?: number;
+  /** Body text font size, px — headline size is derived from this (see
+   * getHeadlineFontSizePx). */
+  textScale?: number;
   fontFamily?: FontFamily;
-  letterSpacing?: LetterSpacing;
-  lineHeight?: TextLineHeight;
+  /** Letter spacing, px. */
+  letterSpacing?: number;
+  /** Line height, absolute px (not a unitless multiplier). */
+  lineHeight?: number;
 }
 
 // ---------- inline rich text (headline/body spans) ----------

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 
@@ -12,18 +12,14 @@ import { cn } from "@/lib/utils";
 import { DetailSection, PLATFORM_EXPORT_WIDTH, Platform, RichText } from "@/lib/types";
 import {
   getBodyFontSizePx,
-  getBodyTextClass,
   getFontFamilyCss,
   getHeadlineFontSizePx,
-  getHeadlineTextClass,
   getImageFitClass,
   getImageHeightClass,
   getImagePositionCss,
-  getLetterSpacingClass,
-  getLetterSpacingEm,
-  getLineHeightClass,
-  getLineHeightValue,
-  getSpacingClasses,
+  getLetterSpacingPx,
+  getLineHeightPx,
+  getSpacingStyle,
 } from "@/lib/layout-presets";
 
 type EditableField = "headline" | "body";
@@ -34,6 +30,11 @@ type RenderEditableText = (
   className: string,
   editClassName: string
 ) => ReactNode;
+/** Plain-string counterpart to RenderEditableText for `section.kicker` and
+ * the simple slot fields — see handleCanvasLabelCommit in editor/page.tsx
+ * for the full scope note and the "kicker" / "slot.<x>" / "slot.<x>.<i>"
+ * key format. */
+type RenderEditableLabel = (sec: DetailSection, key: string, value: string) => ReactNode;
 
 function BlockImage({
   section,
@@ -113,6 +114,7 @@ function StructuredSectionBlock({
   isFlash,
   onSelect,
   renderEditableText,
+  renderEditableLabel,
 }: {
   section: DetailSection;
   index: number;
@@ -121,6 +123,7 @@ function StructuredSectionBlock({
   isFlash: boolean;
   onSelect: (id: string) => void;
   renderEditableText: RenderEditableText;
+  renderEditableLabel: RenderEditableLabel;
 }) {
   const slots = section.slots ?? {};
   const layoutType = section.layoutType;
@@ -134,14 +137,17 @@ function StructuredSectionBlock({
     renderEditableText(section, "headline", className, editClassName);
   const body = (className: string, editClassName = className) =>
     renderEditableText(section, "body", className, editClassName);
+  const kicker = renderEditableLabel(section, "kicker", section.kicker);
+  const label = (key: string, value: string) => renderEditableLabel(section, key, value);
   // Only overrides each block's own hand-tuned padding once the user
-  // explicitly sets 섹션 여백 — px-N/py-N have no cross-property conflict
-  // with the bg-color/text-align/text-color classes sharing the same
-  // className string, so unlike textScale this is safe as a plain class
-  // merge via cn()/twMerge.
-  const prominent = section.kind === "intro" || section.kind === "cta";
-  const spacingOverride = section.spacing ? getSpacingClasses(section.spacing, prominent) : undefined;
-  const content = (className: string) => cn(className, spacingOverride);
+  // explicitly sets 섹션 여백. Inline style rather than a Tailwind class —
+  // see layout-presets.ts's file header for why a continuous px value
+  // can't be a dynamic arbitrary-value class.
+  const spacingStyle = getSpacingStyle(section.spacing);
+  const content = (className: string): { className: string; style?: CSSProperties } => ({
+    className,
+    style: spacingStyle,
+  });
 
   return (
     <section
@@ -150,40 +156,46 @@ function StructuredSectionBlock({
       className={sectionFrameClass}
     >
       {layoutType === "top_notice_banner" && (
-        <div className={content("bg-[#273b34] px-6 py-7 text-center text-white")}>
-          <div className="text-[9px] font-extrabold tracking-[0.22em] text-white/62">{section.kicker}</div>
+        <div {...content("bg-[#273b34] px-6 py-7 text-center text-white")}>
+          <div className="text-[9px] font-extrabold tracking-[0.22em] text-white/62">{kicker}</div>
           {headline("mt-3 text-[20px] font-extrabold leading-[1.3] text-white")}
           {body("mx-auto mt-2 max-w-[270px] text-[11px] leading-[1.65] text-white/76")}
           <div className="mt-5 grid grid-cols-3 border-y border-white/18">
-            {(slots.badges ?? []).map((badge) => (
-              <div key={badge} className="px-1 py-3 text-[10px] font-bold text-white/90">{badge}</div>
+            {(slots.badges ?? []).map((badge, badgeIndex) => (
+              <div key={badgeIndex} className="px-1 py-3 text-[10px] font-bold text-white/90">
+                {label(`slot.badges.${badgeIndex}`, badge)}
+              </div>
             ))}
           </div>
-          {slots.items?.[0] && <div className="mt-3 text-[10px] text-white/58">{slots.items[0]}</div>}
+          {slots.items?.[0] && (
+            <div className="mt-3 text-[10px] text-white/58">{label("slot.items.0", slots.items[0])}</div>
+          )}
         </div>
       )}
 
       {layoutType === "brand_mood_story" && (
         <div className="bg-[#f7f4ec]">
           <BlockImage section={section} className="h-[390px]" />
-          <div className={content("px-8 py-10 text-center")}>
+          <div {...content("px-8 py-10 text-center")}>
             {slots.brandName && (
-              <div className="mb-5 font-serif text-[22px] font-semibold text-[#263126]">{slots.brandName}</div>
+              <div className="mb-5 font-serif text-[22px] font-semibold text-[#263126]">
+                {label("slot.brandName", slots.brandName)}
+              </div>
             )}
             <div className="mb-3 text-[10px] font-extrabold tracking-[0.22em] text-[#5f765f]">
-              {slots.eyebrow ?? section.kicker}
+              {slots.eyebrow ? label("slot.eyebrow", slots.eyebrow) : kicker}
             </div>
             {headline("text-[28px] font-bold leading-[1.22] text-canvas-dark")}
             <div className="mx-auto mt-4 h-px w-12 bg-[#7f9474]" />
             {body("mt-5 text-[13px] leading-[1.9] text-canvas-muted")}
             {slots.badges && (
               <div className="mt-7 grid grid-cols-3 gap-2">
-                {slots.badges.map((badge) => (
+                {slots.badges.map((badge, badgeIndex) => (
                   <div
-                    key={badge}
+                    key={badgeIndex}
                     className="rounded-full bg-white px-2 py-3 text-[10px] font-bold text-[#5d6f5b] shadow-sm"
                   >
-                    {badge}
+                    {label(`slot.badges.${badgeIndex}`, badge)}
                   </div>
                 ))}
               </div>
@@ -193,21 +205,23 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "big_claim_band" && (
-        <div className={content("bg-[#405f48] px-7 py-11 text-center text-white")}>
+        <div {...content("bg-[#405f48] px-7 py-11 text-center text-white")}>
           <div className="mb-3 text-[10px] font-extrabold tracking-[0.28em] text-white/70">
-            {section.kicker}
+            {kicker}
           </div>
           {headline("text-[29px] font-extrabold leading-[1.2] text-white")}
           {slots.subHeadline && (
-            <p className="mt-3 text-[13px] font-semibold text-white/82">{slots.subHeadline}</p>
+            <p className="mt-3 text-[13px] font-semibold text-white/82">
+              {label("slot.subHeadline", slots.subHeadline)}
+            </p>
           )}
           <BlockImage section={section} className="mt-8 h-[240px] rounded-[2px]" />
           {body("mt-6 text-[13px] leading-[1.75] text-white/82")}
           {slots.badges && (
             <div className="mt-7 grid grid-cols-3 gap-2">
-              {slots.badges.map((badge) => (
-                <span key={badge} className="rounded-full bg-white/16 px-2 py-2 text-[10px] font-bold">
-                  {badge}
+              {slots.badges.map((badge, badgeIndex) => (
+                <span key={badgeIndex} className="rounded-full bg-white/16 px-2 py-2 text-[10px] font-bold">
+                  {label(`slot.badges.${badgeIndex}`, badge)}
                 </span>
               ))}
             </div>
@@ -216,9 +230,9 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "problem_hook" && (
-        <div className={content("bg-white px-7 py-10")}>
+        <div {...content("bg-white px-7 py-10")}>
           <div className="mb-4 inline-flex rounded-full bg-[#f1e8dc] px-3 py-1 text-[10px] font-extrabold text-[#6e5b49]">
-            {section.kicker}
+            {kicker}
           </div>
           {headline("text-[25px] font-extrabold leading-[1.25] tracking-tight text-canvas-dark")}
           {body("mt-4 text-[13px] leading-[1.8] text-canvas-muted")}
@@ -241,18 +255,18 @@ function StructuredSectionBlock({
 
       {layoutType === "material_closeup" && (
         <div className="bg-[#fbfaf7]">
-          <div className={content("px-7 py-8")}>
+          <div {...content("px-7 py-8")}>
             <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-[#6e8068]">
-              {section.kicker}
+              {kicker}
             </div>
             {headline("text-[23px] font-extrabold leading-[1.25] text-canvas-dark")}
             {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
           </div>
           <BlockImage section={section} className="mx-7 h-[260px]" overlay={false} />
           <div className="grid grid-cols-3 gap-px bg-[#e8e1d6] px-7 py-8">
-            {(slots.badges ?? ["Soft", "Absorbent", "Daily"]).map((badge) => (
-              <div key={badge} className="bg-white py-4 text-center text-[11px] font-extrabold text-[#526f58]">
-                {badge}
+            {(slots.badges ?? ["Soft", "Absorbent", "Daily"]).map((badge, badgeIndex) => (
+              <div key={badgeIndex} className="bg-white py-4 text-center text-[11px] font-extrabold text-[#526f58]">
+                {slots.badges ? label(`slot.badges.${badgeIndex}`, badge) : badge}
               </div>
             ))}
           </div>
@@ -260,9 +274,9 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "before_after_compare" && (
-        <div className={content("bg-[#f6f7f4] px-7 py-10")}>
+        <div {...content("bg-[#f6f7f4] px-7 py-10")}>
           <div className="text-center">
-            <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#466451]">{section.kicker}</div>
+            <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#466451]">{kicker}</div>
             {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
             {body("mx-auto mt-3 max-w-[280px] text-[12px] leading-[1.75] text-canvas-muted")}
           </div>
@@ -270,13 +284,13 @@ function StructuredSectionBlock({
             <div className="overflow-hidden bg-white">
               <BlockImage section={section} className="h-[190px]" />
               <div className="px-3 py-3 text-center text-[11px] font-extrabold text-canvas-muted">
-                {slots.beforeLabel ?? "기존 사용 환경"}
+                {label("slot.beforeLabel", slots.beforeLabel ?? "기존 사용 환경")}
               </div>
             </div>
             <div className="overflow-hidden bg-white">
               <BlockImage section={section} className="h-[190px]" />
               <div className="bg-[#466451] px-3 py-3 text-center text-[11px] font-extrabold text-white">
-                {slots.afterLabel ?? "상품 사용 포인트"}
+                {label("slot.afterLabel", slots.afterLabel ?? "상품 사용 포인트")}
               </div>
             </div>
           </div>
@@ -293,9 +307,9 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "feature_blue_panel" && (
-        <div className={content("bg-[#1676ba] px-7 py-10 text-white")}>
+        <div {...content("bg-[#1676ba] px-7 py-10 text-white")}>
           <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-white/75">
-            {section.kicker}
+            {kicker}
           </div>
           {headline("text-[24px] font-extrabold leading-[1.25] tracking-tight text-white")}
           {body("mt-3 text-[13px] leading-[1.75] text-white/88")}
@@ -313,9 +327,9 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "color_lineup" && (
-        <div className={content("bg-white px-7 py-10")}>
+        <div {...content("bg-white px-7 py-10")}>
           <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-[#526f58]">
-            {section.kicker}
+            {kicker}
           </div>
           {headline("text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
           {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
@@ -335,8 +349,8 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "option_grid" && (
-        <div className={content("bg-white px-7 py-10")}>
-          <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#526f58]">{section.kicker}</div>
+        <div {...content("bg-white px-7 py-10")}>
+          <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#526f58]">{kicker}</div>
           {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
           {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
           <div className="mt-7 grid grid-cols-2 gap-3">
@@ -352,12 +366,16 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "evidence_card" && (
-        <div className={content("bg-[#f4f1ea] px-7 py-10")}>
-          <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#7b6651]">{section.kicker}</div>
+        <div {...content("bg-[#f4f1ea] px-7 py-10")}>
+          <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#7b6651]">{kicker}</div>
           {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
           {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
           <BlockImage section={section} className="mt-7 h-[230px]" overlay={false} />
-          {slots.caption && <div className="mt-3 text-center text-[10px] leading-relaxed text-canvas-muted">{slots.caption}</div>}
+          {slots.caption && (
+            <div className="mt-3 text-center text-[10px] leading-relaxed text-canvas-muted">
+              {label("slot.caption", slots.caption)}
+            </div>
+          )}
           <div className="mt-6 grid gap-2">
             {(slots.proofItems ?? []).map((item) => (
               <div key={item.label} className="grid grid-cols-[78px_1fr] border-b border-[#dcd5c9] py-3 text-[11px]">
@@ -370,8 +388,8 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "step_guide" && (
-        <div className={content("bg-white px-7 py-10")}>
-          <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#1676ba]">{section.kicker}</div>
+        <div {...content("bg-white px-7 py-10")}>
+          <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#1676ba]">{kicker}</div>
           {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
           {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
           <div className="mt-8 space-y-5">
@@ -391,8 +409,8 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "comparison_table" && (
-        <div className={content("bg-[#f8f8f6] px-7 py-10")}>
-          <div className="text-center text-[10px] font-extrabold tracking-[0.2em] text-[#526f58]">{section.kicker}</div>
+        <div {...content("bg-[#f8f8f6] px-7 py-10")}>
+          <div className="text-center text-[10px] font-extrabold tracking-[0.2em] text-[#526f58]">{kicker}</div>
           {headline("mt-3 text-center text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
           {body("mx-auto mt-3 max-w-[280px] text-center text-[12px] leading-[1.7] text-canvas-muted")}
           <div className="mt-7 overflow-hidden border border-[#dfe0da] bg-white">
@@ -411,8 +429,8 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "certification_stack" && (
-        <div className={content("bg-[#eef5ef] px-7 py-10")}>
-          <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#3f704f]">{section.kicker}</div>
+        <div {...content("bg-[#eef5ef] px-7 py-10")}>
+          <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#3f704f]">{kicker}</div>
           {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
           {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
           <div className="mt-7 divide-y divide-[#d5e3d4] border-y border-[#d5e3d4] bg-white">
@@ -423,14 +441,18 @@ function StructuredSectionBlock({
               </div>
             ))}
           </div>
-          {slots.caption && <div className="mt-4 text-[10px] leading-relaxed text-canvas-muted">{slots.caption}</div>}
+          {slots.caption && (
+            <div className="mt-4 text-[10px] leading-relaxed text-canvas-muted">
+              {label("slot.caption", slots.caption)}
+            </div>
+          )}
         </div>
       )}
 
       {layoutType === "care_guide" && (
-        <div className={content("bg-[#f6f8f1] px-7 py-10")}>
+        <div {...content("bg-[#f6f8f1] px-7 py-10")}>
           <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-[#526f58]">
-            {section.kicker}
+            {kicker}
           </div>
           {headline("text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
           {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
@@ -451,9 +473,9 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "check_point_cards" && (
-        <div className={content("bg-[#a1846b] px-7 py-11 text-white")}>
+        <div {...content("bg-[#a1846b] px-7 py-11 text-white")}>
           <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-white/70">
-            {section.kicker}
+            {kicker}
           </div>
           {headline("text-[24px] font-extrabold leading-[1.25] text-white")}
           {body("mt-3 text-[13px] leading-[1.75] text-white/85")}
@@ -474,7 +496,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "product_info_table" && (
-        <div className={content("bg-white px-7 py-11")}>
+        <div {...content("bg-white px-7 py-11")}>
           <div className="text-[10px] font-extrabold tracking-[0.22em] text-[#526f58]">PRODUCT INFO</div>
           {headline("mt-3 text-[28px] font-extrabold leading-[1.2] text-canvas-dark")}
           <div className="mt-2 text-[14px] text-canvas-muted">Product Information</div>
@@ -491,17 +513,19 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "policy_notice" && (
-        <div className={content("bg-[#f8f8f8] px-7 py-10")}>
+        <div {...content("bg-[#f8f8f8] px-7 py-10")}>
           <div className="border-l-4 border-[#526f58] pl-4">
             {headline("text-[23px] font-extrabold leading-[1.25] text-canvas-dark")}
             {slots.emphasis && (
-              <div className="mt-2 text-[12px] font-extrabold text-[#526f58]">{slots.emphasis}</div>
+              <div className="mt-2 text-[12px] font-extrabold text-[#526f58]">
+                {label("slot.emphasis", slots.emphasis)}
+              </div>
             )}
           </div>
           <ul className="mt-6 space-y-3">
-            {(slots.noticeItems ?? [richTextToPlainText(section.body)]).map((notice) => (
-              <li key={notice} className="text-[12px] font-semibold leading-[1.75] text-canvas-muted">
-                · {notice}
+            {(slots.noticeItems ?? [richTextToPlainText(section.body)]).map((notice, noticeIndex) => (
+              <li key={noticeIndex} className="text-[12px] font-semibold leading-[1.75] text-canvas-muted">
+                · {slots.noticeItems ? label(`slot.noticeItems.${noticeIndex}`, notice) : notice}
               </li>
             ))}
           </ul>
@@ -509,7 +533,7 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "qa_list" && (
-        <div className={content("bg-white px-7 py-10")}>
+        <div {...content("bg-white px-7 py-10")}>
           <div className="mb-3 text-center text-[32px] font-black tracking-tight text-canvas-dark">FAQ</div>
           {body("mx-auto max-w-[260px] text-center text-[12px] leading-[1.7] text-canvas-muted")}
           <div className="mt-7 space-y-3">
@@ -543,9 +567,9 @@ function StructuredSectionBlock({
         "policy_notice",
         "qa_list",
       ].includes(layoutType ?? "") && (
-        <div className={content("bg-white px-7 py-10")}>
+        <div {...content("bg-white px-7 py-10")}>
           <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-canvas-accent">
-            {section.kicker}
+            {kicker}
           </div>
           {headline("text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
           {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
@@ -568,6 +592,7 @@ export function SectionCanvas({
   platform,
   onSelect,
   onCommitText,
+  onCommitLabel,
 }: {
   sections: DetailSection[];
   selectedId: string;
@@ -577,9 +602,15 @@ export function SectionCanvas({
   /** Double-click inline edit commit (docs/TASKS.md §7). before/after let the
    * caller decide whether anything actually changed. */
   onCommitText: (sectionId: string, field: EditableField, before: RichText, after: RichText) => void;
+  /** Double-click inline edit commit for `section.kicker` and the plain
+   * string/string[] slot fields (2026-07-20) — see renderEditableLabel and
+   * handleCanvasLabelCommit in editor/page.tsx for the key format and scope
+   * (structured slots like steps/faqItems stay read-only). */
+  onCommitLabel: (sectionId: string, key: string, before: string, after: string) => void;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
+  const [editingLabelKey, setEditingLabelKey] = useState<{ sectionId: string; key: string } | null>(null);
   // Only one field can be actively edited at a time (editingCell is a
   // single cell), so one shared ref for the MarkupToolbar is enough.
   const editingContainerRef = useRef<HTMLDivElement>(null);
@@ -632,8 +663,8 @@ export function SectionCanvas({
     const typographyStyle = {
       fontFamily: getFontFamilyCss(sec.fontFamily),
       fontSize: field === "headline" ? getHeadlineFontSizePx(sec.textScale, prominent) : getBodyFontSizePx(sec.textScale),
-      letterSpacing: getLetterSpacingEm(sec.letterSpacing),
-      lineHeight: getLineHeightValue(sec.lineHeight),
+      letterSpacing: getLetterSpacingPx(sec.letterSpacing),
+      lineHeight: getLineHeightPx(sec.lineHeight),
     };
 
     if (isEditing) {
@@ -669,6 +700,55 @@ export function SectionCanvas({
     );
   }
 
+  /** Plain-string sibling of renderEditableText for `section.kicker` and the
+   * simple slot fields — a plain <input> rather than RichTextEditor since
+   * these are short labels with no bold/highlight/font styling need. `key`
+   * uniquely identifies the field within a section ("kicker", "slot.<x>",
+   * "slot.<array>.<index>") — see handleCanvasLabelCommit in editor/page.tsx
+   * for the parser and the persistence-scope note. */
+  function renderEditableLabel(sec: DetailSection, key: string, value: string) {
+    const isEditing = editingLabelKey?.sectionId === sec.id && editingLabelKey.key === key;
+
+    if (isEditing) {
+      return (
+        <input
+          key={key}
+          autoFocus
+          defaultValue={value}
+          onClick={(e) => e.stopPropagation()}
+          onFocus={(e) => e.currentTarget.select()}
+          onBlur={(e) => {
+            onCommitLabel(sec.id, key, value, e.target.value);
+            setEditingLabelKey(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              e.currentTarget.blur();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              setEditingLabelKey(null);
+            }
+          }}
+          className="w-full min-w-0 border-b border-dashed border-current/50 bg-transparent outline-none"
+        />
+      );
+    }
+
+    return (
+      <span
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          onSelect(sec.id);
+          setEditingLabelKey({ sectionId: sec.id, key });
+        }}
+        className="cursor-text"
+      >
+        {value}
+      </span>
+    );
+  }
+
   return (
     <div
       ref={canvasRef}
@@ -698,6 +778,7 @@ export function SectionCanvas({
                 isFlash={isFlash}
                 onSelect={onSelect}
                 renderEditableText={renderEditableText}
+                renderEditableLabel={renderEditableLabel}
               />
             );
           }
@@ -728,7 +809,7 @@ export function SectionCanvas({
                   )}
                 />
               )}
-              <div className={getSpacingClasses(sec.spacing, isIntro || isCta)}>
+              <div style={getSpacingStyle(sec.spacing)}>
                 <div
                   className={cn(
                     "mb-1.5 text-[10px] font-extrabold tracking-wide",
@@ -748,12 +829,14 @@ export function SectionCanvas({
                       initialValue={sec.headline}
                       onCommit={(value) => commitEdit(sec, "headline", value)}
                       onCancel={cancelEdit}
-                      style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
+                      style={{
+                        fontFamily: getFontFamilyCss(sec.fontFamily),
+                        fontSize: getHeadlineFontSizePx(sec.textScale, isIntro || isCta),
+                        letterSpacing: getLetterSpacingPx(sec.letterSpacing),
+                        lineHeight: getLineHeightPx(sec.lineHeight),
+                      }}
                       className={cn(
                         "mb-1.5 w-full rounded border border-dashed bg-transparent font-bold tracking-tight",
-                        getHeadlineTextClass(sec.textScale, isIntro || isCta),
-                        getLetterSpacingClass(sec.letterSpacing),
-                        getLineHeightClass(sec.lineHeight),
                         isIntro || isCta
                           ? "border-white/50 text-white"
                           : "border-canvas-accent text-canvas-dark"
@@ -766,12 +849,14 @@ export function SectionCanvas({
                       e.stopPropagation();
                       startEdit(sec, "headline");
                     }}
-                    style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
+                    style={{
+                      fontFamily: getFontFamilyCss(sec.fontFamily),
+                      fontSize: getHeadlineFontSizePx(sec.textScale, isIntro || isCta),
+                      letterSpacing: getLetterSpacingPx(sec.letterSpacing),
+                      lineHeight: getLineHeightPx(sec.lineHeight),
+                    }}
                     className={cn(
                       "mb-1.5 cursor-text whitespace-pre-line font-bold tracking-tight",
-                      getHeadlineTextClass(sec.textScale, isIntro || isCta),
-                      getLetterSpacingClass(sec.letterSpacing),
-                      getLineHeightClass(sec.lineHeight),
                       isIntro || isCta ? "text-white" : "text-canvas-dark"
                     )}
                   >
@@ -789,12 +874,14 @@ export function SectionCanvas({
                       initialValue={sec.body}
                       onCommit={(value) => commitEdit(sec, "body", value)}
                       onCancel={cancelEdit}
-                      style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
+                      style={{
+                        fontFamily: getFontFamilyCss(sec.fontFamily),
+                        fontSize: getBodyFontSizePx(sec.textScale),
+                        letterSpacing: getLetterSpacingPx(sec.letterSpacing),
+                        lineHeight: getLineHeightPx(sec.lineHeight),
+                      }}
                       className={cn(
                         "w-full rounded border border-dashed bg-transparent leading-relaxed",
-                        getBodyTextClass(sec.textScale),
-                        getLetterSpacingClass(sec.letterSpacing),
-                        getLineHeightClass(sec.lineHeight),
                         isIntro || isCta
                           ? "border-white/50 text-white/85"
                           : "border-canvas-accent text-canvas-muted"
@@ -807,12 +894,14 @@ export function SectionCanvas({
                       e.stopPropagation();
                       startEdit(sec, "body");
                     }}
-                    style={{ fontFamily: getFontFamilyCss(sec.fontFamily) }}
+                    style={{
+                      fontFamily: getFontFamilyCss(sec.fontFamily),
+                      fontSize: getBodyFontSizePx(sec.textScale),
+                      letterSpacing: getLetterSpacingPx(sec.letterSpacing),
+                      lineHeight: getLineHeightPx(sec.lineHeight),
+                    }}
                     className={cn(
                       "cursor-text whitespace-pre-line leading-relaxed",
-                      getBodyTextClass(sec.textScale),
-                      getLetterSpacingClass(sec.letterSpacing),
-                      getLineHeightClass(sec.lineHeight),
                       isIntro || isCta ? "text-white/85" : "text-canvas-muted"
                     )}
                   >

@@ -160,6 +160,44 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+const SCALAR_SLOT_KEYS = [
+  "eyebrow",
+  "subHeadline",
+  "brandName",
+  "caption",
+  "emphasis",
+  "beforeLabel",
+  "afterLabel",
+] as const;
+const ARRAY_SLOT_KEYS = ["badges", "items", "noticeItems"] as const;
+
+/** Parses a renderEditableLabel key ("kicker" / "slot.<scalar>" /
+ * "slot.<array>.<index>") and writes the edited value into the matching
+ * field — the mutation side of section-canvas.tsx's plain-string label
+ * editing (see handleCanvasLabelCommit's docstring for scope). Unknown/
+ * malformed keys are a no-op rather than a throw, since this only ever
+ * receives keys this file itself generated. */
+function applyLabelEdit(section: DetailSection, key: string, value: string): DetailSection {
+  if (key === "kicker") return { ...section, kicker: value };
+
+  const scalarMatch = key.match(/^slot\.([a-zA-Z]+)$/);
+  const scalarKey = scalarMatch?.[1];
+  if (scalarKey && (SCALAR_SLOT_KEYS as readonly string[]).includes(scalarKey)) {
+    return { ...section, slots: { ...section.slots, [scalarKey]: value } };
+  }
+
+  const arrayMatch = key.match(/^slot\.([a-zA-Z]+)\.(\d+)$/);
+  const arrayKey = arrayMatch?.[1];
+  if (arrayKey && (ARRAY_SLOT_KEYS as readonly string[]).includes(arrayKey)) {
+    const index = Number(arrayMatch[2]);
+    const currentArray = (section.slots?.[arrayKey as (typeof ARRAY_SLOT_KEYS)[number]] as string[] | undefined) ?? [];
+    const nextArray = currentArray.map((item, i) => (i === index ? value : item));
+    return { ...section, slots: { ...section.slots, [arrayKey]: nextArray } };
+  }
+
+  return section;
+}
+
 export default function DetailPageEditor() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -883,6 +921,26 @@ export default function DetailPageEditor() {
     setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, [field]: after } : s)));
     if (target && beforeText !== afterText) {
       recordStyleSignal({ kind: "copy_manual_edit", section: target, before: beforeText, after: afterText });
+    }
+  }
+
+  /** Double-click inline edit commit for the plain-string labels that live
+   * outside headline/body — `section.kicker` and the simple string/string[]
+   * fields of `section.slots` (badges/items/noticeItems/eyebrow/subHeadline/
+   * brandName/caption/emphasis/beforeLabel/afterLabel). Structured slots
+   * (steps/faqItems/comparisonRows/optionItems/specRows/guideItems/
+   * proofItems/cards) stay read-only — each has a different per-item shape
+   * and needs its own add/remove UI, deferred to a future session
+   * (docs/TASKS.md, 2026-07-20). `key` is a small path string built by
+   * renderEditableLabel in section-canvas.tsx: "kicker", "slot.<scalar>", or
+   * "slot.<array>.<index>" — see applyLabelEdit below for the parser. */
+  function handleCanvasLabelCommit(sectionId: string, key: string, before: string, after: string) {
+    if (before === after) return;
+    const target = sections.find((s) => s.id === sectionId);
+    pushHistory();
+    setSections((prev) => prev.map((s) => (s.id === sectionId ? applyLabelEdit(s, key, after) : s)));
+    if (target) {
+      recordStyleSignal({ kind: "copy_manual_edit", section: target, before, after });
     }
   }
 
@@ -1619,6 +1677,7 @@ export default function DetailPageEditor() {
                   platform={projectSummary.platform}
                   onSelect={selectSection}
                   onCommitText={handleCanvasTextCommit}
+                  onCommitLabel={handleCanvasLabelCommit}
                 />
               </div>
             </div>

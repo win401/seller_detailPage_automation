@@ -15,8 +15,25 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ImagePositionGrid, PresetToggleGroup } from "@/components/editor/layout-preset-controls";
+import { ImagePositionGrid, PresetToggleGroup, SliderField } from "@/components/editor/layout-preset-controls";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { mockStyleSets } from "@/lib/mock-data";
+import {
+  LETTER_SPACING_DEFAULT,
+  LETTER_SPACING_RANGE,
+  LINE_HEIGHT_DEFAULT,
+  LINE_HEIGHT_RANGE,
+  SECTION_SPACING_DEFAULT,
+  SECTION_SPACING_RANGE,
+  TEXT_SIZE_DEFAULT,
+  TEXT_SIZE_RANGE,
+} from "@/lib/layout-presets";
 import { loadStyleSets, saveStyleSets } from "@/lib/style-sets";
 import { cn } from "@/lib/utils";
 import {
@@ -24,15 +41,11 @@ import {
   FONT_FAMILY_LABELS,
   IMAGE_FIT_LABELS,
   IMAGE_HEIGHT_LABELS,
-  LETTER_SPACING_LABELS,
-  LINE_HEIGHT_LABELS,
   MOOD_LABELS,
   PLATFORM_LABELS,
   Platform,
   SECTION_KIND_ORDER,
-  SECTION_SPACING_LABELS,
   StyleSet,
-  TEXT_SCALE_LABELS,
   TONE_LABELS,
   Tone,
 } from "@/lib/types";
@@ -46,21 +59,9 @@ const IMAGE_FIT_OPTIONS = (Object.keys(IMAGE_FIT_LABELS) as (keyof typeof IMAGE_
 const IMAGE_HEIGHT_OPTIONS = (
   Object.keys(IMAGE_HEIGHT_LABELS) as (keyof typeof IMAGE_HEIGHT_LABELS)[]
 ).map((value) => ({ value, label: IMAGE_HEIGHT_LABELS[value] }));
-const SPACING_OPTIONS = (
-  Object.keys(SECTION_SPACING_LABELS) as (keyof typeof SECTION_SPACING_LABELS)[]
-).map((value) => ({ value, label: SECTION_SPACING_LABELS[value] }));
-const TEXT_SCALE_OPTIONS = (
-  Object.keys(TEXT_SCALE_LABELS) as (keyof typeof TEXT_SCALE_LABELS)[]
-).map((value) => ({ value, label: TEXT_SCALE_LABELS[value] }));
 const FONT_FAMILY_OPTIONS = (
   Object.keys(FONT_FAMILY_LABELS) as (keyof typeof FONT_FAMILY_LABELS)[]
 ).map((value) => ({ value, label: FONT_FAMILY_LABELS[value] }));
-const LETTER_SPACING_OPTIONS = (
-  Object.keys(LETTER_SPACING_LABELS) as (keyof typeof LETTER_SPACING_LABELS)[]
-).map((value) => ({ value, label: LETTER_SPACING_LABELS[value] }));
-const LINE_HEIGHT_OPTIONS = (
-  Object.keys(LINE_HEIGHT_LABELS) as (keyof typeof LINE_HEIGHT_LABELS)[]
-).map((value) => ({ value, label: LINE_HEIGHT_LABELS[value] }));
 
 function Chip({
   active,
@@ -262,9 +263,10 @@ function StyleSetFormDialog({
                 <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
                   섹션 여백
                 </div>
-                <PresetToggleGroup
-                  options={SPACING_OPTIONS}
+                <SliderField
                   value={draft.spacing}
+                  defaultValue={SECTION_SPACING_DEFAULT}
+                  {...SECTION_SPACING_RANGE}
                   onChange={(spacing) => setDraft((d) => ({ ...d, spacing }))}
                 />
               </div>
@@ -272,30 +274,43 @@ function StyleSetFormDialog({
                 <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
                   텍스트 크기
                 </div>
-                <PresetToggleGroup
-                  options={TEXT_SCALE_OPTIONS}
+                <SliderField
                   value={draft.textScale}
+                  defaultValue={TEXT_SIZE_DEFAULT}
+                  {...TEXT_SIZE_RANGE}
                   onChange={(textScale) => setDraft((d) => ({ ...d, textScale }))}
                 />
               </div>
             </div>
             <div className="mt-2">
               <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">글꼴</div>
-              <PresetToggleGroup
-                options={FONT_FAMILY_OPTIONS}
-                value={draft.fontFamily}
-                defaultValue="system"
-                onChange={(fontFamily) => setDraft((d) => ({ ...d, fontFamily }))}
-              />
+              <Select
+                value={draft.fontFamily ?? "system"}
+                onValueChange={(fontFamily) =>
+                  fontFamily && setDraft((d) => ({ ...d, fontFamily: fontFamily as StyleSet["fontFamily"] }))
+                }
+              >
+                <SelectTrigger className="h-8 w-full bg-transparent text-[12px]">
+                  <SelectValue>{(value: string) => FONT_FAMILY_LABELS[value as keyof typeof FONT_FAMILY_LABELS] ?? value}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {FONT_FAMILY_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="mt-2 grid grid-cols-2 gap-3">
               <div>
                 <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
                   자간
                 </div>
-                <PresetToggleGroup
-                  options={LETTER_SPACING_OPTIONS}
+                <SliderField
                   value={draft.letterSpacing}
+                  defaultValue={LETTER_SPACING_DEFAULT}
+                  {...LETTER_SPACING_RANGE}
                   onChange={(letterSpacing) => setDraft((d) => ({ ...d, letterSpacing }))}
                 />
               </div>
@@ -303,9 +318,10 @@ function StyleSetFormDialog({
                 <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
                   줄 간격
                 </div>
-                <PresetToggleGroup
-                  options={LINE_HEIGHT_OPTIONS}
+                <SliderField
                   value={draft.lineHeight}
+                  defaultValue={LINE_HEIGHT_DEFAULT}
+                  {...LINE_HEIGHT_RANGE}
                   onChange={(lineHeight) => setDraft((d) => ({ ...d, lineHeight }))}
                 />
               </div>
@@ -440,14 +456,14 @@ export default function StyleSetsPage() {
                 <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
                   {TONE_LABELS[ss.defaultTone]}
                 </span>
-                {ss.spacing && (
+                {typeof ss.spacing === "number" && (
                   <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                    여백 {SECTION_SPACING_LABELS[ss.spacing]}
+                    여백 {ss.spacing}px
                   </span>
                 )}
-                {ss.textScale && (
+                {typeof ss.textScale === "number" && (
                   <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                    텍스트 {TEXT_SCALE_LABELS[ss.textScale]}
+                    텍스트 {ss.textScale}px
                   </span>
                 )}
                 {ss.fontFamily && (

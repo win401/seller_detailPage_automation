@@ -6,20 +6,33 @@ import { ImagePlus, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   DetailSection,
   FONT_FAMILY_LABELS,
   IMAGE_FIT_LABELS,
   IMAGE_HEIGHT_LABELS,
-  LETTER_SPACING_LABELS,
-  LINE_HEIGHT_LABELS,
   RichText,
-  SECTION_SPACING_LABELS,
   SectionImageAsset,
   SectionLayoutPreset,
-  TEXT_SCALE_LABELS,
   UploadedImageDraft,
 } from "@/lib/types";
-import { ImagePositionGrid, PresetToggleGroup } from "./layout-preset-controls";
+import {
+  LETTER_SPACING_DEFAULT,
+  LETTER_SPACING_RANGE,
+  LINE_HEIGHT_DEFAULT,
+  LINE_HEIGHT_RANGE,
+  SECTION_SPACING_DEFAULT,
+  SECTION_SPACING_RANGE,
+  TEXT_SIZE_DEFAULT,
+  TEXT_SIZE_RANGE,
+} from "@/lib/layout-presets";
+import { ImagePositionGrid, PresetToggleGroup, SliderField } from "./layout-preset-controls";
 import { MarkupToolbar } from "./markup-toolbar";
 import { RichTextEditor } from "./rich-text-editor";
 
@@ -29,21 +42,9 @@ const IMAGE_FIT_OPTIONS = (Object.keys(IMAGE_FIT_LABELS) as (keyof typeof IMAGE_
 const IMAGE_HEIGHT_OPTIONS = (
   Object.keys(IMAGE_HEIGHT_LABELS) as (keyof typeof IMAGE_HEIGHT_LABELS)[]
 ).map((value) => ({ value, label: IMAGE_HEIGHT_LABELS[value] }));
-const SPACING_OPTIONS = (
-  Object.keys(SECTION_SPACING_LABELS) as (keyof typeof SECTION_SPACING_LABELS)[]
-).map((value) => ({ value, label: SECTION_SPACING_LABELS[value] }));
-const TEXT_SCALE_OPTIONS = (
-  Object.keys(TEXT_SCALE_LABELS) as (keyof typeof TEXT_SCALE_LABELS)[]
-).map((value) => ({ value, label: TEXT_SCALE_LABELS[value] }));
 const FONT_FAMILY_OPTIONS = (
   Object.keys(FONT_FAMILY_LABELS) as (keyof typeof FONT_FAMILY_LABELS)[]
 ).map((value) => ({ value, label: FONT_FAMILY_LABELS[value] }));
-const LETTER_SPACING_OPTIONS = (
-  Object.keys(LETTER_SPACING_LABELS) as (keyof typeof LETTER_SPACING_LABELS)[]
-).map((value) => ({ value, label: LETTER_SPACING_LABELS[value] }));
-const LINE_HEIGHT_OPTIONS = (
-  Object.keys(LINE_HEIGHT_LABELS) as (keyof typeof LINE_HEIGHT_LABELS)[]
-).map((value) => ({ value, label: LINE_HEIGHT_LABELS[value] }));
 
 export function SectionEditPanel({
   section,
@@ -274,9 +275,10 @@ export function SectionEditPanel({
             <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
               섹션 여백
             </div>
-            <PresetToggleGroup
-              options={SPACING_OPTIONS}
+            <SliderField
               value={section.spacing}
+              defaultValue={SECTION_SPACING_DEFAULT}
+              {...SECTION_SPACING_RANGE}
               onChange={(spacing) => onChangeLayout({ spacing })}
             />
           </div>
@@ -284,9 +286,10 @@ export function SectionEditPanel({
             <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
               텍스트 크기
             </div>
-            <PresetToggleGroup
-              options={TEXT_SCALE_OPTIONS}
+            <SliderField
               value={section.textScale}
+              defaultValue={TEXT_SIZE_DEFAULT}
+              {...TEXT_SIZE_RANGE}
               onChange={(textScale) => onChangeLayout({ textScale })}
             />
           </div>
@@ -294,20 +297,32 @@ export function SectionEditPanel({
             <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
               글꼴
             </div>
-            <PresetToggleGroup
-              options={FONT_FAMILY_OPTIONS}
-              value={section.fontFamily}
-              defaultValue="system"
-              onChange={(fontFamily) => onChangeLayout({ fontFamily })}
-            />
+            <Select
+              value={section.fontFamily ?? "system"}
+              onValueChange={(fontFamily) =>
+                fontFamily && onChangeLayout({ fontFamily: fontFamily as SectionLayoutPreset["fontFamily"] })
+              }
+            >
+              <SelectTrigger className="h-8 w-full bg-transparent text-[12px]">
+                <SelectValue>{(value: string) => FONT_FAMILY_LABELS[value as keyof typeof FONT_FAMILY_LABELS] ?? value}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {FONT_FAMILY_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
               자간
             </div>
-            <PresetToggleGroup
-              options={LETTER_SPACING_OPTIONS}
+            <SliderField
               value={section.letterSpacing}
+              defaultValue={LETTER_SPACING_DEFAULT}
+              {...LETTER_SPACING_RANGE}
               onChange={(letterSpacing) => onChangeLayout({ letterSpacing })}
             />
           </div>
@@ -315,9 +330,10 @@ export function SectionEditPanel({
             <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
               줄 간격
             </div>
-            <PresetToggleGroup
-              options={LINE_HEIGHT_OPTIONS}
+            <SliderField
               value={section.lineHeight}
+              defaultValue={LINE_HEIGHT_DEFAULT}
+              {...LINE_HEIGHT_RANGE}
               onChange={(lineHeight) => onChangeLayout({ lineHeight })}
             />
           </div>
