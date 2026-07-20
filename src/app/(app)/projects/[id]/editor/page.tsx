@@ -9,6 +9,10 @@ import { arrayMove } from "@dnd-kit/sortable";
 import {
   ArrowLeft,
   Download,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Redo2,
   Save,
   Sparkles,
@@ -252,7 +256,28 @@ export default function DetailPageEditor() {
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [isSpaceDown, setIsSpaceDown] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
+  /** 좁은 데스크톱에서 좌/우 보조 패널을 접어 캔버스 폭을 확보하는 수동 토글
+   * (docs/TASKS.md 우선순위 4). 너비 기준 자동 접힘이 아니라 항상 켜져 있는
+   * 버튼 — 자동 브레이크포인트보다 사용자가 직접 켜고 끄는 편이 예측 가능함. */
+  const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const shouldReduceMotion = useReducedMotion();
+
+  // This page's chrome is a fixed h-[calc(100vh-60px)] layout with its own
+  // internal per-column scroll (섹션 목록/캔버스/편집 패널) — the outer
+  // <html>/<body> is never meant to scroll. But arriving here via the
+  // client-side router.push from "새 상세페이지 만들기" (not a hard
+  // navigation) leaves the page ~26px scrolled on mount — reproduced at
+  // every viewport height tested, absent on a hard reload of the same URL,
+  // so it's Next.js App Router's post-navigation focus/scroll handling
+  // landing slightly off, not anything about this page's own content height
+  // (manually resetting to 0 after mount always lands on the fully-correct,
+  // nothing-cut-off position). Narrow-viewport laptops are the ones that
+  // actually notice, since there the offset clips this page's own header
+  // row instead of just leaving empty space below the fold.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   useEffect(() => {
     const node = exportSuccessRef.current;
@@ -1563,10 +1588,40 @@ export default function DetailPageEditor() {
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[230px_minmax(0,1fr)_320px]">
+      <div
+        className={cn(
+          "grid min-h-0 flex-1",
+          leftPanelCollapsed && rightPanelCollapsed && "grid-cols-[40px_minmax(0,1fr)_40px]",
+          leftPanelCollapsed && !rightPanelCollapsed && "grid-cols-[40px_minmax(0,1fr)_320px]",
+          !leftPanelCollapsed && rightPanelCollapsed && "grid-cols-[230px_minmax(0,1fr)_40px]",
+          !leftPanelCollapsed && !rightPanelCollapsed && "grid-cols-[230px_minmax(0,1fr)_320px]"
+        )}
+      >
+        {leftPanelCollapsed ? (
+          <div className="flex flex-col items-center border-r border-border bg-card py-3">
+            <button
+              type="button"
+              onClick={() => setLeftPanelCollapsed(false)}
+              title="섹션 목록 펼치기"
+              aria-label="섹션 목록 펼치기"
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <PanelLeftOpen className="size-4" />
+            </button>
+          </div>
+        ) : (
         <div className="flex flex-col overflow-y-auto border-r border-border bg-card">
-          <div className="border-b border-border px-4 py-3 text-xs font-bold text-muted-foreground">
-            섹션 목록
+          <div className="flex items-center justify-between border-b border-border px-4 py-3 text-xs font-bold text-muted-foreground">
+            <span>섹션 목록</span>
+            <button
+              type="button"
+              onClick={() => setLeftPanelCollapsed(true)}
+              title="섹션 목록 접기"
+              aria-label="섹션 목록 접기"
+              className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <PanelLeftClose className="size-3.5" />
+            </button>
           </div>
           <SectionList
             sections={sections}
@@ -1623,6 +1678,7 @@ export default function DetailPageEditor() {
             </div>
           </div>
         </div>
+        )}
 
         <div className="flex min-h-0 flex-col bg-background">
           <div className="flex items-center justify-between border-b border-border px-4 py-3 text-xs font-bold text-muted-foreground">
@@ -1684,9 +1740,31 @@ export default function DetailPageEditor() {
           </div>
         </div>
 
+        {rightPanelCollapsed ? (
+          <div className="flex flex-col items-center border-l border-border bg-card py-3">
+            <button
+              type="button"
+              onClick={() => setRightPanelCollapsed(false)}
+              title="편집 패널 펼치기"
+              aria-label="편집 패널 펼치기"
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <PanelRightOpen className="size-4" />
+            </button>
+          </div>
+        ) : (
         <div className="flex flex-col overflow-y-auto border-l border-border bg-card">
-          <div className="border-b border-border px-4 py-3 text-xs font-bold text-muted-foreground">
-            섹션 편집 · {selectedSection.title}
+          <div className="flex items-center justify-between border-b border-border px-4 py-3 text-xs font-bold text-muted-foreground">
+            <span>섹션 편집 · {selectedSection.title}</span>
+            <button
+              type="button"
+              onClick={() => setRightPanelCollapsed(true)}
+              title="편집 패널 접기"
+              aria-label="편집 패널 접기"
+              className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <PanelRightClose className="size-3.5" />
+            </button>
           </div>
           <div className="p-4">
             <SectionEditPanel
@@ -1709,6 +1787,7 @@ export default function DetailPageEditor() {
             />
           </div>
         </div>
+        )}
       </div>
 
       <LayoutGroup id="ai-assistant-motion">

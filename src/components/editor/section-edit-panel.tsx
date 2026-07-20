@@ -103,6 +103,7 @@ export function SectionEditPanel({
           initialValue={section.body}
           onCommit={(next) => onCommitBody(section.body, next)}
           onCancel={() => {}}
+          autoFocus={false}
           className="field-sizing-content min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
         />
         <span className="text-[10.5px] text-muted-foreground">
