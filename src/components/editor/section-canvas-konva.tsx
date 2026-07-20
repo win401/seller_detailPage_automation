@@ -119,19 +119,11 @@ export function SectionCanvasKonva({
   selectedElementId,
   onSelectElement,
   onChangeElement,
-  staticImageUrl,
 }: {
   data: SectionCanvasData;
   selectedElementId: string | null;
   onSelectElement: (id: string | null) => void;
   onChangeElement: (id: string, patch: Partial<CanvasElement>) => void;
-  /** Swap the live, interactive <Stage> for a plain <img> of the same box
-   * size — used only during ZIP export capture (see handleExport /
-   * renderCanvasDataToDataUrl in canvas-export.ts). html-to-image (the DOM
-   * screenshot library export uses for every other, plain-DOM section)
-   * doesn't capture a live Konva <canvas> reliably, but handles a normal
-   * <img> the same as any other element. */
-  staticImageUrl?: string;
 }) {
   const scale = PREVIEW_WIDTH / data.width;
   const transformerRef = useRef<Konva.Transformer>(null);
@@ -139,24 +131,12 @@ export function SectionCanvasKonva({
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (staticImageUrl) return;
     const transformer = transformerRef.current;
     if (!transformer) return;
     const node = selectedElementId ? shapeRefs.current.get(selectedElementId) : null;
     transformer.nodes(node ? [node] : []);
     transformer.getLayer()?.batchDraw();
-  }, [staticImageUrl, selectedElementId, data.elements]);
-
-  if (staticImageUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element -- export-time snapshot of an offscreen Konva render, not a normal content image
-      <img
-        src={staticImageUrl}
-        alt=""
-        style={{ display: "block", width: data.width * scale, height: data.height * scale }}
-      />
-    );
-  }
+  }, [selectedElementId, data.elements]);
 
   const editingElement = data.elements.find(
     (el): el is Extract<CanvasElement, { type: "text" }> => el.id === editingElementId && el.type === "text"

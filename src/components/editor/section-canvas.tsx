@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode, RefObject } from "react";
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 
@@ -572,8 +572,6 @@ export function SectionCanvas({
   selectedElementId,
   onSelectElement,
   onChangeElement,
-  exportImageOverrides,
-  sectionsRootRef,
 }: {
   sections: DetailSection[];
   selectedId: string;
@@ -588,14 +586,6 @@ export function SectionCanvas({
   selectedElementId?: string | null;
   onSelectElement?: (sectionId: string, elementId: string | null) => void;
   onChangeElement?: (sectionId: string, elementId: string, patch: Partial<CanvasElement>) => void;
-  /** sectionId -> pre-rendered PNG data URL, set only during ZIP export
-   * capture (see handleExport) so canvas-mode sections swap their live
-   * <Stage> for a plain <img> that html-to-image can capture reliably. */
-  exportImageOverrides?: Record<string, string>;
-  /** Wraps ONLY the section stack (not the "상세페이지 캔버스" header bar or
-   * the outer preview chrome/border) — the actual ZIP export capture target,
-   * so the exported image is just the sections a seller would upload. */
-  sectionsRootRef?: RefObject<HTMLDivElement | null>;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
@@ -699,7 +689,7 @@ export function SectionCanvas({
           {platform} · {PLATFORM_EXPORT_WIDTH[platform]}px
         </span>
       </div>
-      <div ref={sectionsRootRef} className="flex flex-col bg-canvas-bg">
+      <div className="flex flex-col">
         {sections.map((sec, i) => {
           const isSelected = sec.id === selectedId;
           const isFlash = sec.id === flashId;
@@ -726,7 +716,6 @@ export function SectionCanvas({
                   selectedElementId={sec.id === selectedId ? (selectedElementId ?? null) : null}
                   onSelectElement={(elementId) => onSelectElement?.(sec.id, elementId)}
                   onChangeElement={(elementId, patch) => onChangeElement?.(sec.id, elementId, patch)}
-                  staticImageUrl={exportImageOverrides?.[sec.id]}
                 />
               </div>
             );
