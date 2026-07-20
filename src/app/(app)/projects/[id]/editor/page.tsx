@@ -1584,11 +1584,28 @@ export default function DetailPageEditor() {
   const generationDiagnostics = useMemo(() => {
     const generation = readLocalGeneration();
     if (!generation) return null;
-    const parts: string[] = [generation.source === "mock" ? "Mock 생성" : generation.model || "AI 생성"];
+    // Reloading a Supabase-persisted project reconstructs this record from
+    // draft_versions.source, which tracks the LATEST version's own
+    // provenance — it becomes "manual" the moment the user edits and saves
+    // (docs/supabase/schema.sql), not "mock"/"ai" forever. That reload path
+    // also never carries model/generationTimeMs (only set at generation
+    // time, not persisted to the DB) — found by actually saving an edit,
+    // reloading in a fresh browser context, and seeing this wrongly claim
+    // "AI 생성" for what was really a manually-edited draft. Only claim a
+    // specific model when we actually have one; "manual" gets no model
+    // claim at all instead of a guess.
+    const parts: string[] = [];
+    if (generation.source === "mock") {
+      parts.push("Mock 생성");
+    } else if (generation.model) {
+      parts.push(generation.model);
+    } else if (generation.source === "ai") {
+      parts.push("AI 생성");
+    }
     if (typeof generation.generationTimeMs === "number") {
       parts.push(`${(generation.generationTimeMs / 1000).toFixed(1)}초`);
     }
-    return parts.join(" · ");
+    return parts.length > 0 ? parts.join(" · ") : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- readLocalGeneration reads a stable per-project localStorage key, re-derive whenever the draft reloads
   }, [loadedFromStorage, draftLoadSource]);
 
