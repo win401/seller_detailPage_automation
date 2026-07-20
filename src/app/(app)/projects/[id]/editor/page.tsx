@@ -1460,58 +1460,83 @@ export default function DetailPageEditor() {
     }
   }
 
+  /**
+   * Captures each ZIP slice as its own html-to-image render instead of
+   * rendering the whole (potentially 13-section) draft into one giant
+   * canvas and re-slicing it afterward. A long draft's uncapped height in
+   * export resolution can exceed the browser's ~16384px max canvas
+   * dimension (see html-to-image's checkCanvasDimensions /
+   * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/canvas#maximum_canvas_size)
+   * — when that happens html-to-image silently shrinks BOTH dimensions to
+   * fit, so the "860px" export actually comes out ~845px wide with zero
+   * warning (found via an actual downloaded ZIP, not just code reading —
+   * docs/TASKS.md). Each per-slice capture stays at exactly
+   * EXPORT_SLICE_HEIGHT (2000px), always safely under the cap, so this
+   * can't happen regardless of how long the draft is.
+   */
   async function handleExport() {
     if (!canvasWrapRef.current) return;
     setIsExporting(true);
+    const offscreenHost = document.createElement("div");
     try {
       await handleSave({ silent: true });
       const { toCanvas } = await import("html-to-image");
       const JSZip = (await import("jszip")).default;
       const exportWidth = PLATFORM_EXPORT_WIDTH[projectSummary.platform];
-      const sourceWidth = canvasWrapRef.current.offsetWidth || 360;
-      const sourceHeight = canvasWrapRef.current.scrollHeight || canvasWrapRef.current.offsetHeight;
+      const sourceNode = canvasWrapRef.current;
+      const sourceWidth = sourceNode.offsetWidth || 360;
+      const sourceHeight = sourceNode.scrollHeight || sourceNode.offsetHeight;
       const pixelRatio = exportWidth / sourceWidth;
-      const fullCanvas = await toCanvas(canvasWrapRef.current, {
-        width: sourceWidth,
-        height: sourceHeight,
-        pixelRatio,
-        backgroundColor: "#ffffff",
-      });
-      const zip = new JSZip();
-      const sliceCount = Math.max(1, Math.ceil(fullCanvas.height / EXPORT_SLICE_HEIGHT));
+      const previewSliceHeight = EXPORT_SLICE_HEIGHT / pixelRatio;
+      const sliceCount = Math.max(1, Math.ceil(sourceHeight / previewSliceHeight));
 
+      // Off-screen clone so slicing never touches the live, interactive
+      // canvas — cloneNode(true) copies DOM structure/attributes/inline
+      // styles (background-image data URLs included), which is everything
+      // toCanvas needs; it doesn't need React event handlers to render a
+      // static snapshot. Positioned on-screen (top-left, z-index behind
+      // everything) rather than off-screen via a large negative left — an
+      // earlier version used `left: -99999px` and toCanvas silently
+      // captured a blank white image every time (found by actually opening
+      // the exported PNGs, not just from the code). In-viewport with a
+      // very negative z-index avoids whatever off-screen-coordinate issue
+      // that was while staying invisible behind the real app chrome.
+      offscreenHost.style.position = "fixed";
+      offscreenHost.style.top = "0";
+      offscreenHost.style.left = "0";
+      offscreenHost.style.zIndex = "-1";
+      offscreenHost.style.width = `${sourceWidth}px`;
+      offscreenHost.style.overflow = "hidden";
+      const clone = sourceNode.cloneNode(true) as HTMLElement;
+      clone.style.position = "relative";
+      offscreenHost.appendChild(clone);
+      document.body.appendChild(offscreenHost);
+
+      const zip = new JSZip();
       for (let index = 0; index < sliceCount; index += 1) {
-        const sourceY = index * EXPORT_SLICE_HEIGHT;
-        const sliceHeight = Math.min(EXPORT_SLICE_HEIGHT, fullCanvas.height - sourceY);
-        const sliceCanvas = document.createElement("canvas");
-        sliceCanvas.width = fullCanvas.width;
-        sliceCanvas.height = sliceHeight;
-        const ctx = sliceCanvas.getContext("2d");
-        if (!ctx) throw new Error("Canvas context is not available");
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-        ctx.drawImage(
-          fullCanvas,
-          0,
-          sourceY,
-          fullCanvas.width,
-          sliceHeight,
-          0,
-          0,
-          fullCanvas.width,
-          sliceHeight
-        );
+        const sourceY = index * previewSliceHeight;
+        const sliceHeight = Math.min(previewSliceHeight, sourceHeight - sourceY);
+        offscreenHost.style.height = `${sliceHeight}px`;
+        clone.style.marginTop = `${-sourceY}px`;
+        const sliceCanvas = await toCanvas(offscreenHost, {
+          width: sourceWidth,
+          height: sliceHeight,
+          pixelRatio,
+          backgroundColor: "#ffffff",
+        });
         const fileName = `${String(index + 1).padStart(2, "0")}.png`;
         zip.file(fileName, await canvasToBlob(sliceCanvas));
       }
 
+      const finalWidth = Math.round(sourceWidth * pixelRatio);
+      const finalHeight = Math.round(sourceHeight * pixelRatio);
       zip.file(
         "export-info.json",
         JSON.stringify(
           {
             platform: projectSummary.platform,
-            width: fullCanvas.width,
-            height: fullCanvas.height,
+            width: finalWidth,
+            height: finalHeight,
             sliceHeight: EXPORT_SLICE_HEIGHT,
             files: sliceCount,
             createdAt: new Date().toISOString(),
@@ -1529,10 +1554,11 @@ export default function DetailPageEditor() {
       link.click();
       URL.revokeObjectURL(url);
       toast("ZIP 다운로드가 완료되었습니다", {
-        description: `${exportWidth}px 폭 · ${sliceCount}개 PNG`,
+        description: `${finalWidth}px 폭 · ${sliceCount}개 PNG`,
       });
       setExportSuccessKey((key) => key + 1);
     } finally {
+      offscreenHost.remove();
       setIsExporting(false);
     }
   }
