@@ -28,13 +28,11 @@ import {
 import { SectionCanvas } from "@/components/editor/section-canvas";
 import { SectionList } from "@/components/editor/section-list";
 import { SectionEditPanel } from "@/components/editor/section-edit-panel";
-import { CanvasElementPanel } from "@/components/editor/canvas-element-panel";
 import { AiAssistantPanel } from "@/components/editor/ai-assistant-panel";
 import { AgentWorkflowPanel } from "@/components/editor/agent-workflow-panel";
 import { getMockReferencesForSection, mockSections } from "@/lib/mock-data";
 import { mockPlanRevision, upgradeLegacyMockSections } from "@/lib/mock-ai";
 import { applyLayoutPresetToSections } from "@/lib/layout-presets";
-import { createDefaultCanvasData } from "@/lib/canvas-elements";
 import { loadStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { richTextToPlainText } from "@/lib/rich-text";
@@ -42,7 +40,6 @@ import { cn } from "@/lib/utils";
 import {
   AgentRunDraft,
   AgentWorkflowDraft,
-  CanvasElement,
   DesignMood,
   DetailSection,
   GenerateDetailPageInput,
@@ -193,7 +190,6 @@ export default function DetailPageEditor() {
   const [sections, setSections] = useState<DetailSection[]>(mockSections);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [selectedId, setSelectedId] = useState<string>(mockSections[0].id);
-  const [selectedElementId, setSelectedElementId] = useState<string | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [revisionRequest, setRevisionRequest] = useState("");
   const [pendingSections, setPendingSections] = useState<DetailSection[] | null>(null);
@@ -601,7 +597,6 @@ export default function DetailPageEditor() {
 
   function selectSection(id: string) {
     setSelectedId(id);
-    setSelectedElementId(null);
     setPendingSections(null);
   }
 
@@ -889,36 +884,6 @@ export default function DetailPageEditor() {
     if (target && beforeText !== afterText) {
       recordStyleSignal({ kind: "copy_manual_edit", section: target, before: beforeText, after: afterText });
     }
-  }
-
-  function handleSelectElement(sectionId: string, elementId: string | null) {
-    if (sectionId !== selectedId) setSelectedId(sectionId);
-    setSelectedElementId(elementId);
-  }
-
-  function handleChangeElement(sectionId: string, elementId: string, patch: Partial<CanvasElement>) {
-    pushHistory();
-    setSections((prev) =>
-      prev.map((s) => {
-        if (s.id !== sectionId || !s.canvasData) return s;
-        return {
-          ...s,
-          canvasData: {
-            ...s.canvasData,
-            elements: s.canvasData.elements.map((el) =>
-              el.id === elementId ? ({ ...el, ...patch } as CanvasElement) : el
-            ),
-          },
-        };
-      })
-    );
-  }
-
-  function handleEnableCanvasMode() {
-    pushHistory();
-    setSections((prev) =>
-      prev.map((s) => (s.id === selectedId ? { ...s, canvasData: createDefaultCanvasData(s) } : s))
-    );
   }
 
   function zoomIn() {
@@ -1654,9 +1619,6 @@ export default function DetailPageEditor() {
                   platform={projectSummary.platform}
                   onSelect={selectSection}
                   onCommitText={handleCanvasTextCommit}
-                  selectedElementId={selectedElementId}
-                  onSelectElement={handleSelectElement}
-                  onChangeElement={handleChangeElement}
                 />
               </div>
             </div>
@@ -1668,40 +1630,24 @@ export default function DetailPageEditor() {
             섹션 편집 · {selectedSection.title}
           </div>
           <div className="p-4">
-            {selectedSection.canvasData && selectedElementId ? (
-              (() => {
-                const selectedElement = selectedSection.canvasData.elements.find(
-                  (el) => el.id === selectedElementId
-                );
-                if (!selectedElement) return null;
-                return (
-                  <CanvasElementPanel
-                    element={selectedElement}
-                    onChange={(patch) => handleChangeElement(selectedSection.id, selectedElement.id, patch)}
-                  />
-                );
-              })()
-            ) : (
-              <SectionEditPanel
-                section={selectedSection}
-                hidden={hiddenIds.has(selectedId)}
-                onCommitBody={(before, after) => handleCanvasTextCommit(selectedId, "body", before, after)}
-                onMoveUp={() => moveSelected(-1)}
-                onMoveDown={() => moveSelected(1)}
-                onToggleHide={() => toggleHide(selectedId)}
-                onRegenerate={regenerateSelected}
-                onSelectAlternative={applyHeadlineAlternative}
-                onChangeLayout={updateSelectedLayout}
-                productImage={productImage}
-                referenceImage={referenceImage}
-                references={selectedReferences}
-                onApplyImage={applySectionImage}
-                onUploadSectionImage={uploadSectionImage}
-                onGenerateImage={generateSectionImage}
-                isGeneratingImage={isGeneratingImage}
-                onEnableCanvasMode={handleEnableCanvasMode}
-              />
-            )}
+            <SectionEditPanel
+              section={selectedSection}
+              hidden={hiddenIds.has(selectedId)}
+              onCommitBody={(before, after) => handleCanvasTextCommit(selectedId, "body", before, after)}
+              onMoveUp={() => moveSelected(-1)}
+              onMoveDown={() => moveSelected(1)}
+              onToggleHide={() => toggleHide(selectedId)}
+              onRegenerate={regenerateSelected}
+              onSelectAlternative={applyHeadlineAlternative}
+              onChangeLayout={updateSelectedLayout}
+              productImage={productImage}
+              referenceImage={referenceImage}
+              references={selectedReferences}
+              onApplyImage={applySectionImage}
+              onUploadSectionImage={uploadSectionImage}
+              onGenerateImage={generateSectionImage}
+              isGeneratingImage={isGeneratingImage}
+            />
           </div>
         </div>
       </div>

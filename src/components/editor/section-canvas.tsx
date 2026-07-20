@@ -6,11 +6,10 @@ import { gsap } from "gsap";
 
 import { MarkupToolbar } from "@/components/editor/markup-toolbar";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
-import { SectionCanvasKonva } from "@/components/editor/section-canvas-konva";
 import { getMockReferencesForSection } from "@/lib/mock-data";
 import { renderRichText, richTextToPlainText } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
-import { CanvasElement, DetailSection, PLATFORM_EXPORT_WIDTH, Platform, RichText } from "@/lib/types";
+import { DetailSection, PLATFORM_EXPORT_WIDTH, Platform, RichText } from "@/lib/types";
 import {
   getBodyFontSizePx,
   getBodyTextClass,
@@ -569,9 +568,6 @@ export function SectionCanvas({
   platform,
   onSelect,
   onCommitText,
-  selectedElementId,
-  onSelectElement,
-  onChangeElement,
 }: {
   sections: DetailSection[];
   selectedId: string;
@@ -581,11 +577,6 @@ export function SectionCanvas({
   /** Double-click inline edit commit (docs/TASKS.md §7). before/after let the
    * caller decide whether anything actually changed. */
   onCommitText: (sectionId: string, field: EditableField, before: RichText, after: RichText) => void;
-  /** Free-form canvas mode (section.canvasData present) — selection-driven
-   * property panel state, lifted to the editor page alongside `selectedId`. */
-  selectedElementId?: string | null;
-  onSelectElement?: (sectionId: string, elementId: string | null) => void;
-  onChangeElement?: (sectionId: string, elementId: string, patch: Partial<CanvasElement>) => void;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
@@ -696,30 +687,6 @@ export function SectionCanvas({
           const isCta = sec.kind === "cta";
           const isIntro = sec.kind === "intro";
           const hasImage = !!sec.imageUrl || !!sec.imageGradient || sec.imageSource !== "uploaded";
-          if (sec.canvasData) {
-            // No onClick here (unlike the structured/legacy branches below) —
-            // the Konva stage's own click handling already drives both
-            // section and element selection via onSelectElement, and a
-            // section-level onClick here would fire after it on bubble and
-            // stomp selectedElementId back to null every time.
-            return (
-              <div
-                key={sec.id}
-                data-section-id={sec.id}
-                className={cn(
-                  "cursor-pointer outline-offset-[-2px]",
-                  i !== sections.length - 1 && "border-b border-canvas-border"
-                )}
-              >
-                <SectionCanvasKonva
-                  data={sec.canvasData}
-                  selectedElementId={sec.id === selectedId ? (selectedElementId ?? null) : null}
-                  onSelectElement={(elementId) => onSelectElement?.(sec.id, elementId)}
-                  onChangeElement={(elementId, patch) => onChangeElement?.(sec.id, elementId, patch)}
-                />
-              </div>
-            );
-          }
           if (sec.layoutType) {
             return (
               <StructuredSectionBlock

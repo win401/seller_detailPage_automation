@@ -319,66 +319,6 @@ export interface DetailBlockSlots {
   emphasis?: string;
 }
 
-// ---------- free-form canvas editing (opt-in, per section — 우선순위 4 Konva 마이그레이션 1단계) ----------
-// A section either renders via the structured layoutType blocks (below,
-// flow layout) OR — if canvasData is present — via a Konva <Stage> with
-// freely positioned/sized elements. Box-level styling only: unlike
-// headline/body's RichText, a canvas text element has one font/size/align/
-// fill for its whole box, matching how Figma text layers actually work and
-// avoiding the much harder problem of rich text inside Konva.Text (which has
-// no native multi-style-per-line support).
-
-export interface CanvasTextElement {
-  id: string;
-  type: "text";
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation?: number;
-  text: string;
-  fontFamily?: FontFamily;
-  bold?: boolean;
-  fontSize: number;
-  lineHeight: number;
-  letterSpacing: number;
-  align: "left" | "center" | "right";
-  fill: string;
-}
-
-export interface CanvasImageElement {
-  id: string;
-  type: "image";
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation?: number;
-  imageUrl?: string;
-  fit: "cover" | "contain";
-}
-
-export interface CanvasShapeElement {
-  id: string;
-  type: "shape";
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rotation?: number;
-  fill: string;
-  cornerRadius: number;
-}
-
-export type CanvasElement = CanvasTextElement | CanvasImageElement | CanvasShapeElement;
-
-export interface SectionCanvasData {
-  width: number;
-  height: number;
-  background: { fill: string; cornerRadius: number };
-  elements: CanvasElement[];
-}
-
 export interface DetailSection extends SectionLayoutPreset {
   id: string;
   kind: SectionKind;
@@ -400,8 +340,6 @@ export interface DetailSection extends SectionLayoutPreset {
   imagePrompt?: string;
   /** Alternative copy candidates the user can swap in (docs/PROMPTS.md). */
   alternatives: string[];
-  /** Present only once the user opts a section into free-form canvas editing. */
-  canvasData?: SectionCanvasData;
 }
 
 // ---------- product input (create-project form) ----------
