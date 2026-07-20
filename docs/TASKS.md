@@ -58,7 +58,7 @@
   - **겪은 버그**: 처음엔 오프스크린 클론을 `left: -99999px`로 화면 밖 멀리 두었더니 `toCanvas`가 **매번 완전히 새하얀 빈 이미지**를 반환 — 다운로드까지 다 되고 크기도 맞았지만 내용이 통째로 없었음(코드만 봐서는 못 잡고 실제 PNG를 열어봐서 발견). 화면 안(`top:0,left:0`)에 두고 `z-index:-1`로만 숨기니 정상 캡처됨 — 극단적인 오프스크린 좌표에서 `toCanvas`(SVG `foreignObject` 기반)가 렌더링을 못 하는 것으로 보임, 정확한 근본 원인까지는 안 팠지만 재현 가능한 회피책 확인. 860px/1000px 두 폭 다 dev+프로덕션 빌드(`next build && next start`)에서 실제 다운로드→언집→각 PNG 픽셀 치수 확인(정확히 860/1000, 더 이상 845 안 나옴), 슬라이스 경계에서 텍스트가 끊기지 않고 이어지는 것, 마지막 섹션(정책 안내)이 전부 포함되는 것도 확인. `tsc`/`eslint`/`next build` 클린.
 - [ ] 다음 구현 묶음마다 `npm run lint`, `npx tsc --noEmit`, `npm run build` 실행
 - [ ] 매 push 후 실제 확인한 Vercel 배포 버전/URL을 작업 기록에 남기기
-- [ ] UI 또는 진단 정보에 mock/live, 선택 모델, fallback 이유, 생성 시간 표시
+- [x] (2026-07-20) UI에 mock/live·모델·생성 시간 표시 — fallback 이유는 이미 `AgentWorkflowPanel`(좌측 사이드바)이 각 에이전트 단계별 `warnings[0]`로 노출 중이었음(예: "ENABLE_LIVE_AI가 true가 아니어서 mock 시안을 사용했습니다.") — 이건 그대로 두고, 빠져 있던 두 가지만 추가: 모델명과 생성 소요시간. `POST /api/agent-workflow/generate`(`route.ts`)가 `runOrchestratedGeneration` 호출을 `Date.now()`로 감싸 `generationTimeMs`를 응답에 포함, `output.source === "mock"`이면 `model: null`(mock은 실제 모델 호출이 없으므로), 아니면 `process.env.AI_MODEL ?? "gpt-4.1-mini"`를 `model`로 반환. `new/page.tsx`의 `saveGeneratedDraftLocally`가 이 두 필드를 `detail-page-generation:{projectId}` localStorage에 같이 저장(구버전 필드 없는 기존 draft와도 호환되도록 전부 optional). 에디터 페이지 헤더의 "스마트스토어 · 저장된 draft 불러옴" 줄에 "· Mock 생성 · 0.1초" / "· gpt-4.1-mini · 12.4초" 형태로 이어붙여 표시. 브라우저에서 실제로 "Mock 생성 · 0.0초"가 뜨는 것 확인 — `ENABLE_LIVE_AI`가 이 환경엔 꺼져 있어서 live 경로(모델명 표시)까지는 실제 API 크레딧을 안 쓰고는 확인 못 함, 다만 분기 로직 자체는 대칭적이라 위험 낮음. `tsc`/`eslint`/`next build` 클린.
 - [ ] API 크레딧과 `ENABLE_LIVE_AI` 설정을 의도적으로 준비한 뒤 실제 AI 품질 테스트 1회 수행
 
 ## 우선순위 1: 셀러 이미지가 실제 상세페이지를 채우게 하기

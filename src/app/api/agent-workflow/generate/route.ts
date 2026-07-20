@@ -20,6 +20,12 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
 
+  const startedAt = Date.now();
   const { workflow, output } = await runOrchestratedGeneration(body.input, body.competitorReferences);
-  return Response.json({ workflow, output });
+  const generationTimeMs = Date.now() - startedAt;
+  // Mock generation never calls a model — surfacing the env-configured model
+  // id only when the pipeline actually ran live avoids implying a model was
+  // used when it wasn't (docs/TASKS.md 최우선: mock/live·모델·생성시간 표시).
+  const model = output.source === "mock" ? null : (process.env.AI_MODEL ?? "gpt-4.1-mini");
+  return Response.json({ workflow, output, generationTimeMs, model });
 }

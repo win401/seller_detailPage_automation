@@ -383,12 +383,18 @@ export default function CreateProjectPage() {
     competitorReferences,
     workflow,
     output,
+    generationTimeMs,
+    model,
   }: {
     projectId: string;
     input: GenerateDetailPageInput;
     competitorReferences: CompetitorReferenceInput[];
     workflow: AgentWorkflowDraft;
     output: GenerateDetailPageOutput;
+    /** Wall-clock time the /api/agent-workflow/generate call took, ms. */
+    generationTimeMs?: number;
+    /** Env-configured model id, only set when generation actually ran live. */
+    model?: string | null;
   }) {
     try {
       pruneOldLocalDrafts(projectId);
@@ -411,6 +417,8 @@ export default function CreateProjectPage() {
           agentWorkflow: workflow,
           source: output.source ?? "ai",
           warnings: output.warnings ?? [],
+          generationTimeMs,
+          model: model ?? null,
         })
       );
     } catch {
@@ -507,9 +515,16 @@ export default function CreateProjectPage() {
         body: JSON.stringify({ input, competitorReferences: normalizedCompetitorReferences }),
       });
       if (!response.ok) throw new Error("AI generation request failed");
-      const { workflow, output: rawOutput } = (await response.json()) as {
+      const {
+        workflow,
+        output: rawOutput,
+        generationTimeMs,
+        model,
+      } = (await response.json()) as {
         workflow: AgentWorkflowDraft;
         output: GenerateDetailPageOutput;
+        generationTimeMs?: number;
+        model?: string | null;
       };
       const output = withStyleLayout(rawOutput);
       setAgentWorkflow(workflow);
@@ -531,6 +546,8 @@ export default function CreateProjectPage() {
         competitorReferences: normalizedCompetitorReferences,
         workflow,
         output,
+        generationTimeMs,
+        model,
       });
       setGenerationMessage(
         output.source === "mock"
@@ -558,6 +575,7 @@ export default function CreateProjectPage() {
         competitorReferences: normalizedCompetitorReferences,
         workflow: optimisticWorkflow,
         output,
+        model: null,
       });
       setGenerationMessage("AI 호출 실패로 mock 에이전트 시안을 사용합니다.");
       router.push(`/projects/${projectId}/editor`);

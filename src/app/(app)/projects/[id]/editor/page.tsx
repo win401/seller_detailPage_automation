@@ -77,6 +77,12 @@ interface LocalGeneration {
   };
   source?: string;
   warnings?: unknown[];
+  /** Wall-clock time the generation request took, ms (docs/TASKS.md 최우선:
+   * mock/live·모델·생성시간 표시) — undefined for older saved drafts. */
+  generationTimeMs?: number;
+  /** Env-configured model id, only set when generation actually ran live
+   * (null for mock, undefined for older saved drafts predating this field). */
+  model?: string | null;
 }
 
 class SupabaseSaveError extends Error {
@@ -1572,6 +1578,19 @@ export default function DetailPageEditor() {
     return getMockReferencesForSection(selectedSection, isDesignMood(mood) ? mood : "minimal");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- readLocalGeneration reads a stable per-project localStorage key
   }, [selectedSection]);
+  // Header diagnostic badge: mock/live, model, generation time
+  // (docs/TASKS.md 최우선). Undefined for drafts saved before this field
+  // existed, or for the client-only mock fallback path — both render nothing.
+  const generationDiagnostics = useMemo(() => {
+    const generation = readLocalGeneration();
+    if (!generation) return null;
+    const parts: string[] = [generation.source === "mock" ? "Mock 생성" : generation.model || "AI 생성"];
+    if (typeof generation.generationTimeMs === "number") {
+      parts.push(`${(generation.generationTimeMs / 1000).toFixed(1)}초`);
+    }
+    return parts.join(" · ");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- readLocalGeneration reads a stable per-project localStorage key, re-derive whenever the draft reloads
+  }, [loadedFromStorage, draftLoadSource]);
 
   return (
     <div className="flex h-[calc(100vh-60px)] flex-col">
@@ -1594,6 +1613,12 @@ export default function DetailPageEditor() {
                   : loadedFromStorage
                     ? "저장된 draft 불러옴"
                     : "새 초안"}
+              {generationDiagnostics && (
+                <>
+                  {" · "}
+                  <span title="mock/live 생성 정보 (docs/TASKS.md 최우선)">{generationDiagnostics}</span>
+                </>
+              )}
             </div>
           </div>
         </div>
