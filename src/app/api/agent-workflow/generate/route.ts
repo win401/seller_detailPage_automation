@@ -14,6 +14,8 @@ const requestSchema = z.object({
   input: generateDetailPageInputSchema,
   competitorReferences: z.array(competitorReferenceInputSchema).default([]),
   preferredLayoutByKind: preferredLayoutByKindSchema,
+  styleSignalHint: z.string().optional(),
+  brandNote: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -30,7 +32,9 @@ export async function POST(request: Request) {
   const { workflow, output } = await runOrchestratedGeneration(
     body.input,
     body.competitorReferences,
-    body.preferredLayoutByKind as Partial<Record<SectionKind, DetailBlockLayoutType>> | undefined
+    body.preferredLayoutByKind as Partial<Record<SectionKind, DetailBlockLayoutType>> | undefined,
+    body.styleSignalHint,
+    body.brandNote
   );
   const generationTimeMs = Date.now() - startedAt;
   // Mock generation never calls a model — surfacing the env-configured model

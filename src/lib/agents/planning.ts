@@ -6,7 +6,12 @@ import { GenerateDetailPageInput } from "@/lib/types";
 import { AgentRunResult, AnalysisOutput, planningOutputSchema } from "./schemas";
 import { AI_CALL_TIMEOUT_MS, getMockReason, isLiveAiEnabled } from "./runtime-config";
 
-function buildPrompt(input: GenerateDetailPageInput, analysisOutput?: AnalysisOutput) {
+function buildPrompt(
+  input: GenerateDetailPageInput,
+  analysisOutput?: AnalysisOutput,
+  styleSignalHint?: string,
+  brandNote?: string
+) {
   return `
 너는 커머스 상세페이지 기획자야.
 
@@ -28,12 +33,16 @@ function buildPrompt(input: GenerateDetailPageInput, analysisOutput?: AnalysisOu
 - 플랫폼: ${input.platform}
 - 추가 제작 요청: ${input.additionalInstruction || "없음"}
 - 분석 에이전트 결과: ${analysisOutput ? JSON.stringify(analysisOutput) : "(분석 결과 없음, 상품 정보만으로 기획)"}
-`.trim();
+${brandNote ? `\n브랜드 톤 메모(참고용): ${brandNote}\n` : ""}${
+    styleSignalHint ? `\n사용자 스타일 신호 요약(참고용, 문맥에 안 맞으면 무시해도 됨):\n${styleSignalHint}\n` : ""
+  }`.trim();
 }
 
 export async function runPlanningAgent(
   input: GenerateDetailPageInput,
-  analysisOutput?: AnalysisOutput
+  analysisOutput?: AnalysisOutput,
+  styleSignalHint?: string,
+  brandNote?: string
 ): Promise<AgentRunResult> {
   const fallback = (reason?: string): AgentRunResult => {
     const mock = mockPlanningAgent(input);
@@ -61,7 +70,7 @@ export async function runPlanningAgent(
       temperature: 0.3,
       timeout: AI_CALL_TIMEOUT_MS,
       output: Output.object({ schema: planningOutputSchema }),
-      prompt: buildPrompt(input, analysisOutput),
+      prompt: buildPrompt(input, analysisOutput, styleSignalHint, brandNote),
     });
 
     return {

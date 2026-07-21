@@ -201,7 +201,17 @@ export const reviewOutputSchema = z.object({
     z.object({
       sectionId: z.string(),
       severity: z.enum(["low", "medium", "high"]),
-      type: z.enum(["exaggeration", "unsupported_claim", "missing_section", "readability", "platform_fit"]),
+      type: z.enum([
+        "exaggeration",
+        "unsupported_claim",
+        "missing_section",
+        "readability",
+        "platform_fit",
+        "missing_image_slot",
+        "layout_mismatch",
+        "section_flow",
+        "repetition",
+      ]),
       message: z.string(),
       suggestion: z.string(),
     })

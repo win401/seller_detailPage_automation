@@ -64,7 +64,8 @@ async function fallback(
 function buildPrompt(
   input: GenerateDetailPageInput,
   planningOutput?: PlanningOutput,
-  preferredLayoutByKind?: Partial<Record<SectionKind, DetailBlockLayoutType>>
+  preferredLayoutByKind?: Partial<Record<SectionKind, DetailBlockLayoutType>>,
+  brandNote?: string
 ) {
   return `
 너는 쿠팡/네이버 스마트스토어 상세페이지를 많이 작성한 이커머스 카피라이터야.
@@ -120,14 +121,15 @@ ${
         .map(([kind, layout]) => `  - ${kind}: ${layout}`)
         .join("\n")}\n`
     : ""
-}
+}${brandNote ? `\n브랜드 톤 메모(참고용): ${brandNote}\n` : ""}
 `.trim();
 }
 
 export async function runProductionAgent(
   input: GenerateDetailPageInput,
   planningOutput?: PlanningOutput,
-  preferredLayoutByKind?: Partial<Record<SectionKind, DetailBlockLayoutType>>
+  preferredLayoutByKind?: Partial<Record<SectionKind, DetailBlockLayoutType>>,
+  brandNote?: string
 ): Promise<GenerateDetailPageOutput> {
   if (!isLiveAiEnabled()) {
     return await fallback(input, getMockReason(), preferredLayoutByKind);
@@ -150,7 +152,7 @@ export async function runProductionAgent(
       temperature: 0.35,
       timeout: PRODUCTION_CALL_TIMEOUT_MS,
       output: Output.object({ schema: productionOutputSchema }),
-      prompt: buildPrompt(input, planningOutput, preferredLayoutByKind),
+      prompt: buildPrompt(input, planningOutput, preferredLayoutByKind, brandNote),
     });
 
     // 실제 kind별 mock 템플릿 섹션 — 소프트 실패(유효한 layoutType이지만 필수

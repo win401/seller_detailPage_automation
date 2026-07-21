@@ -221,12 +221,23 @@ export function mockProductionAgentSummary(): MockAgentRun {
 export function mockReviewAgent(): MockAgentRun {
   return {
     title: "검수 에이전트",
-    summary: "과장 표현, 근거 없는 수치/인증, 모바일 가독성을 확인할 준비가 되었습니다.",
+    summary: "과장 표현, 근거 없는 수치/인증, 모바일 가독성을 확인했습니다.",
     output: {
       score: 82,
-      checks: ["unsupported_claim", "exaggeration", "mobile_readability", "section_completeness"],
+      summary: "과장 표현, 근거 없는 수치/인증, 모바일 가독성을 확인했습니다.",
+      issues: [
+        {
+          sectionId: "s4",
+          severity: "low" as const,
+          type: "readability" as const,
+          message: "이 섹션의 본문 문장이 다소 길어 모바일에서 읽기 어려울 수 있습니다.",
+          suggestion: "한 문장을 두 문장으로 나눠 짧게 전달해 보세요.",
+        },
+      ],
+      autoFixSuggestions: [],
+      warnings: ["실제 검수 API 연결 전까지는 mock 검수 결과입니다."],
     },
-    warnings: ["실제 검수 API 연결 전까지는 mock 검수 점수입니다."],
+    warnings: ["실제 검수 API 연결 전까지는 mock 검수 결과입니다."],
   };
 }
 

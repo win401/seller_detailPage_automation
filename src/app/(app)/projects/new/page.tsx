@@ -24,6 +24,7 @@ import {
 } from "@/lib/mock-ai";
 import { mockEmphasisOptions, mockProductInput, mockStyleSets } from "@/lib/mock-data";
 import { applyLayoutPresetToSections, resolveHiddenSectionIds } from "@/lib/layout-presets";
+import { buildStyleSignalHint, loadUserStyleSignals, summarizeStyleSignals } from "@/lib/style-signals";
 import { loadRemoteStyleSets, loadStyleSets, saveStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { optimizeImageFile } from "@/lib/image-optimize";
@@ -42,6 +43,7 @@ import {
   TONE_LABELS,
   Tone,
   UploadedImageDraft,
+  UserStyleSignalDraft,
 } from "@/lib/types";
 
 const TONE_OPTIONS = Object.keys(TONE_LABELS) as Tone[];
@@ -258,6 +260,31 @@ export default function CreateProjectPage() {
       cancelled = true;
     };
   }, []);
+
+  // This page never loaded user_style_signals before — only editor/page.tsx
+  // did, for its own display. Loaded once here (no live merge needed, unlike
+  // the editor) purely to compute a hint for the planning agent at generation
+  // time (docs/TASKS.md 우선순위 2/3, "다음 기획에 사용").
+  const [styleSignals, setStyleSignals] = useState<UserStyleSignalDraft[]>([]);
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    let cancelled = false;
+
+    async function loadSignals() {
+      const {
+        data: { user },
+      } = await supabase!.auth.getUser();
+      if (!user || cancelled) return;
+      const signals = await loadUserStyleSignals(supabase!, user.id);
+      if (!cancelled) setStyleSignals(signals);
+    }
+
+    void loadSignals();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [additionalInstruction, setAdditionalInstruction] = useState("");
   const [referenceMemo, setReferenceMemo] = useState("");
   const [competitorReferences, setCompetitorReferences] = useState<CompetitorReferenceInput[]>([
@@ -346,6 +373,10 @@ export default function CreateProjectPage() {
     const agentRunRows = [
       ...(workflow.orchestratorRun ? [workflow.orchestratorRun] : []),
       ...workflow.runs,
+      // Deterministic, not orchestrator-invoked — no parent_run_id (kept out
+      // of workflow.runs itself since new/page.tsx's 4-step stepper does
+      // positional access against it, see types.ts's AgentWorkflowDraft comment).
+      ...(workflow.styleSignalRun ? [workflow.styleSignalRun] : []),
     ].map((run) => ({
       id: run.id,
       parent_run_id: run.parentRunId ?? null,
@@ -537,6 +568,7 @@ export default function CreateProjectPage() {
     // about, so they're stamped onto the generated sections here rather
     // than passed into the generation prompt.
     const selectedStyleSet = styleSets.find((ss) => ss.id === styleSetId);
+    const styleSignalHint = buildStyleSignalHint(summarizeStyleSignals(styleSignals));
     function withStyleLayout(rawOutput: GenerateDetailPageOutput): GenerateDetailPageOutput {
       // The editor only accepts structured blocks. A live model may return the
       // old flat 13-section shape, so normalize it before either local or DB save.
@@ -557,6 +589,8 @@ export default function CreateProjectPage() {
           input,
           competitorReferences: normalizedCompetitorReferences,
           preferredLayoutByKind: selectedStyleSet?.preferredLayoutByKind,
+          styleSignalHint,
+          brandNote: selectedStyleSet?.brandNote,
         }),
       });
       if (!response.ok) throw new Error("AI generation request failed");

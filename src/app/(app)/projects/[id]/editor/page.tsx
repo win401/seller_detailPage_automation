@@ -39,6 +39,7 @@ import { ImageManagerDialog } from "@/components/editor/image-manager-dialog";
 import { getMockReferencesForSection, mockSections } from "@/lib/mock-data";
 import { mockPlanRevision, upgradeLegacyMockSections } from "@/lib/mock-ai";
 import { applyLayoutPresetToSections, resolveHiddenSectionIds } from "@/lib/layout-presets";
+import { loadUserStyleSignals } from "@/lib/style-signals";
 import { loadRemoteStyleSets, loadStyleSets, saveStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { deleteProjectImage, listProjectImages, uploadProjectImage } from "@/lib/supabase/storage";
@@ -672,24 +673,15 @@ export default function DetailPageEditor() {
       } = await client.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await client
-        .from("user_style_signals")
-        .select("id, project_id, section_id, section_title, kind, before, after, summary, created_at")
-        .order("created_at", { ascending: false })
-        .limit(30);
+      const remoteSignalsRaw = await loadUserStyleSignals(client, user.id);
+      if (cancelled || remoteSignalsRaw.length === 0) return;
 
-      if (cancelled || error || !data?.length) return;
-
-      const remoteSignals: UserStyleSignalDraft[] = data.map((signal) => ({
-        id: signal.id,
-        projectId: signal.project_id ?? projectId,
-        sectionId: signal.section_id ?? undefined,
-        sectionTitle: signal.section_title ?? undefined,
-        kind: signal.kind as UserStyleSignalKind,
-        before: signal.before ?? undefined,
-        after: signal.after ?? undefined,
-        summary: signal.summary,
-        createdAt: signal.created_at,
+      // Substitute the current page's projectId for signals stored with a
+      // null project_id (local-only drafts at write time, isUuid guard in
+      // persistStyleSignal) — display-only fallback, matches prior behavior.
+      const remoteSignals: UserStyleSignalDraft[] = remoteSignalsRaw.map((signal) => ({
+        ...signal,
+        projectId: signal.projectId || projectId,
       }));
 
       setStyleSignals((prev) => {
@@ -1442,6 +1434,9 @@ export default function DetailPageEditor() {
     setIsRevising(true);
 
     try {
+      // 재기획 시 이 프로젝트의 스타일 세트 레이아웃 선호/브랜드 메모가 유실되던
+      // 버그 수정 — 원래 생성 때만 넘어가고 재기획엔 안 넘어갔음(docs/TASKS.md).
+      const revisionStyleSet = styleSets.find((ss) => ss.id === styleSetToApply);
       const response = await fetch("/api/agent-workflow/revise", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1453,6 +1448,8 @@ export default function DetailPageEditor() {
           analysisOutput: agentWorkflow?.runs.find((run) => run.agentType === "analysis")?.output,
           planningOutput: agentWorkflow?.runs.find((run) => run.agentType === "planning")?.output,
           reviewOutput: agentWorkflow?.runs.find((run) => run.agentType === "review")?.output,
+          preferredLayoutByKind: revisionStyleSet?.preferredLayoutByKind,
+          brandNote: revisionStyleSet?.brandNote,
         }),
       });
       if (!response.ok) throw new Error("Revision request failed");

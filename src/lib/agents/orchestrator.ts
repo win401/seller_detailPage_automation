@@ -153,12 +153,32 @@ function pickLatestOrFallback(
 export async function runOrchestratedGeneration(
   input: GenerateDetailPageInput,
   competitorReferences: CompetitorReferenceInput[],
-  preferredLayoutByKind?: Partial<Record<SectionKind, DetailBlockLayoutType>>
+  preferredLayoutByKind?: Partial<Record<SectionKind, DetailBlockLayoutType>>,
+  styleSignalHint?: string,
+  brandNote?: string
 ): Promise<{ workflow: AgentWorkflowDraft; output: GenerateDetailPageOutput }> {
+  // Deterministic — no LLM call, so it's computed once regardless of mock/live
+  // and attached to every return path below. Kept OUT of `workflow.runs`
+  // deliberately: new/page.tsx's 4-step stepper does positional access
+  // (runs[index] against a fixed [분석,기획,제작,검수] array), so a 5th run
+  // there would silently break it (docs/TASKS.md 우선순위 2/3).
+  const styleSignalRun: AgentRunDraft | undefined = styleSignalHint
+    ? {
+        id: randomUUID(),
+        agentType: "style_signal_summary",
+        status: "succeeded",
+        title: "스타일 학습",
+        summary: "과거 수정/선택 이력을 요약해 기획 에이전트에 참고 정보로 전달했습니다.",
+        output: { hint: styleSignalHint },
+        warnings: [],
+        createdAt: new Date().toISOString(),
+      }
+    : undefined;
+
   if (!isLiveAiEnabled() || !process.env.OPENAI_API_KEY) {
     const mockOutput = mockGenerateDetailPage(input, preferredLayoutByKind);
     return {
-      workflow: mockBuildAgentWorkflow(input, competitorReferences),
+      workflow: { ...mockBuildAgentWorkflow(input, competitorReferences), styleSignalRun },
       output: {
         ...mockOutput,
         sections: await generateSectionImages(mockOutput.sections, input.productImageDataUrl),
@@ -190,7 +210,7 @@ export async function runOrchestratedGeneration(
       description: "상세페이지 기획안을 생성한다. 분석 결과가 있으면 자동으로 반영된다.",
       inputSchema: reasonInputSchema,
       execute: async ({ reason }: { reason: string }) => {
-        const result = await runPlanningAgent(input, pipelineState.analysis);
+        const result = await runPlanningAgent(input, pipelineState.analysis, styleSignalHint, brandNote);
         pipelineState.planning = result.output as PlanningOutput;
         runs.push(toRunDraft("planning", result, orchestratorRunId));
         return { reason, summary: result.summary, warningCount: result.warnings.length };
@@ -200,7 +220,7 @@ export async function runOrchestratedGeneration(
       description: "13개 섹션 상세페이지 초안을 생성한다. 기획 결과가 있으면 자동으로 반영된다.",
       inputSchema: reasonInputSchema,
       execute: async ({ reason }: { reason: string }) => {
-        const result = await runProductionAgent(input, pipelineState.planning, preferredLayoutByKind);
+        const result = await runProductionAgent(input, pipelineState.planning, preferredLayoutByKind, brandNote);
         pipelineState.production = result;
         runs.push(
           toRunDraft(
@@ -257,7 +277,7 @@ export async function runOrchestratedGeneration(
     if (!pipelineState.production) {
       // Orchestrator never called production — run it directly so the user still gets a draft.
       stoppedReason = "repeated_failure";
-      const fallbackProduction = await runProductionAgent(input, pipelineState.planning, preferredLayoutByKind);
+      const fallbackProduction = await runProductionAgent(input, pipelineState.planning, preferredLayoutByKind, brandNote);
       pipelineState.production = fallbackProduction;
       runs.push(
         toRunDraft(
@@ -302,6 +322,7 @@ export async function runOrchestratedGeneration(
         revisionEnabled: true,
         runs: orderedRuns,
         orchestratorRun,
+        styleSignalRun,
       },
       output: pipelineState.production,
     };
@@ -309,7 +330,7 @@ export async function runOrchestratedGeneration(
     console.error("orchestrator agent failed", error);
     const mockOutput = mockGenerateDetailPage(input, preferredLayoutByKind);
     return {
-      workflow: mockBuildAgentWorkflow(input, competitorReferences),
+      workflow: { ...mockBuildAgentWorkflow(input, competitorReferences), styleSignalRun },
       output: {
         ...mockOutput,
         sections: await generateSectionImages(mockOutput.sections, input.productImageDataUrl),
@@ -365,7 +386,9 @@ export async function runOrchestratedRevision(
   selectedSectionId?: string,
   priorAnalysis?: AnalysisOutput,
   priorPlanning?: PlanningOutput,
-  priorReview?: ReviewOutput
+  priorReview?: ReviewOutput,
+  preferredLayoutByKind?: Partial<Record<SectionKind, DetailBlockLayoutType>>,
+  brandNote?: string
 ): Promise<RevisionResult> {
   if (!isLiveAiEnabled() || !process.env.OPENAI_API_KEY) {
     return mockRevisionResult(currentSections, request, selectedSectionId, getMockReason());
@@ -418,7 +441,7 @@ export async function runOrchestratedRevision(
       warnings: [],
     };
 
-    const productionResult = await runProductionAgent(input, adaptedPlanning);
+    const productionResult = await runProductionAgent(input, adaptedPlanning, preferredLayoutByKind, brandNote);
     runs.push(
       toRunDraft(
         "production",

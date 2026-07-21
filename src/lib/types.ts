@@ -477,6 +477,11 @@ export interface AgentWorkflowDraft {
   revisionEnabled: boolean;
   /** The supervising orchestrator's own run, if the real (non-mock) pipeline ran. */
   orchestratorRun?: AgentRunDraft;
+  /** Deterministic (no LLM call) style-signal aggregation, shown as its own
+   * "스타일 학습" card — kept OUT of `runs` deliberately: new/page.tsx's 4-step
+   * stepper does positional access (runs[index] against a fixed
+   * [분석,기획,제작,검수] array), so a 5th entry there would silently break it. */
+  styleSignalRun?: AgentRunDraft;
 }
 
 // ---------- user style signal draft contract (localStorage now, Supabase later) ----------
@@ -499,6 +504,21 @@ export interface UserStyleSignalDraft {
   after?: string;
   summary: string;
   createdAt: string;
+}
+
+/** Deterministic aggregation of a user's accumulated style signals across
+ * all their projects (src/lib/style-signals.ts) — fed into the planning
+ * agent as a non-binding hint, same pattern as StyleSet.preferredLayoutByKind. */
+export interface StyleSignalSummary {
+  totalCount: number;
+  /** Counts by kind, only for kinds that occurred at least once. */
+  countsByKind: Partial<Record<UserStyleSignalKind, number>>;
+  /** Actual before/after text snippets worth quoting verbatim — only from
+   * copy_manual_edit/headline_choice (real copy) and planner_revision_apply
+   * (the user's own free-text request, the highest-signal-value kind).
+   * section_reorder/section_visibility/section_image_choice are tally-only —
+   * their before/after are low-semantic strings like "index:3"/"hidden". */
+  notableSnippets: string[];
 }
 
 // ---------- AI editing assistant contract (docs/PROMPTS.md) ----------
