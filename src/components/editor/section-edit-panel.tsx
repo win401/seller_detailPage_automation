@@ -23,6 +23,8 @@ import {
   UploadedImageDraft,
 } from "@/lib/types";
 import {
+  IMAGE_POSITION_DEFAULT,
+  IMAGE_POSITION_RANGE,
   LETTER_SPACING_DEFAULT,
   LETTER_SPACING_RANGE,
   LINE_HEIGHT_DEFAULT,
@@ -32,7 +34,7 @@ import {
   TEXT_SIZE_DEFAULT,
   TEXT_SIZE_RANGE,
 } from "@/lib/layout-presets";
-import { ImagePositionGrid, PresetToggleGroup, SliderField } from "./layout-preset-controls";
+import { PresetToggleGroup, SliderField } from "./layout-preset-controls";
 import { MarkupToolbar } from "./markup-toolbar";
 import { RichTextEditor } from "./rich-text-editor";
 
@@ -166,17 +168,32 @@ export function SectionEditPanel({
           </span>
         </div>
 
-        <div className="mt-2 flex items-start gap-3">
+        <div className="mt-2 grid gap-1.5">
           <div>
             <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
-              이미지 위치
+              가로 위치
             </div>
-            <ImagePositionGrid
-              value={section.imagePosition}
-              onChange={(imagePosition) => onChangeLayout({ imagePosition })}
+            <SliderField
+              value={section.imagePositionX}
+              defaultValue={IMAGE_POSITION_DEFAULT}
+              {...IMAGE_POSITION_RANGE}
+              unit="%"
+              onChange={(imagePositionX) => onChangeLayout({ imagePositionX })}
             />
           </div>
-          <div className="flex-1 grid gap-1.5">
+          <div>
+            <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
+              세로 위치
+            </div>
+            <SliderField
+              value={section.imagePositionY}
+              defaultValue={IMAGE_POSITION_DEFAULT}
+              {...IMAGE_POSITION_RANGE}
+              unit="%"
+              onChange={(imagePositionY) => onChangeLayout({ imagePositionY })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
                 이미지 채우기

@@ -4,7 +4,7 @@ import { openai } from "@ai-sdk/openai";
 import { mockAnalysisAgent } from "@/lib/mock-ai";
 import { CompetitorReferenceInput, GenerateDetailPageInput } from "@/lib/types";
 import { AgentRunResult, analysisOutputSchema } from "./schemas";
-import { getMockReason, isLiveAiEnabled } from "./runtime-config";
+import { AI_CALL_TIMEOUT_MS, getMockReason, isLiveAiEnabled } from "./runtime-config";
 
 function buildPrompt(input: GenerateDetailPageInput, competitorReferences: CompetitorReferenceInput[]) {
   const referenceLines = competitorReferences.length
@@ -65,6 +65,7 @@ export async function runAnalysisAgent(
       maxRetries: 0,
       maxOutputTokens: 2500,
       temperature: 0.3,
+      timeout: AI_CALL_TIMEOUT_MS,
       output: Output.object({ schema: analysisOutputSchema }),
       prompt: buildPrompt(input, competitorReferences),
     });

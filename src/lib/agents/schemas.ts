@@ -87,6 +87,85 @@ export const planningOutputSchema = z.object({
 
 // ---------- 제작 에이전트 (docs/PROMPTS.md "AI 상세페이지 생성 프롬프트") ----------
 
+// `review_summary`는 DetailBlockLayoutType 19개 중 section-canvas.tsx의
+// StructuredSectionBlock에 렌더 분기가 없는 죽은 타입이라 승인 목록에서 제외한다
+// (docs/TASKS.md 우선순위 1/2 조사에서 확인).
+export const APPROVED_DETAIL_BLOCK_LAYOUT_TYPES = [
+  "top_notice_banner",
+  "problem_hook",
+  "big_claim_band",
+  "material_closeup",
+  "before_after_compare",
+  "feature_blue_panel",
+  "evidence_card",
+  "option_grid",
+  "step_guide",
+  "comparison_table",
+  "product_info_table",
+  "qa_list",
+  "brand_mood_story",
+  "color_lineup",
+  "care_guide",
+  "certification_stack",
+  "check_point_cards",
+  "policy_notice",
+] as const;
+
+export const detailBlockLayoutTypeSchema = z.enum(APPROVED_DETAIL_BLOCK_LAYOUT_TYPES);
+
+// DetailOptionItem/DetailStepItem의 imageUrl은 제외 — 이미지는 AI가 아니라
+// 기존 이미지 파이프라인(getMockReferencesForSection/generateSectionImages)이 담당한다.
+//
+// 모든 "선택적" 필드는 .optional()이 아니라 .nullable()로 정의한다 — OpenAI
+// structured output의 strict JSON-schema 모드는 모든 프로퍼티가 반드시
+// `required`에 들어있어야 하고, "선택적"은 오직 nullable 타입으로만 표현할 수
+// 있다(.optional()로 값을 아예 생략하면 400 invalid_json_schema 에러). 실제로
+// 이 제약을 어겨 라이브 호출이 매번 실패하는 것을 확인 후 전부 수정함 —
+// production.ts의 stripNullSlotValues가 null을 다시 undefined로 되돌려
+// DetailBlockSlots(types.ts)와 타입을 맞춘다.
+const detailOptionItemSchema = z.object({
+  label: z.string(),
+  value: z.string().nullable(),
+  description: z.string().nullable(),
+  color: z.string().nullable(),
+});
+const detailSpecRowSchema = z.object({ label: z.string(), value: z.string() });
+const detailFaqItemSchema = z.object({ question: z.string(), answer: z.string() });
+const detailGuideItemSchema = z.object({ title: z.string(), body: z.string(), icon: z.string().nullable() });
+const detailProofItemSchema = z.object({
+  label: z.string(),
+  value: z.string(),
+  description: z.string().nullable(),
+});
+const detailStepItemSchema = z.object({ title: z.string(), body: z.string() });
+const detailComparisonRowSchema = z.object({ label: z.string(), left: z.string(), right: z.string() });
+
+// types.ts의 DetailBlockSlots를 그대로 미러링한 flat 스키마 — 19개 layoutType이
+// 전부 공유하는 단일 옵셔널 인터페이스이므로 discriminated union 대신 이 형태를
+// 유지한다 (docs/TASKS.md 우선순위 2 계획 참고). image/images/beforeImage/
+// afterImage/palette/swatches/reviewItems/score는 의도적으로 제외 — 이미지
+// 파이프라인 소유이거나 죽은 review_summary 전용 필드다.
+export const detailBlockSlotsSchema = z.object({
+  eyebrow: z.string().nullable(),
+  subHeadline: z.string().nullable(),
+  badges: z.array(z.string()).nullable(),
+  items: z.array(z.string()).nullable(),
+  caption: z.string().nullable(),
+  brandName: z.string().nullable(),
+  beforeLabel: z.string().nullable(),
+  afterLabel: z.string().nullable(),
+  optionItems: z.array(detailOptionItemSchema).nullable(),
+  specRows: z.array(detailSpecRowSchema).nullable(),
+  faqItems: z.array(detailFaqItemSchema).nullable(),
+  guideItems: z.array(detailGuideItemSchema).nullable(),
+  proofItems: z.array(detailProofItemSchema).nullable(),
+  steps: z.array(detailStepItemSchema).nullable(),
+  comparisonRows: z.array(detailComparisonRowSchema).nullable(),
+  cards: z.array(detailGuideItemSchema).nullable(),
+  noticeItems: z.array(z.string()).nullable(),
+  emphasis: z.string().nullable(),
+});
+
 export const generatedSectionSchema = z.object({
   kind: sectionKindSchema,
   kicker: z.string(),
@@ -96,6 +175,10 @@ export const generatedSectionSchema = z.object({
   imageRole: z.string(),
   imagePrompt: z.string(),
   alternatives: z.array(z.string()),
+  layoutType: detailBlockLayoutTypeSchema,
+  slots: detailBlockSlotsSchema,
+  /** 1문장으로 이 섹션에 이 layoutType을 고른 이유 — 운영자용 메타데이터, 화면엔 노출 안 함. */
+  layoutRationale: z.string(),
 });
 
 export const productionOutputSchema = z.object({

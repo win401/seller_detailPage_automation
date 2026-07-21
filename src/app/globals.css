@@ -165,6 +165,14 @@
     @apply bg-background text-foreground;
   }
   html {
+    /* Browsers treat each Hangul syllable as its own line-break point by
+       default, so long Korean sentences (headline/body/badges/etc., every
+       detail-page block) wrap mid-word — e.g. "제공합니다" splitting into
+       "제공합니" + "다". keep-all only breaks at spaces, matching normal
+       Korean typography; overflow-wrap still lets a genuinely unbreakable
+       run (a long URL, one long English token) wrap instead of overflowing. */
+    word-break: keep-all;
+    overflow-wrap: break-word;
     @apply font-sans;
   }
 }

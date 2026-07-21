@@ -4,7 +4,7 @@ import { openai } from "@ai-sdk/openai";
 import { mockReviewAgent } from "@/lib/mock-ai";
 import { GenerateDetailPageInput, GenerateDetailPageOutput } from "@/lib/types";
 import { AgentRunResult, PlanningOutput, reviewOutputSchema } from "./schemas";
-import { getMockReason, isLiveAiEnabled } from "./runtime-config";
+import { AI_CALL_TIMEOUT_MS, getMockReason, isLiveAiEnabled } from "./runtime-config";
 
 function buildPrompt(
   input: GenerateDetailPageInput,
@@ -68,6 +68,7 @@ export async function runReviewAgent(
       maxRetries: 0,
       maxOutputTokens: 2500,
       temperature: 0.2,
+      timeout: AI_CALL_TIMEOUT_MS,
       output: Output.object({ schema: reviewOutputSchema }),
       prompt: buildPrompt(input, productionOutput, planningOutput),
     });

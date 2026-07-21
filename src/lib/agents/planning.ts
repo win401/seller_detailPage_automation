@@ -4,7 +4,7 @@ import { openai } from "@ai-sdk/openai";
 import { mockPlanningAgent } from "@/lib/mock-ai";
 import { GenerateDetailPageInput } from "@/lib/types";
 import { AgentRunResult, AnalysisOutput, planningOutputSchema } from "./schemas";
-import { getMockReason, isLiveAiEnabled } from "./runtime-config";
+import { AI_CALL_TIMEOUT_MS, getMockReason, isLiveAiEnabled } from "./runtime-config";
 
 function buildPrompt(input: GenerateDetailPageInput, analysisOutput?: AnalysisOutput) {
   return `
@@ -59,6 +59,7 @@ export async function runPlanningAgent(
       maxRetries: 0,
       maxOutputTokens: 3000,
       temperature: 0.3,
+      timeout: AI_CALL_TIMEOUT_MS,
       output: Output.object({ schema: planningOutputSchema }),
       prompt: buildPrompt(input, analysisOutput),
     });

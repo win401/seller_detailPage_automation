@@ -103,7 +103,7 @@ function BlockImage({
       )}
       style={{
         backgroundImage,
-        backgroundPosition: getImagePositionCss(section.imagePosition),
+        backgroundPosition: getImagePositionCss(section.imagePositionX, section.imagePositionY, section.imagePosition),
       }}
       aria-label={section.imageLabel ?? section.imageRole}
     >
@@ -334,7 +334,12 @@ function StructuredSectionBlock({
       )}
 
       {layoutType === "feature_blue_panel" && (
-        <div {...content("bg-[#1676ba] px-7 py-10 text-white")}>
+        // 원래 배경이 채도 높은 파란색(#1676ba)이었는데, 나머지 17개 블록이 전부
+        // 초록/크림/브라운 계열 팔레트를 쓰는 것과 완전히 동떨어져 있어서 AI가
+        // 이 layoutType을 고를 때마다 "뜬금없는 파란 섹션"으로 튀어 보인다는
+        // 실제 사용자 리포트로 발견 — 나머지 강조 블록(top_notice_banner의
+        // #273b34, big_claim_band의 #405f48)과 같은 계열의 짙은 틸그린으로 교체.
+        <div {...content("bg-[#1f5c52] px-7 py-10 text-white")}>
           <div className="mb-2 text-[10px] font-extrabold tracking-[0.22em] text-white/75">
             {kicker}
           </div>
@@ -344,7 +349,7 @@ function StructuredSectionBlock({
           {section.bullets.length > 0 && (
             <div className="mt-6 grid gap-2">
               {section.bullets.map((bullet) => (
-                <div key={bullet} className="bg-white px-3 py-3 text-[12px] font-bold text-[#0f5c95]">
+                <div key={bullet} className="bg-white px-3 py-3 text-[12px] font-bold text-[#1f5c52]">
                   {bullet}
                 </div>
               ))}
@@ -416,13 +421,13 @@ function StructuredSectionBlock({
 
       {layoutType === "step_guide" && (
         <div {...content("bg-white px-7 py-10")}>
-          <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#1676ba]">{kicker}</div>
+          <div className="text-[10px] font-extrabold tracking-[0.2em] text-[#1f5c52]">{kicker}</div>
           {headline("mt-3 text-[24px] font-extrabold leading-[1.25] text-canvas-dark")}
           {body("mt-3 text-[13px] leading-[1.75] text-canvas-muted")}
           <div className="mt-8 space-y-5">
             {(slots.steps ?? []).map((step, index) => (
               <div key={step.title} className="grid grid-cols-[44px_1fr] gap-3">
-                <div className="flex size-10 items-center justify-center rounded-full bg-[#1676ba] text-[11px] font-extrabold text-white">
+                <div className="flex size-10 items-center justify-center rounded-full bg-[#1f5c52] text-[11px] font-extrabold text-white">
                   {String(index + 1).padStart(2, "0")}
                 </div>
                 <div className="border-b border-[#e5e3dc] pb-5">

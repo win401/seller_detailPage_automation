@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ImagePositionGrid, PresetToggleGroup, SliderField } from "@/components/editor/layout-preset-controls";
+import { PresetToggleGroup, SliderField } from "@/components/editor/layout-preset-controls";
 import {
   Select,
   SelectContent,
@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/select";
 import { mockStyleSets } from "@/lib/mock-data";
 import {
+  IMAGE_POSITION_DEFAULT,
+  IMAGE_POSITION_RANGE,
   LETTER_SPACING_DEFAULT,
   LETTER_SPACING_RANGE,
   LINE_HEIGHT_DEFAULT,
@@ -225,17 +227,32 @@ function StyleSetFormDialog({
               이 스타일 세트를 적용하면 모든 섹션에 아래 기본값이 일괄 적용됩니다. 적용 후에도
               에디터에서 섹션별로 다시 조정할 수 있습니다.
             </p>
-            <div className="flex items-start gap-4">
+            <div className="grid gap-2">
               <div>
                 <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
-                  이미지 위치
+                  가로 위치
                 </div>
-                <ImagePositionGrid
-                  value={draft.imagePosition}
-                  onChange={(imagePosition) => setDraft((d) => ({ ...d, imagePosition }))}
+                <SliderField
+                  value={draft.imagePositionX}
+                  defaultValue={IMAGE_POSITION_DEFAULT}
+                  {...IMAGE_POSITION_RANGE}
+                  unit="%"
+                  onChange={(imagePositionX) => setDraft((d) => ({ ...d, imagePositionX }))}
                 />
               </div>
-              <div className="flex-1 grid gap-2">
+              <div>
+                <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
+                  세로 위치
+                </div>
+                <SliderField
+                  value={draft.imagePositionY}
+                  defaultValue={IMAGE_POSITION_DEFAULT}
+                  {...IMAGE_POSITION_RANGE}
+                  unit="%"
+                  onChange={(imagePositionY) => setDraft((d) => ({ ...d, imagePositionY }))}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <div className="mb-1 text-[10.5px] font-semibold text-muted-foreground">
                     이미지 채우기

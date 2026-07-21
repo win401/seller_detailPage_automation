@@ -28,6 +28,9 @@ import {
 export const SECTION_SPACING_RANGE = { min: 8, max: 56, step: 2 } as const;
 export const SECTION_SPACING_DEFAULT = 24;
 
+export const IMAGE_POSITION_RANGE = { min: 0, max: 100, step: 1 } as const;
+export const IMAGE_POSITION_DEFAULT = 50;
+
 export const TEXT_SIZE_RANGE = { min: 10, max: 24, step: 0.5 } as const;
 export const TEXT_SIZE_DEFAULT = 13;
 
@@ -39,8 +42,19 @@ export const LINE_HEIGHT_DEFAULT = 20;
 
 const HEADLINE_TO_BODY_RATIO = { prominent: 1.46, normal: 1.15 };
 
-export function getImagePositionCss(position: ImagePosition | undefined): string {
-  return IMAGE_POSITION_CSS[position ?? "center"];
+/** x/y are the continuous 0-100 sliders (2026-07-21); `legacyPosition` is the
+ * retired 3x3 preset, read only as a fallback for sections/style sets saved
+ * before the slider migration that never got an explicit x/y. */
+export function getImagePositionCss(
+  x: number | undefined,
+  y: number | undefined,
+  legacyPosition: ImagePosition | undefined
+): string {
+  if (typeof x === "number" || typeof y === "number") {
+    return `${x ?? IMAGE_POSITION_DEFAULT}% ${y ?? IMAGE_POSITION_DEFAULT}%`;
+  }
+  if (legacyPosition) return IMAGE_POSITION_CSS[legacyPosition];
+  return "center center";
 }
 
 export function getImageFitClass(fit: ImageFit | undefined): string {
@@ -108,6 +122,8 @@ export function applyLayoutPresetToSections(
   return sections.map((section) => ({
     ...section,
     ...(preset.imagePosition && { imagePosition: preset.imagePosition }),
+    ...(typeof preset.imagePositionX === "number" && { imagePositionX: preset.imagePositionX }),
+    ...(typeof preset.imagePositionY === "number" && { imagePositionY: preset.imagePositionY }),
     ...(preset.imageFit && { imageFit: preset.imageFit }),
     ...(preset.imageHeight && { imageHeight: preset.imageHeight }),
     ...(typeof preset.spacing === "number" && { spacing: preset.spacing }),

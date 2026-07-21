@@ -118,6 +118,10 @@ export function upgradeLegacyMockSections(
     body: toRichText(section.body),
   }));
 
+  // 제작 에이전트(production.ts)가 이제 항상 layoutType/slots를 직접 채우므로
+  // (docs/TASKS.md 우선순위 2), 신선한 라이브 AI 초안도 이 얼리리턴을 타고 자기
+  // 구조를 그대로 신뢰한다 — 아래 오버레이 분기는 이제 진짜 레거시(이 기능 이전에
+  // 저장돼 layoutType이 아예 없는 옛 draft) 전용이다.
   if (normalizedLegacy.some((section) => section.layoutType)) return normalizedLegacy;
 
   const templateSections = mockGenerateDetailPage(input).sections;

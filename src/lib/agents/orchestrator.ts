@@ -26,7 +26,7 @@ import { runPlanningAgent } from "./planning";
 import { runProductionAgent } from "./production";
 import { runReviewAgent } from "./review";
 import { runRevisionAgent } from "./revision";
-import { getMockReason, isLiveAiEnabled } from "./runtime-config";
+import { getMockReason, isLiveAiEnabled, ORCHESTRATOR_CALL_TIMEOUT_MS } from "./runtime-config";
 import { generateSectionImages } from "./section-images";
 import { AgentRunResult, AnalysisOutput, PlanningOutput, ReviewOutput } from "./schemas";
 
@@ -244,6 +244,7 @@ export async function runOrchestratedGeneration(
       stopWhen: [stepCountIs(MAX_STEPS), ({ steps }) => hasRepeatedToolCalls(steps)],
       temperature: 0.2,
       maxOutputTokens: 1200,
+      timeout: ORCHESTRATOR_CALL_TIMEOUT_MS,
       system: ORCHESTRATOR_SYSTEM_PROMPT,
       prompt: buildOrchestratorPrompt(input, competitorReferences),
     });

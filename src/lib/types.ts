@@ -106,7 +106,15 @@ export const FONT_FAMILY_LABELS: Record<FontFamily, string> = {
  * `typeof x === "number"`, so a legacy string is silently treated as unset
  * rather than crashing. */
 export interface SectionLayoutPreset {
+  /** @deprecated Legacy 3x3 preset grid, replaced by imagePositionX/Y sliders
+   * (2026-07-21). Kept only so old saved sections/style sets don't lose their
+   * position — getImagePositionCss falls back to this when X/Y are unset. */
   imagePosition?: ImagePosition;
+  /** Image focal point, 0-100 (% from left/top) — continuous, replaces the
+   * old 3x3 imagePosition grid (2026-07-21, hands-on feedback that 9 fixed
+   * points were too coarse). See IMAGE_POSITION_RANGE/_DEFAULT. */
+  imagePositionX?: number;
+  imagePositionY?: number;
   imageFit?: ImageFit;
   imageHeight?: ImageHeight;
   /** Section padding, all sides, px. */
@@ -315,6 +323,8 @@ export interface DetailSection extends SectionLayoutPreset {
   imagePrompt?: string;
   /** Alternative copy candidates the user can swap in (docs/PROMPTS.md). */
   alternatives: string[];
+  /** Why the production agent picked this section's layoutType — operator-facing, not rendered. */
+  layoutRationale?: string;
 }
 
 // ---------- product input (create-project form) ----------
