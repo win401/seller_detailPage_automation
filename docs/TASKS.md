@@ -66,14 +66,13 @@
 
 구조화된 레이아웃은 구현됐다. 다음 품질 단계는 일반 mock 이미지 대신 판매자가 올린 이미지를 각 블록에 정확히 배치하는 것이다.
 
-- [ ] 업로드 이미지와 블록 슬롯 연결 규칙 정의: 히어로, 제품 단독컷, 소재 디테일, 사용 장면, 옵션, 사이즈/스펙, 정책
-- [ ] 모든 블록 이미지 슬롯을 보여주고 업로드 파일을 선택할 수 있는 이미지 배정 UI
-- [ ] 프로젝트 범위 Supabase Storage 경로와 RLS 정책 구성
-- [ ] 브라우저 URL이 아닌 draft version에 이미지 자산 메타데이터와 슬롯 배정 저장
-- [ ] 이미지 그리드/연속 이미지 레이아웃의 복수 이미지 지원
-- [ ] 이미지가 없을 때 레이아웃을 망치지 않는 빈 상태와 필요한 이미지 안내
-- [ ] 새로고침, 스타일 세트 변경, 수정 시안, ZIP export 뒤에도 이미지 배정 유지 확인
-- [ ] 실제 상품 사진으로 3개 템플릿 패밀리 최종 시각 QA
+- [x] (2026-07-20~21) 업로드 이미지 풀 + 슬롯 배정 파이프라인 전체 구현. 기존엔 모든 이미지가 base64 data URL로 `draft_versions.sections` jsonb에 그대로 박혀 있었음(`MVP_PLAN.md`가 원래 요구한 "DB엔 Storage 경로/URL만" 원칙과 정면으로 어긋난 상태, `asset_paths` 컬럼은 있었지만 항상 `[]`로 죽어있었음). Storage 버킷(`product-images`, public read) + RLS 4개 정책(공개 읽기, 소유자만 쓰기/수정/삭제, 경로 첫 세그먼트가 `auth.uid()`인지로 검사) + 새 테이블 `public.project_image_assets`(업로드 사진 풀, `slot_category` 7종 체크 제약)를 `docs/supabase/schema.sql`에 추가하고 사용자가 직접 SQL Editor에서 실행. 별도 "슬롯 배정 테이블"은 만들지 않음 — `draft_versions`는 항상 최신 1개 row만 읽혀 롤백 UI가 없으므로 `section.imageUrl`/`slots.*`가 어떤 URL을 담고 있는지 자체가 이미 배정 정보(버전 롤백 기능이 생기면 이 가정은 깨짐, 그때 재검토). 공용 업로드 헬퍼(`src/lib/supabase/storage.ts` 신규 — `uploadProjectImage`/`deleteProjectImage`/`listProjectImages`, DB insert 실패 시 Storage 객체 롤백)를 만들어 기존에 base64를 만들던 3개 경로(수동 업로드/드래그앤드롭 교체 `uploadSectionImage`, "AI로 이미지 생성" `generateSectionImage`, 새 이미지 관리 다이얼로그)를 전부 이걸로 통일 — 하나만 고치면 base64가 다른 경로로 계속 새는 반쪽짜리가 되므로 셋 다 리트로핏. 새 "이미지 관리" 다이얼로그(`image-manager-dialog.tsx` 신규, 드래그앤드롭 없음 — 같은 날 되돌린 Konva 자유배치 시도의 교훈 반영)는 업로드 풀 썸네일 그리드 + `BLOCK_IMAGE_LAYOUT_TYPES`(8개 layoutType) 섹션별 배정 목록으로 구성, "선택" 클릭 → 픽킹 모드 → 풀에서 사진 클릭하면 바로 배정. 에디터 헤더에 "이미지 관리" 버튼 추가(비로그인/미저장 프로젝트는 비활성화 + 툴팁).
+  - **부수적으로 발견+수정한 실제 버그**: `before_after_compare` 레이아웃은 슬롯이 전/후 2개인데 `BlockImage`가 항상 `slots.image ?? imageUrl` 하나만 읽어서 **실제로는 같은 사진이 두 슬롯에 똑같이 찍히고 있었음**(`slots.beforeImage`/`afterImage` 필드는 타입에 있었지만 어디서도 안 읽힘). `BlockImage`에 `imageUrlOverride`/`strictOverride`/`placeholderLabel` prop을 추가해 두 번째 호출이 `slots.afterImage`를 명시적으로 읽고, 값이 없으면 첫 슬롯 사진을 재사용하는 대신 "후 사진 필요" 빈 상태를 보여주도록 수정. (이 레이아웃은 `frozen-demo-sections.json`에 인스턴스가 없어 실브라우저로 직접 재현은 못 했음 — `tsc`/`eslint` 통과와 코드 리뷰로만 확인, 다음에 이 layoutType이 실제로 쓰이면 반드시 육안 재확인할 것.)
+  - **겪은 삽질**: SQL을 처음 조각조각 나눠 줬을 때 사용자가 "Success. No rows returned"를 받고도 테이블/버킷이 실제로는 안 생겼던 문제 발생 — 사용자 요청대로 `docs/supabase/migration_2026-07-20_project_image_assets.sql`을 새로 만들어 idempotent 전체 블록 + 확인용 SELECT 2개가 포함된 하나의 복붙 가능한 파일로 정리한 뒤 재실행해 해결. Storage 버킷은 REST API(`/storage/v1/bucket/:id`)로는 계속 404가 떴지만 대시보드 Storage UI에는 정상적으로 보였고, 실제 파일 업로드/공개 읽기(`/storage/v1/object/...`)는 둘 다 200으로 정상 동작 — 버킷 메타데이터 엔드포인트가 실제 객체 접근보다 더 엄격한 별도 권한을 요구하는 것뿐이었고 실제 문제는 아니었음.
+  - **실브라우저 E2E로 검증한 것** (테스트 계정 `winnerv401+qae2e@gmail.com` 재사용): 로그인 → 프로젝트 생성 → 이미지 관리 열기 → 업로드 → 여러 섹션에 배정 → 저장 → **완전히 새 브라우저 컨텍스트**로 재방문해 배정이 진짜 `https://...supabase.co/storage/v1/object/public/product-images/...` URL로(base64 아님) 그대로 복원 → ZIP export가 Storage 이미지를 CORS 문제 없이 정상 렌더링. 테스트로 만든 프로젝트 4개 + 딸린 이미지 자산/Storage 파일은 전부 정리 완료(REST API로 프로젝트 삭제 → cascade로 `project_image_assets` row 자동 삭제 확인, Storage 파일은 cascade 대상이 아니라 별도로 프로젝트 폴더별 `remove()` 호출, 이후 프로젝트/자산/Storage 파일 전부 빈 목록으로 재확인).
+  - **명시적으로 미룸** (스코프 밖, 다음 세션 후보): signed URL(공개 버킷으로 확정 — 사진이 어차피 공개될 마켓플레이스 콘텐츠라 서명 URL 복잡도를 피함, 트레이드오프는 업로드 직후~"공개" 결정 전에도 URL을 아는 사람은 열람 가능하다는 것, 단 경로가 `{userId}/{projectId}/{uuid}`라 추측 불가), `slots.images[]`를 쓰는 새 갤러리/그리드 layoutType(현재 어떤 레이아웃도 이걸 안 씀, 완전히 새 디자인 필요), 기존 draft_versions에 이미 박힌 과거 base64 이미지의 마이그레이션/백필, `PAUSED_FOR_SPEND_CAP`으로 꺼둔 서버사이드 Gemini 자동생성(이 플래그가 풀리면 그 경로도 base64를 다시 만들기 시작하므로 그때 같은 헬퍼로 리트로핏 필요), `review_summary` layoutType(19개 중 렌더링 분기 자체가 없는 죽은 타입, 이번 작업과 무관), 비로그인 시 프로젝트 id가 `"p1"`으로 충돌하는 기존 버그(이미지 관리 버튼을 비활성화하는 것으로 우회만 함).
+- [ ] 이미지 그리드/연속 이미지 레이아웃(`slots.images[]`)의 복수 이미지 지원 — 위 스코프 컷 항목, 별도 세션
+- [ ] 실제 상품 사진(mock 아님)으로 3개 템플릿 패밀리 최종 시각 QA
 
 ## 우선순위 2: 블록 렌더러용 AI 출력 고도화
 

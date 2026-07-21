@@ -9,6 +9,7 @@ import { arrayMove } from "@dnd-kit/sortable";
 import {
   ArrowLeft,
   Download,
+  ImagePlus,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
@@ -34,11 +35,13 @@ import { SectionList } from "@/components/editor/section-list";
 import { SectionEditPanel } from "@/components/editor/section-edit-panel";
 import { AiAssistantPanel } from "@/components/editor/ai-assistant-panel";
 import { AgentWorkflowPanel } from "@/components/editor/agent-workflow-panel";
+import { ImageManagerDialog } from "@/components/editor/image-manager-dialog";
 import { getMockReferencesForSection, mockSections } from "@/lib/mock-data";
 import { mockPlanRevision, upgradeLegacyMockSections } from "@/lib/mock-ai";
 import { applyLayoutPresetToSections } from "@/lib/layout-presets";
 import { loadStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { deleteProjectImage, listProjectImages, uploadProjectImage } from "@/lib/supabase/storage";
 import { richTextToPlainText } from "@/lib/rich-text";
 import { cn } from "@/lib/utils";
 import {
@@ -50,10 +53,12 @@ import {
   Platform,
   PLATFORM_EXPORT_WIDTH,
   PLATFORM_LABELS,
+  ProjectImageAsset,
   ProjectSummary,
   RichText,
   SectionLayoutPreset,
   SectionImageAsset,
+  SECTION_KIND_SLOT_CATEGORY,
   StyleSet,
   Tone,
   UploadedImageDraft,
@@ -271,6 +276,12 @@ export default function DetailPageEditor() {
   const [leftPanelCollapsed, setLeftPanelCollapsed] = useState(false);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(false);
   const shouldReduceMotion = useReducedMotion();
+  /** 셀러가 업로드한 사진 풀 (docs/TASKS.md 우선순위 1) — Supabase Storage에
+   * 저장, project_image_assets 테이블에서 로드. 실제 프로젝트(UUID)로
+   * 저장돼 있어야만 쓸 수 있음(로컬 전용 초안은 업로드 대상 project_id가 없음). */
+  const [projectImageAssets, setProjectImageAssets] = useState<ProjectImageAsset[]>([]);
+  const [imageManagerOpen, setImageManagerOpen] = useState(false);
+  const [isUploadingPoolImage, setIsUploadingPoolImage] = useState(false);
 
   // This page's chrome is a fixed h-[calc(100vh-60px)] layout with its own
   // internal per-column scroll (섹션 목록/캔버스/편집 패널) — the outer
@@ -426,6 +437,30 @@ export default function DetailPageEditor() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setStyleSets(loadStyleSets());
   }, []);
+
+  useEffect(() => {
+    // 로컬 전용(비UUID) 초안은 업로드 대상 project_id 자체가 없어서 그냥 빈 풀로 둠 —
+    // "이미지 관리" 버튼도 이 경우 비활성화된다(아래 헤더 JSX).
+    if (!isUuid(projectId)) return;
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    let cancelled = false;
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      try {
+        const assets = await listProjectImages(supabase, projectId);
+        if (!cancelled) setProjectImageAssets(assets);
+      } catch {
+        // best-effort — 이미지 관리 다이얼로그가 그냥 빈 풀로 열림
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
 
   useEffect(() => {
     if (!isUuid(projectId)) return;
@@ -1137,6 +1172,37 @@ export default function DetailPageEditor() {
     toast("스타일 세트를 적용했습니다", { description: styleSet.name });
   }
 
+  /** Uploads to Supabase Storage + the project_image_assets pool
+   * (docs/TASKS.md 우선순위 1). Returns null (not a thrown error) when the
+   * project isn't persisted yet (no UUID — local-only draft) or the user
+   * isn't logged in, so callers can gracefully fall back to the old
+   * base64-in-memory behavior instead of hard-failing local editing. */
+  async function uploadToProjectPool(
+    source: File | { dataUrl: string; name: string }
+  ): Promise<ProjectImageAsset | null> {
+    if (!isUuid(projectId)) return null;
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return null;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+    try {
+      const asset = await uploadProjectImage(
+        supabase,
+        user.id,
+        projectId,
+        source,
+        SECTION_KIND_SLOT_CATEGORY[selectedSection.kind]
+      );
+      setProjectImageAssets((prev) => [asset, ...prev]);
+      return asset;
+    } catch (error) {
+      toast("이미지 업로드 실패", { description: getErrorMessage(error) });
+      return null;
+    }
+  }
+
   function applySectionImage(asset: SectionImageAsset) {
     const beforeImage = selectedSection.imageLabel ?? "이미지 없음";
     pushHistory();
@@ -1163,7 +1229,24 @@ export default function DetailPageEditor() {
     toast("섹션 이미지가 반영되었습니다", { description: asset.label });
   }
 
-  function uploadSectionImage(file: File) {
+  async function uploadSectionImage(file: File) {
+    const poolAsset = await uploadToProjectPool(file);
+    if (poolAsset) {
+      applySectionImage({
+        id: poolAsset.id,
+        label: file.name,
+        description: "섹션에 직접 업로드한 이미지",
+        source: "uploaded",
+        dataUrl: poolAsset.publicUrl,
+        promptHint: "Use this uploaded image for the selected detail-page section.",
+        tags: ["uploaded", selectedSection.kind, selectedSection.imageRole],
+      });
+      return;
+    }
+    // Storage 업로드 대상이 없는(로컬 전용, 비로그인) 프로젝트 — 예전처럼
+    // base64로 즉시 반영. uploadToProjectPool이 실제 실패(로그인은 됐는데
+    // 업로드 자체가 실패)한 경우는 이미 토스트로 안내했으므로 여기서 조용히
+    // base64 폴백으로 넘어가도 사용자가 원인 모른 채 방치되지 않음.
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result !== "string") return;
@@ -1200,12 +1283,15 @@ export default function DetailPageEditor() {
         return;
       }
 
+      // 서버에서 이미 sharp로 압축된 결과라(agents/image.ts) 재압축 없이 그대로
+      // Storage에 업로드 — 로컬 전용 프로젝트면 null이 와서 base64를 그대로 씀.
+      const poolAsset = await uploadToProjectPool({ dataUrl: result.dataUrl, name: `ai-generated-${selectedId}.webp` });
       applySectionImage({
-        id: `ai-generated-${selectedId}-${Date.now()}`,
+        id: poolAsset?.id ?? `ai-generated-${selectedId}-${Date.now()}`,
         label: "AI 생성 이미지",
         description: prompt.slice(0, 60),
         source: "generated",
-        dataUrl: result.dataUrl,
+        dataUrl: poolAsset?.publicUrl ?? result.dataUrl,
         promptHint: prompt,
         tags: ["generated", selectedSection.kind],
       });
@@ -1214,6 +1300,78 @@ export default function DetailPageEditor() {
     } finally {
       setIsGeneratingImage(false);
     }
+  }
+
+  /** "이미지 관리" 다이얼로그(image-manager-dialog.tsx)용 핸들러 3개 —
+   * uploadToProjectPool과 달리 selectedSection에 묶이지 않고 풀 자체를
+   * 대상으로 하므로 slotCategory 없이 업로드한다. */
+  async function handlePoolUpload(file: File) {
+    setIsUploadingPoolImage(true);
+    if (!isUuid(projectId)) {
+      toast("로그인 후 저장한 프로젝트에서만 이미지를 업로드할 수 있습니다");
+      setIsUploadingPoolImage(false);
+      return;
+    }
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setIsUploadingPoolImage(false);
+      return;
+    }
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        toast("로그인이 필요합니다");
+        return;
+      }
+      const asset = await uploadProjectImage(supabase, user.id, projectId, file);
+      setProjectImageAssets((prev) => [asset, ...prev]);
+    } catch (error) {
+      toast("이미지 업로드 실패", { description: getErrorMessage(error) });
+    } finally {
+      setIsUploadingPoolImage(false);
+    }
+  }
+
+  async function handlePoolDelete(asset: ProjectImageAsset) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    const inUse = sections.some(
+      (s) => s.imageUrl === asset.publicUrl || s.slots?.beforeImage === asset.publicUrl || s.slots?.afterImage === asset.publicUrl
+    );
+    if (inUse && !window.confirm("이 사진은 현재 섹션에 배정되어 있습니다. 삭제하면 해당 섹션은 이미지 없는 상태가 됩니다. 삭제할까요?")) {
+      return;
+    }
+    try {
+      await deleteProjectImage(supabase, asset);
+      setProjectImageAssets((prev) => prev.filter((a) => a.id !== asset.id));
+    } catch (error) {
+      toast("삭제 실패", { description: getErrorMessage(error) });
+    }
+  }
+
+  function handleAssignPoolImage(
+    target: { sectionId: string; slot: "image" | "beforeImage" | "afterImage" },
+    asset: ProjectImageAsset
+  ) {
+    pushHistory();
+    setSections((prev) =>
+      prev.map((s) => {
+        if (s.id !== target.sectionId) return s;
+        if (target.slot === "image") {
+          return {
+            ...s,
+            imageUrl: asset.publicUrl,
+            imageSource: "uploaded",
+            imageLabel: asset.originalFilename ?? s.imageLabel,
+          };
+        }
+        return { ...s, slots: { ...s.slots, [target.slot]: asset.publicUrl } };
+      })
+    );
+    flash(target.sectionId);
+    toast("이미지가 배정되었습니다");
   }
 
   /** Best-effort reconstruction of the original generation input for the
@@ -1663,6 +1821,16 @@ export default function DetailPageEditor() {
             {PLATFORM_LABELS[projectSummary.platform]}
           </span>
           <Button
+            onClick={() => setImageManagerOpen(true)}
+            disabled={!isUuid(projectId)}
+            variant="outline"
+            className="h-[34px] gap-1.5 text-[12.5px] font-semibold"
+            title={isUuid(projectId) ? undefined : "로그인 후 저장한 프로젝트에서 이용 가능"}
+          >
+            <ImagePlus className="size-3.5" />
+            이미지 관리
+          </Button>
+          <Button
             onClick={() => void handleSave()}
             disabled={isSaving || isExporting}
             variant="outline"
@@ -1964,6 +2132,16 @@ export default function DetailPageEditor() {
         <Download className="size-3.5" />
         ZIP 생성 완료
       </div>
+      <ImageManagerDialog
+        open={imageManagerOpen}
+        onOpenChange={setImageManagerOpen}
+        sections={sections}
+        assets={projectImageAssets}
+        isUploading={isUploadingPoolImage}
+        onUpload={handlePoolUpload}
+        onDelete={handlePoolDelete}
+        onAssign={handleAssignPoolImage}
+      />
     </div>
   );
 }

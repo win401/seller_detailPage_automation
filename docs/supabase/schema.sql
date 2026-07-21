@@ -143,6 +143,26 @@ create table if not exists public.competitor_page_analyses (
   created_at timestamptz not null default now()
 );
 
+-- 셀러가 업로드한 사진 "풀" (docs/TASKS.md 우선순위 1). 어떤 사진이 어떤 섹션/슬롯에
+-- 배정됐는지는 별도 테이블 없이 draft_versions.sections jsonb 안의 imageUrl이
+-- Storage public URL을 직접 담는 것으로 표현한다 — draft_versions는 항상 최신 1개
+-- row만 읽히고(버전 롤백 UI 없음) 배정 정보가 이미 그 안에 온전히 들어있어서 별도
+-- 배정 테이블은 불필요하다고 판단했다. 버전 롤백 기능이 생기면 이 가정이 깨지니
+-- 그때 재검토할 것.
+create table if not exists public.project_image_assets (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.detail_page_projects(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  storage_path text not null,
+  public_url text not null,
+  original_filename text,
+  width integer,
+  height integer,
+  size_bytes integer,
+  slot_category text check (slot_category in ('hero','product_solo','material','usage_scene','option','size_spec','policy')),
+  created_at timestamptz not null default now()
+);
+
 alter table public.profiles enable row level security;
 alter table public.style_sets enable row level security;
 alter table public.detail_page_projects enable row level security;
@@ -152,6 +172,7 @@ alter table public.draft_versions enable row level security;
 alter table public.user_style_signals enable row level security;
 alter table public.usage_events enable row level security;
 alter table public.competitor_page_analyses enable row level security;
+alter table public.project_image_assets enable row level security;
 
 drop policy if exists "profiles select own" on public.profiles;
 create policy "profiles select own" on public.profiles
@@ -195,6 +216,10 @@ drop policy if exists "competitor_page_analyses own access" on public.competitor
 create policy "competitor_page_analyses own access" on public.competitor_page_analyses
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
+drop policy if exists "project_image_assets own access" on public.project_image_assets;
+create policy "project_image_assets own access" on public.project_image_assets
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -230,3 +255,31 @@ grant select, insert, update, delete on public.draft_versions to authenticated;
 grant select, insert, update, delete on public.user_style_signals to authenticated;
 grant select, insert, update, delete on public.usage_events to authenticated;
 grant select, insert, update, delete on public.competitor_page_analyses to authenticated;
+grant select, insert, update, delete on public.project_image_assets to authenticated;
+
+-- Storage: 셀러가 업로드한 상품 사진 (docs/TASKS.md 우선순위 1). Public read로 감 —
+-- 이 사진들은 어차피 마켓플레이스 상세페이지에 공개될 콘텐츠라 서명 URL의 만료 관리
+-- 복잡도를 피하는 쪽을 택했다. 트레이드오프: 업로드 직후부터, 셀러가 아직 "공개"를
+-- 결정하기 전에도 URL을 아는 사람은 볼 수 있다 — path가
+-- {userId}/{projectId}/{uuid}.webp라 추측은 불가능하지만 인증되지 않은 접근인 건 맞다.
+-- 쓰기(insert/update/delete)는 경로의 첫 폴더가 본인 auth.uid()와 일치할 때만 허용하는
+-- Supabase 표준 "owner folder" 패턴을 그대로 따른다.
+insert into storage.buckets (id, name, public)
+values ('product-images', 'product-images', true)
+on conflict (id) do nothing;
+
+drop policy if exists "product-images public read" on storage.objects;
+create policy "product-images public read" on storage.objects
+  for select using (bucket_id = 'product-images');
+
+drop policy if exists "product-images owner write" on storage.objects;
+create policy "product-images owner write" on storage.objects
+  for insert with check (bucket_id = 'product-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "product-images owner update" on storage.objects;
+create policy "product-images owner update" on storage.objects
+  for update using (bucket_id = 'product-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "product-images owner delete" on storage.objects;
+create policy "product-images owner delete" on storage.objects
+  for delete using (bucket_id = 'product-images' and (storage.foldername(name))[1] = auth.uid()::text);

@@ -564,6 +564,77 @@ export interface SectionImageAsset {
   tags: string[];
 }
 
+// ---------- seller-uploaded image pool (docs/TASKS.md 우선순위 1) ----------
+
+/** UI labeling taxonomy for "what kind of shot does this slot need" — a
+ * display hint only, never enforced. Matches docs/TASKS.md's 7 categories. */
+export type ImageSlotCategory =
+  | "hero"
+  | "product_solo"
+  | "material"
+  | "usage_scene"
+  | "option"
+  | "size_spec"
+  | "policy";
+
+export const IMAGE_SLOT_CATEGORY_LABELS: Record<ImageSlotCategory, string> = {
+  hero: "히어로",
+  product_solo: "제품 단독컷",
+  material: "소재 디테일",
+  usage_scene: "사용 장면",
+  option: "옵션",
+  size_spec: "사이즈/스펙",
+  policy: "정책",
+};
+
+/** Best-effort suggested category per section kind, for labeling only —
+ * keyed by SectionKind (13, stable) rather than layoutType (19, varies per
+ * template family) or imageRole (free text, dozens of values in practice). */
+export const SECTION_KIND_SLOT_CATEGORY: Record<SectionKind, ImageSlotCategory> = {
+  intro: "hero",
+  one_line: "hero",
+  problem: "usage_scene",
+  solution: "product_solo",
+  benefit_1: "material",
+  benefit_2: "option",
+  benefit_3: "usage_scene",
+  detail: "material",
+  use_scene: "usage_scene",
+  recommended_for: "usage_scene",
+  trust: "size_spec",
+  faq: "policy",
+  cta: "policy",
+};
+
+/** Mirrors a project_image_assets row (docs/supabase/schema.sql). */
+export interface ProjectImageAsset {
+  id: string;
+  projectId: string;
+  storagePath: string;
+  publicUrl: string;
+  originalFilename: string | null;
+  width: number | null;
+  height: number | null;
+  sizeBytes: number | null;
+  slotCategory: ImageSlotCategory | null;
+  createdAt: string;
+}
+
+/** The 8 layoutTypes that actually render a BlockImage today (out of 19) —
+ * used to decide which sections the image-manager dialog lists. See
+ * section-canvas.tsx's StructuredSectionBlock for the render branches this
+ * mirrors; keep in sync if a layoutType's image usage changes. */
+export const BLOCK_IMAGE_LAYOUT_TYPES: DetailBlockLayoutType[] = [
+  "brand_mood_story",
+  "big_claim_band",
+  "problem_hook",
+  "material_closeup",
+  "before_after_compare",
+  "feature_blue_panel",
+  "color_lineup",
+  "evidence_card",
+];
+
 // ---------- editor UI state ----------
 
 export type EditorLayout = "horizontal" | "vertical";

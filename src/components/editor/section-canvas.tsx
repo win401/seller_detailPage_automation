@@ -40,20 +40,36 @@ function BlockImage({
   section,
   className,
   overlay = true,
+  imageUrlOverride,
+  strictOverride = false,
+  placeholderLabel = "이미지 슬롯",
 }: {
   section: DetailSection;
   className?: string;
   overlay?: boolean;
+  /** Explicit image URL for this particular slot — for blocks with more
+   * than one image slot (e.g. before_after_compare's 전/후), where the
+   * default single-image lookup below can't tell the slots apart (this
+   * used to render the exact same photo in both, docs/TASKS.md 우선순위
+   * 1). Ignored when unset unless strictOverride is true. */
+  imageUrlOverride?: string;
+  /** When true, imageUrlOverride is authoritative — no fallback to
+   * section.slots?.image/imageUrl/a mock photo even if imageUrlOverride
+   * itself is unset. Use for a block's second+ image slot so an
+   * unassigned slot shows its own empty state instead of silently
+   * duplicating the block's main image. */
+  strictOverride?: boolean;
+  placeholderLabel?: string;
 }) {
-  const savedImage = section.slots?.image ?? section.imageUrl;
+  const savedImage = strictOverride ? imageUrlOverride : (imageUrlOverride ?? section.slots?.image ?? section.imageUrl);
   // Older local/Supabase drafts only stored a gradient. Give those drafts the
   // same photo-like mock visual as newly generated drafts without mutating data.
   const fallbackMockImage =
-    !savedImage && section.imageSource !== "uploaded"
+    !strictOverride && !savedImage && section.imageSource !== "uploaded"
       ? getMockReferencesForSection(section)[0]?.dataUrl
       : undefined;
   const image = savedImage ?? fallbackMockImage;
-  const backgroundImage = image ? `url(${image})` : section.imageGradient;
+  const backgroundImage = image ? `url(${image})` : strictOverride ? undefined : section.imageGradient;
   const isMockImage = !savedImage && !!fallbackMockImage || section.imageSource === "reference";
 
   // imageFit's "cover" default matches this component's own prior hardcoded
@@ -72,7 +88,7 @@ function BlockImage({
           explicitHeightClass
         )}
       >
-        이미지 슬롯
+        {placeholderLabel}
       </div>
     );
   }
@@ -282,13 +298,24 @@ function StructuredSectionBlock({
           </div>
           <div className="mt-7 grid grid-cols-2 gap-2">
             <div className="overflow-hidden bg-white">
-              <BlockImage section={section} className="h-[190px]" />
+              <BlockImage
+                section={section}
+                className="h-[190px]"
+                imageUrlOverride={slots.beforeImage}
+                placeholderLabel="전 사진 필요"
+              />
               <div className="px-3 py-3 text-center text-[11px] font-extrabold text-canvas-muted">
                 {label("slot.beforeLabel", slots.beforeLabel ?? "기존 사용 환경")}
               </div>
             </div>
             <div className="overflow-hidden bg-white">
-              <BlockImage section={section} className="h-[190px]" />
+              <BlockImage
+                section={section}
+                className="h-[190px]"
+                imageUrlOverride={slots.afterImage}
+                strictOverride
+                placeholderLabel="후 사진 필요"
+              />
               <div className="bg-[#466451] px-3 py-3 text-center text-[11px] font-extrabold text-white">
                 {label("slot.afterLabel", slots.afterLabel ?? "상품 사용 포인트")}
               </div>
