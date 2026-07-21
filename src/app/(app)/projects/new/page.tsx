@@ -16,15 +16,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn, isUuid } from "@/lib/utils";
 import {
   mockBuildAgentWorkflow,
   mockGenerateDetailPage,
   upgradeLegacyMockSections,
 } from "@/lib/mock-ai";
 import { mockEmphasisOptions, mockProductInput, mockStyleSets } from "@/lib/mock-data";
-import { applyLayoutPresetToSections } from "@/lib/layout-presets";
-import { loadStyleSets } from "@/lib/style-sets";
+import { applyLayoutPresetToSections, resolveHiddenSectionIds } from "@/lib/layout-presets";
+import { loadRemoteStyleSets, loadStyleSets, saveStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { optimizeImageFile } from "@/lib/image-optimize";
 import {
@@ -224,6 +224,40 @@ export default function CreateProjectPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setStyleSets(loadStyleSets());
   }, []);
+
+  // Same remote-wins merge pattern as styles/page.tsx — this page only reads
+  // style sets (created/edited on /styles), so it just needs the freshest list.
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    let cancelled = false;
+
+    async function mergeRemoteStyleSets() {
+      const {
+        data: { user },
+      } = await supabase!.auth.getUser();
+      if (!user || cancelled) return;
+
+      try {
+        const remoteSets = await loadRemoteStyleSets(supabase!, user.id);
+        if (cancelled || remoteSets.length === 0) return;
+        setStyleSets((prev) => {
+          const byId = new Map<string, StyleSet>();
+          [...prev, ...remoteSets].forEach((styleSet) => byId.set(styleSet.id, styleSet));
+          const next = Array.from(byId.values());
+          saveStyleSets(next);
+          return next;
+        });
+      } catch {
+        // 로컬 캐시로 계속 진행 — 이 페이지는 조회만 하므로 실패해도 안전.
+      }
+    }
+
+    void mergeRemoteStyleSets();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [additionalInstruction, setAdditionalInstruction] = useState("");
   const [referenceMemo, setReferenceMemo] = useState("");
   const [competitorReferences, setCompetitorReferences] = useState<CompetitorReferenceInput[]>([
@@ -256,11 +290,15 @@ export default function CreateProjectPage() {
     competitorReferences,
     workflow,
     output,
+    styleSetId,
+    hiddenSectionIds,
   }: {
     input: GenerateDetailPageInput;
     competitorReferences: CompetitorReferenceInput[];
     workflow: AgentWorkflowDraft;
     output: GenerateDetailPageOutput;
+    styleSetId?: string;
+    hiddenSectionIds?: string[];
   }) {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return null;
@@ -280,6 +318,7 @@ export default function CreateProjectPage() {
         selected_mood: input.designMood,
         selected_tone: input.tone,
         product_input: input,
+        style_set_id: styleSetId && isUuid(styleSetId) ? styleSetId : null,
       })
       .select("id")
       .single();
@@ -333,7 +372,7 @@ export default function CreateProjectPage() {
         version_no: 1,
         source: output.source ?? "ai",
         sections: output.sections,
-        hidden_section_ids: [],
+        hidden_section_ids: hiddenSectionIds ?? [],
         asset_paths: [],
         review_summary: {
           warnings: output.warnings ?? [],
@@ -385,6 +424,7 @@ export default function CreateProjectPage() {
     output,
     generationTimeMs,
     model,
+    hiddenSectionIds,
   }: {
     projectId: string;
     input: GenerateDetailPageInput;
@@ -395,6 +435,7 @@ export default function CreateProjectPage() {
     generationTimeMs?: number;
     /** Env-configured model id, only set when generation actually ran live. */
     model?: string | null;
+    hiddenSectionIds?: string[];
   }) {
     try {
       pruneOldLocalDrafts(projectId);
@@ -407,7 +448,7 @@ export default function CreateProjectPage() {
       window.localStorage.setItem(`detail-page-agent-workflow:${projectId}`, JSON.stringify(workflow));
       window.localStorage.setItem(
         `detail-page-project:${projectId}`,
-        JSON.stringify({ sections: output.sections, hiddenIds: [] })
+        JSON.stringify({ sections: output.sections, hiddenIds: hiddenSectionIds ?? [] })
       );
       window.localStorage.setItem(
         `detail-page-generation:${projectId}`,
@@ -512,7 +553,11 @@ export default function CreateProjectPage() {
       const response = await fetch("/api/agent-workflow/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input, competitorReferences: normalizedCompetitorReferences }),
+        body: JSON.stringify({
+          input,
+          competitorReferences: normalizedCompetitorReferences,
+          preferredLayoutByKind: selectedStyleSet?.preferredLayoutByKind,
+        }),
       });
       if (!response.ok) throw new Error("AI generation request failed");
       const {
@@ -527,6 +572,7 @@ export default function CreateProjectPage() {
         model?: string | null;
       };
       const output = withStyleLayout(rawOutput);
+      const hiddenSectionIds = resolveHiddenSectionIds(output.sections, selectedStyleSet?.sectionVisibility);
       setAgentWorkflow(workflow);
       let projectId = "p1";
       try {
@@ -536,6 +582,8 @@ export default function CreateProjectPage() {
             competitorReferences: normalizedCompetitorReferences,
             workflow,
             output,
+            styleSetId: selectedStyleSet?.id,
+            hiddenSectionIds,
           })) ?? "p1";
       } catch {
         setGenerationMessage("Supabase 저장 실패로 브라우저 임시 저장을 사용합니다.");
@@ -548,6 +596,7 @@ export default function CreateProjectPage() {
         output,
         generationTimeMs,
         model,
+        hiddenSectionIds,
       });
       setGenerationMessage(
         output.source === "mock"
@@ -556,7 +605,8 @@ export default function CreateProjectPage() {
       );
       router.push(`/projects/${projectId}/editor`);
     } catch {
-      const output = withStyleLayout(mockGenerateDetailPage(input));
+      const output = withStyleLayout(mockGenerateDetailPage(input, selectedStyleSet?.preferredLayoutByKind));
+      const hiddenSectionIds = resolveHiddenSectionIds(output.sections, selectedStyleSet?.sectionVisibility);
       let projectId = "p1";
       try {
         projectId =
@@ -565,6 +615,8 @@ export default function CreateProjectPage() {
             competitorReferences: normalizedCompetitorReferences,
             workflow: optimisticWorkflow,
             output,
+            styleSetId: selectedStyleSet?.id,
+            hiddenSectionIds,
           })) ?? "p1";
       } catch {
         setGenerationMessage("Supabase 저장 실패로 브라우저 임시 저장을 사용합니다.");
@@ -576,6 +628,7 @@ export default function CreateProjectPage() {
         workflow: optimisticWorkflow,
         output,
         model: null,
+        hiddenSectionIds,
       });
       setGenerationMessage("AI 호출 실패로 mock 에이전트 시안을 사용합니다.");
       router.push(`/projects/${projectId}/editor`);

@@ -23,6 +23,21 @@ create table if not exists public.style_sets (
   default_platform text not null default 'smartstore',
   section_visibility jsonb not null default '{}'::jsonb,
   brand_note text,
+  -- 레이아웃 프리셋(우선순위 3, docs/TASKS.md) — 전 섹션에 균일 적용되는 값들.
+  image_position text,
+  image_position_x numeric,
+  image_position_y numeric,
+  image_fit text,
+  image_height text,
+  spacing numeric,
+  text_scale numeric,
+  font_family text,
+  letter_spacing numeric,
+  line_height numeric,
+  -- 섹션 kind별 선호 layoutType, 예: {"intro": "top_notice_banner"}.
+  preferred_layout_by_kind jsonb not null default '{}'::jsonb,
+  -- 이미지 슬롯 채우기 우선순위, 예: ["hero", "material"].
+  image_slot_priority jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

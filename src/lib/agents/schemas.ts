@@ -113,6 +113,12 @@ export const APPROVED_DETAIL_BLOCK_LAYOUT_TYPES = [
 
 export const detailBlockLayoutTypeSchema = z.enum(APPROVED_DETAIL_BLOCK_LAYOUT_TYPES);
 
+// 스타일 세트의 섹션 kind별 선호 layoutType — AI 응답 스키마가 아니라 /api/agent-workflow/generate
+// 요청 바디의 일부라 detailBlockLayoutTypeSchema를 그대로 재사용해도 OpenAI strict-mode
+// 제약(옵셔널 필드는 .optional() 대신 .nullable())은 적용 안 됨 — 그건 Output.object로
+// 넘어가는 스키마에만 해당.
+export const preferredLayoutByKindSchema = z.record(z.string(), detailBlockLayoutTypeSchema).optional();
+
 // DetailOptionItem/DetailStepItem의 imageUrl은 제외 — 이미지는 AI가 아니라
 // 기존 이미지 파이프라인(getMockReferencesForSection/generateSectionImages)이 담당한다.
 //

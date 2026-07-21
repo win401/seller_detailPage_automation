@@ -17,9 +17,11 @@ import {
   AgentRunDraft,
   AgentWorkflowDraft,
   CompetitorReferenceInput,
+  DetailBlockLayoutType,
   DetailSection,
   GenerateDetailPageInput,
   GenerateDetailPageOutput,
+  SectionKind,
 } from "@/lib/types";
 import { runAnalysisAgent } from "./analysis";
 import { runPlanningAgent } from "./planning";
@@ -150,10 +152,11 @@ function pickLatestOrFallback(
 
 export async function runOrchestratedGeneration(
   input: GenerateDetailPageInput,
-  competitorReferences: CompetitorReferenceInput[]
+  competitorReferences: CompetitorReferenceInput[],
+  preferredLayoutByKind?: Partial<Record<SectionKind, DetailBlockLayoutType>>
 ): Promise<{ workflow: AgentWorkflowDraft; output: GenerateDetailPageOutput }> {
   if (!isLiveAiEnabled() || !process.env.OPENAI_API_KEY) {
-    const mockOutput = mockGenerateDetailPage(input);
+    const mockOutput = mockGenerateDetailPage(input, preferredLayoutByKind);
     return {
       workflow: mockBuildAgentWorkflow(input, competitorReferences),
       output: {
@@ -197,7 +200,7 @@ export async function runOrchestratedGeneration(
       description: "13개 섹션 상세페이지 초안을 생성한다. 기획 결과가 있으면 자동으로 반영된다.",
       inputSchema: reasonInputSchema,
       execute: async ({ reason }: { reason: string }) => {
-        const result = await runProductionAgent(input, pipelineState.planning);
+        const result = await runProductionAgent(input, pipelineState.planning, preferredLayoutByKind);
         pipelineState.production = result;
         runs.push(
           toRunDraft(
@@ -254,7 +257,7 @@ export async function runOrchestratedGeneration(
     if (!pipelineState.production) {
       // Orchestrator never called production — run it directly so the user still gets a draft.
       stoppedReason = "repeated_failure";
-      const fallbackProduction = await runProductionAgent(input, pipelineState.planning);
+      const fallbackProduction = await runProductionAgent(input, pipelineState.planning, preferredLayoutByKind);
       pipelineState.production = fallbackProduction;
       runs.push(
         toRunDraft(
@@ -304,7 +307,7 @@ export async function runOrchestratedGeneration(
     };
   } catch (error) {
     console.error("orchestrator agent failed", error);
-    const mockOutput = mockGenerateDetailPage(input);
+    const mockOutput = mockGenerateDetailPage(input, preferredLayoutByKind);
     return {
       workflow: mockBuildAgentWorkflow(input, competitorReferences),
       output: {

@@ -27,7 +27,31 @@ function pickKeywords(input: GenerateDetailPageInput) {
   return input.keywords.filter(Boolean).slice(0, 3);
 }
 
-function selectTemplateFamily(input: GenerateDetailPageInput): TemplateFamily {
+/**
+ * When a style set carries `preferredLayoutByKind` (우선순위 3, docs/TASKS.md),
+ * pick whichever of the 3 already-hand-tuned families matches it best instead
+ * of keyword-sniffing — scored by how many kinds share the exact same
+ * layoutType the style set prefers. Falls back to keyword sniffing when no
+ * hint is given, or when none of the 3 families match anything (score 0),
+ * since a family none of whose layouts match isn't a meaningful pick.
+ */
+function selectTemplateFamily(
+  input: GenerateDetailPageInput,
+  families: Record<TemplateFamily, SectionDraft[]>,
+  preferredLayoutByKind?: Partial<Record<SectionKind, DetailBlockLayoutType>>
+): TemplateFamily {
+  if (preferredLayoutByKind && Object.keys(preferredLayoutByKind).length > 0) {
+    const scored = (Object.keys(families) as TemplateFamily[]).map((name) => ({
+      name,
+      score: families[name].reduce(
+        (acc, draft) => acc + (preferredLayoutByKind[draft.kind] === draft.layout ? 1 : 0),
+        0
+      ),
+    }));
+    scored.sort((a, b) => b.score - a.score);
+    if (scored[0].score > 0) return scored[0].name;
+  }
+
   const text = `${input.productName} ${input.category} ${input.keywords.join(" ")}`.toLowerCase();
   if (/(베개|경추|수면|목\s*지지|자세)/.test(text)) return "wellness";
   if (/(깔창|인솔|신발|보호|교정|물주머니|온열|기능성)/.test(text)) return "functional";
@@ -201,8 +225,15 @@ function policySection(): SectionDraft {
   return { kind: "cta", role: "policy", layout: "policy_notice", kicker: "SHOPPING NOTICE", headline: "배송 및 교환 안내", body: "상품 수령 후 상태와 옵션을 확인해 주세요.", imageRole: "policy-notice", slots: { emphasis: "구매 전 옵션과 상품 정보를 꼭 확인해 주세요.", noticeItems: ["사용 또는 훼손된 상품은 교환과 반품이 제한될 수 있습니다.", "상품 색상은 모니터 환경에 따라 차이가 있을 수 있습니다.", "배송과 교환 기준은 판매자 정책을 확인해 주세요."] } };
 }
 
-export function createTemplateSections(input: GenerateDetailPageInput): DetailSection[] {
-  const family = selectTemplateFamily(input);
-  const drafts = family === "functional" ? functionalTemplate(input) : family === "wellness" ? wellnessTemplate(input) : livingTemplate(input);
-  return drafts.map((draft, index) => section(index, draft));
+export function createTemplateSections(
+  input: GenerateDetailPageInput,
+  preferredLayoutByKind?: Partial<Record<SectionKind, DetailBlockLayoutType>>
+): DetailSection[] {
+  const families: Record<TemplateFamily, SectionDraft[]> = {
+    living: livingTemplate(input),
+    functional: functionalTemplate(input),
+    wellness: wellnessTemplate(input),
+  };
+  const family = selectTemplateFamily(input, families, preferredLayoutByKind);
+  return families[family].map((draft, index) => section(index, draft));
 }

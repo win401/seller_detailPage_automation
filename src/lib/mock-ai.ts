@@ -5,9 +5,11 @@ import {
   AgentWorkflowDraft,
   AiEditAction,
   CompetitorReferenceInput,
+  DetailBlockLayoutType,
   DetailSection,
   GenerateDetailPageInput,
   GenerateDetailPageOutput,
+  SectionKind,
 } from "./types";
 import { CompetitorPageAnalysis } from "./agents/schemas";
 import frozenDemoSectionsJson from "./data/frozen-demo-sections.json";
@@ -49,7 +51,10 @@ export function mockAiRewrite(section: DetailSection, action: AiEditAction): str
   }
 }
 
-export function mockGenerateDetailPage(input: GenerateDetailPageInput): GenerateDetailPageOutput {
+export function mockGenerateDetailPage(
+  input: GenerateDetailPageInput,
+  preferredLayoutByKind?: Partial<Record<SectionKind, DetailBlockLayoutType>>
+): GenerateDetailPageOutput {
   if (FROZEN_DEMO_MODE) {
     return {
       sections: frozenDemoSections,
@@ -58,7 +63,7 @@ export function mockGenerateDetailPage(input: GenerateDetailPageInput): Generate
     };
   }
 
-  const sections = createTemplateSections(input).map((section) => {
+  const sections = createTemplateSections(input, preferredLayoutByKind).map((section) => {
 
     // Re-pick the reference image for the selected design mood so a fresh
     // mock draft's imagery matches what the user chose, instead of always

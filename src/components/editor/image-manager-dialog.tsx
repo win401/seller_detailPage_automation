@@ -15,6 +15,7 @@ import {
   BLOCK_IMAGE_LAYOUT_TYPES,
   DetailSection,
   IMAGE_SLOT_CATEGORY_LABELS,
+  ImageSlotCategory,
   ProjectImageAsset,
   SECTION_KIND_SLOT_CATEGORY,
 } from "@/lib/types";
@@ -30,6 +31,7 @@ interface SlotRow {
   target: SlotTarget;
   title: string;
   slotLabel: string;
+  category: ImageSlotCategory;
   currentUrl: string | undefined;
 }
 
@@ -37,7 +39,8 @@ function slotRowsForSections(sections: DetailSection[]): SlotRow[] {
   return sections
     .filter((s) => s.layoutType && BLOCK_IMAGE_LAYOUT_TYPES.includes(s.layoutType))
     .flatMap((s): SlotRow[] => {
-      const categoryLabel = IMAGE_SLOT_CATEGORY_LABELS[SECTION_KIND_SLOT_CATEGORY[s.kind]];
+      const category = SECTION_KIND_SLOT_CATEGORY[s.kind];
+      const categoryLabel = IMAGE_SLOT_CATEGORY_LABELS[category];
       if (s.layoutType === "before_after_compare") {
         return [
           {
@@ -45,6 +48,7 @@ function slotRowsForSections(sections: DetailSection[]): SlotRow[] {
             target: { sectionId: s.id, slot: "beforeImage" },
             title: s.title,
             slotLabel: `전 · ${categoryLabel}`,
+            category,
             currentUrl: s.slots?.beforeImage,
           },
           {
@@ -52,6 +56,7 @@ function slotRowsForSections(sections: DetailSection[]): SlotRow[] {
             target: { sectionId: s.id, slot: "afterImage" },
             title: s.title,
             slotLabel: `후 · ${categoryLabel}`,
+            category,
             currentUrl: s.slots?.afterImage,
           },
         ];
@@ -62,10 +67,20 @@ function slotRowsForSections(sections: DetailSection[]): SlotRow[] {
           target: { sectionId: s.id, slot: "image" },
           title: s.title,
           slotLabel: categoryLabel,
+          category,
           currentUrl: s.slots?.image ?? s.imageUrl,
         },
       ];
     });
+}
+
+/** Style-set-driven display order only — never changes which category a
+ * section belongs to (docs/TASKS.md 우선순위 3). Categories not listed in
+ * `priority` keep their relative order, after every ranked one. */
+function sortRowsByPriority(rows: SlotRow[], priority: ImageSlotCategory[] | undefined): SlotRow[] {
+  if (!priority || priority.length === 0) return rows;
+  const rank = new Map(priority.map((category, index) => [category, index]));
+  return [...rows].sort((a, b) => (rank.get(a.category) ?? Infinity) - (rank.get(b.category) ?? Infinity));
 }
 
 export function ImageManagerDialog({
@@ -77,6 +92,7 @@ export function ImageManagerDialog({
   onUpload,
   onDelete,
   onAssign,
+  imageSlotPriority,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -86,9 +102,12 @@ export function ImageManagerDialog({
   onUpload: (file: File) => void;
   onDelete: (asset: ProjectImageAsset) => void;
   onAssign: (target: SlotTarget, asset: ProjectImageAsset) => void;
+  /** Which image slot categories to fill first — display order only, from
+   * the currently selected style set (docs/TASKS.md 우선순위 3). */
+  imageSlotPriority?: ImageSlotCategory[];
 }) {
   const [pickingFor, setPickingFor] = useState<SlotTarget | null>(null);
-  const rows = slotRowsForSections(sections);
+  const rows = sortRowsByPriority(slotRowsForSections(sections), imageSlotPriority);
 
   function handlePoolClick(asset: ProjectImageAsset) {
     if (!pickingFor) return;

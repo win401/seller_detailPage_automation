@@ -383,6 +383,15 @@ export interface StyleSet extends SectionLayoutPreset {
   defaultPlatform: Platform;
   /** Which section kinds are visible by default. */
   sectionVisibility: Partial<Record<SectionKind, boolean>>;
+  /** Preferred layoutType per section kind — a generation-time hint/selector
+   * (production agent prompt hint when live, template-family scoring when
+   * mock), not a per-section override like SectionLayoutPreset. Never used
+   * to patch an existing draft's slots/images/text (docs/TASKS.md 우선순위 3
+   * 항목 8). */
+  preferredLayoutByKind?: Partial<Record<SectionKind, DetailBlockLayoutType>>;
+  /** Which image slot categories to prioritize filling first in the Image
+   * Manager dialog — display/order only, never changes slot labels. */
+  imageSlotPriority?: ImageSlotCategory[];
   brandNote?: string;
   createdAt: string;
   updatedAt: string;

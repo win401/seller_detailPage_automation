@@ -36,8 +36,15 @@ import {
   TEXT_SIZE_DEFAULT,
   TEXT_SIZE_RANGE,
 } from "@/lib/layout-presets";
-import { loadStyleSets, saveStyleSets } from "@/lib/style-sets";
-import { cn } from "@/lib/utils";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  deleteRemoteStyleSet,
+  loadRemoteStyleSets,
+  loadStyleSets,
+  saveStyleSets,
+  upsertRemoteStyleSet,
+} from "@/lib/style-sets";
+import { cn, isUuid } from "@/lib/utils";
 import {
   DesignMood,
   FONT_FAMILY_LABELS,
@@ -46,6 +53,7 @@ import {
   MOOD_LABELS,
   PLATFORM_LABELS,
   Platform,
+  SECTION_KIND_LABELS,
   SECTION_KIND_ORDER,
   StyleSet,
   TONE_LABELS,
@@ -345,6 +353,33 @@ function StyleSetFormDialog({
             </div>
           </div>
 
+          <div className="border-t border-border pt-4">
+            <div className="mb-2 text-[13px] font-bold">섹션 표시</div>
+            <p className="mb-3 text-[11.5px] leading-5 text-muted-foreground">
+              꺼진 섹션은 이 스타일 세트로 새로 만드는 초안에서 기본적으로 숨겨집니다. 생성 후에도
+              에디터에서 다시 켤 수 있습니다.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {SECTION_KIND_ORDER.map((kind) => {
+                const visible = draft.sectionVisibility[kind] !== false;
+                return (
+                  <Chip
+                    key={kind}
+                    active={visible}
+                    onClick={() =>
+                      setDraft((d) => ({
+                        ...d,
+                        sectionVisibility: { ...d.sectionVisibility, [kind]: !visible },
+                      }))
+                    }
+                  >
+                    {SECTION_KIND_LABELS[kind]}
+                  </Chip>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="grid gap-1.5">
             <Label>브랜드 메모</Label>
             <Textarea
@@ -374,6 +409,7 @@ function StyleSetFormDialog({
 
 export default function StyleSetsPage() {
   const [styleSets, setStyleSets] = useState<StyleSet[]>(mockStyleSets);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     // one-time hydration from localStorage on mount, not a render loop
@@ -381,21 +417,75 @@ export default function StyleSetsPage() {
     setStyleSets(loadStyleSets());
   }, []);
 
+  // Remote wins per id, merged result cached back to localStorage — same
+  // shape as loadRemoteStyleSignals in editor/page.tsx. Local-only sets
+  // (id not yet synced) are kept as-is until the next upsert.
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    let cancelled = false;
+
+    async function mergeRemoteStyleSets() {
+      const {
+        data: { user },
+      } = await supabase!.auth.getUser();
+      if (!user || cancelled) return;
+      setUserId(user.id);
+
+      try {
+        const remoteSets = await loadRemoteStyleSets(supabase!, user.id);
+        if (cancelled || remoteSets.length === 0) return;
+        setStyleSets((prev) => {
+          const byId = new Map<string, StyleSet>();
+          [...prev, ...remoteSets].forEach((styleSet) => byId.set(styleSet.id, styleSet));
+          const next = Array.from(byId.values());
+          saveStyleSets(next);
+          return next;
+        });
+      } catch {
+        // Supabase 조회 실패 시 로컬 캐시를 그대로 유지 — 화면은 계속 동작함.
+      }
+    }
+
+    void mergeRemoteStyleSets();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   function persist(next: StyleSet[]) {
     setStyleSets(next);
     saveStyleSets(next);
   }
 
-  function upsert(styleSet: StyleSet) {
+  function upsert(styleSetInput: StyleSet) {
+    // Seed mock style sets ship with plain ids ("ss1") for readability, not
+    // real UUIDs — style_sets.id is a uuid column, so syncing one as-is 400s
+    // (22P02 invalid input syntax for type uuid). Mint a real id the first
+    // time a mock-seeded set is actually edited/saved, replacing its old
+    // local-only id so local and remote agree going forward.
+    const originalId = styleSetInput.id;
+    const styleSet = isUuid(originalId) ? styleSetInput : { ...styleSetInput, id: crypto.randomUUID() };
+
     persist(
-      styleSets.some((s) => s.id === styleSet.id)
-        ? styleSets.map((s) => (s.id === styleSet.id ? styleSet : s))
+      styleSets.some((s) => s.id === originalId)
+        ? styleSets.map((s) => (s.id === originalId ? styleSet : s))
         : [...styleSets, styleSet]
     );
+    if (userId) {
+      const supabase = getSupabaseBrowserClient();
+      if (supabase) void upsertRemoteStyleSet(supabase, userId, styleSet);
+    }
   }
 
   function remove(id: string) {
     persist(styleSets.filter((s) => s.id !== id));
+    // Non-UUID ids are mock-seeded sets that were never synced (see upsert) —
+    // nothing to delete remotely.
+    if (userId && isUuid(id)) {
+      const supabase = getSupabaseBrowserClient();
+      if (supabase) void deleteRemoteStyleSet(supabase, id);
+    }
   }
 
   return (

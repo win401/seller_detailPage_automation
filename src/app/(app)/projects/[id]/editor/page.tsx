@@ -38,12 +38,12 @@ import { AgentWorkflowPanel } from "@/components/editor/agent-workflow-panel";
 import { ImageManagerDialog } from "@/components/editor/image-manager-dialog";
 import { getMockReferencesForSection, mockSections } from "@/lib/mock-data";
 import { mockPlanRevision, upgradeLegacyMockSections } from "@/lib/mock-ai";
-import { applyLayoutPresetToSections } from "@/lib/layout-presets";
-import { loadStyleSets } from "@/lib/style-sets";
+import { applyLayoutPresetToSections, resolveHiddenSectionIds } from "@/lib/layout-presets";
+import { loadRemoteStyleSets, loadStyleSets, saveStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { deleteProjectImage, listProjectImages, uploadProjectImage } from "@/lib/supabase/storage";
 import { richTextToPlainText } from "@/lib/rich-text";
-import { cn } from "@/lib/utils";
+import { cn, isUuid } from "@/lib/utils";
 import {
   AgentRunDraft,
   AgentWorkflowDraft,
@@ -132,12 +132,6 @@ function safeFileName(value: string) {
     .replace(/_+/g, "_")
     .replace(/^_|_$/g, "")
     .slice(0, 60);
-}
-
-function isUuid(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value
-  );
 }
 
 function isPlatform(value: string | null | undefined): value is Platform {
@@ -436,6 +430,39 @@ export default function DetailPageEditor() {
     // one-time hydration from localStorage on mount, not a render loop
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setStyleSets(loadStyleSets());
+  }, []);
+
+  // Same remote-wins merge pattern as styles/page.tsx.
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+    let cancelled = false;
+
+    async function mergeRemoteStyleSets() {
+      const {
+        data: { user },
+      } = await supabase!.auth.getUser();
+      if (!user || cancelled) return;
+
+      try {
+        const remoteSets = await loadRemoteStyleSets(supabase!, user.id);
+        if (cancelled || remoteSets.length === 0) return;
+        setStyleSets((prev) => {
+          const byId = new Map<string, StyleSet>();
+          [...prev, ...remoteSets].forEach((styleSet) => byId.set(styleSet.id, styleSet));
+          const next = Array.from(byId.values());
+          saveStyleSets(next);
+          return next;
+        });
+      } catch {
+        // 로컬 캐시로 계속 진행 — 이 페이지는 조회만 하므로 실패해도 안전.
+      }
+    }
+
+    void mergeRemoteStyleSets();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -1169,6 +1196,13 @@ export default function DetailPageEditor() {
     if (!styleSet) return;
     pushHistory();
     setSections((prev) => applyLayoutPresetToSections(prev, styleSet));
+    // Style-set-hidden kinds are unioned into the existing hide set rather
+    // than replacing it — re-applying a style set should never un-hide a
+    // section the user hid manually for their own reasons.
+    const styleHiddenIds = resolveHiddenSectionIds(sections, styleSet.sectionVisibility);
+    if (styleHiddenIds.length > 0) {
+      setHiddenIds((prev) => new Set([...prev, ...styleHiddenIds]));
+    }
     toast("스타일 세트를 적용했습니다", { description: styleSet.name });
   }
 
@@ -1739,9 +1773,27 @@ export default function DetailPageEditor() {
   // Header diagnostic badge: mock/live, model, generation time
   // (docs/TASKS.md 최우선). Undefined for drafts saved before this field
   // existed, or for the client-only mock fallback path — both render nothing.
-  const generationDiagnostics = useMemo(() => {
+  //
+  // useState+useEffect, not useMemo: readLocalGeneration() reads
+  // window.localStorage directly, which doesn't exist during SSR. A useMemo
+  // computed inline during render returns null on the server (no window) but
+  // the real value on the client's very first (hydration) render — window
+  // already exists there — so the server-rendered HTML and the client's
+  // hydration pass disagree on whether the "· Mock 생성 · 0.1초" fragment
+  // exists at all. That's a genuine content mismatch, not a false positive:
+  // it's exactly what was producing the "Hydration failed"/"script tag"
+  // console errors reported while using the editor. Starting at null on both
+  // passes (matching what SSR always renders) and only computing the real
+  // value in an effect after mount avoids the mismatch — the badge just pops
+  // in a frame after load instead of ever disagreeing with the server.
+  const [generationDiagnostics, setGenerationDiagnostics] = useState<string | null>(null);
+  useEffect(() => {
     const generation = readLocalGeneration();
-    if (!generation) return null;
+    if (!generation) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from localStorage (an external system), not derived from React state
+      setGenerationDiagnostics(null);
+      return;
+    }
     // Reloading a Supabase-persisted project reconstructs this record from
     // draft_versions.source, which tracks the LATEST version's own
     // provenance — it becomes "manual" the moment the user edits and saves
@@ -1763,7 +1815,7 @@ export default function DetailPageEditor() {
     if (typeof generation.generationTimeMs === "number") {
       parts.push(`${(generation.generationTimeMs / 1000).toFixed(1)}초`);
     }
-    return parts.length > 0 ? parts.join(" · ") : null;
+    setGenerationDiagnostics(parts.length > 0 ? parts.join(" · ") : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- readLocalGeneration reads a stable per-project localStorage key, re-derive whenever the draft reloads
   }, [loadedFromStorage, draftLoadSource]);
 
@@ -2141,6 +2193,7 @@ export default function DetailPageEditor() {
         onUpload={handlePoolUpload}
         onDelete={handlePoolDelete}
         onAssign={handleAssignPoolImage}
+        imageSlotPriority={styleSets.find((ss) => ss.id === styleSetToApply)?.imageSlotPriority}
       />
     </div>
   );

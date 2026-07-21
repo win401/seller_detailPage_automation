@@ -6,6 +6,7 @@ import { createTemplateSections } from "@/lib/detail-page-templates";
 import { mockGenerateDetailPage } from "@/lib/mock-ai";
 import { toRichText } from "@/lib/rich-text";
 import {
+  DetailBlockLayoutType,
   DetailBlockSlots,
   GenerateDetailPageInput,
   GenerateDetailPageOutput,
@@ -46,8 +47,12 @@ const sectionPlan = SECTION_KIND_ORDER.map((kind, index) => ({
   title: SECTION_KIND_LABELS[kind],
 }));
 
-async function fallback(input: GenerateDetailPageInput, reason?: string): Promise<GenerateDetailPageOutput> {
-  const result = mockGenerateDetailPage(input);
+async function fallback(
+  input: GenerateDetailPageInput,
+  reason?: string,
+  preferredLayoutByKind?: Partial<Record<SectionKind, DetailBlockLayoutType>>
+): Promise<GenerateDetailPageOutput> {
+  const result = mockGenerateDetailPage(input, preferredLayoutByKind);
   const sections = await generateSectionImages(result.sections, input.productImageDataUrl);
   return {
     ...result,
@@ -56,7 +61,11 @@ async function fallback(input: GenerateDetailPageInput, reason?: string): Promis
   };
 }
 
-function buildPrompt(input: GenerateDetailPageInput, planningOutput?: PlanningOutput) {
+function buildPrompt(
+  input: GenerateDetailPageInput,
+  planningOutput?: PlanningOutput,
+  preferredLayoutByKind?: Partial<Record<SectionKind, DetailBlockLayoutType>>
+) {
   return `
 너는 쿠팡/네이버 스마트스토어 상세페이지를 많이 작성한 이커머스 카피라이터야.
 
@@ -103,19 +112,29 @@ ${Object.entries(LAYOUT_TYPE_CATALOG)
 - slots는 고른 layoutType이 실제로 쓰는 필드만 채워라(예: qa_list라면 faqItems, product_info_table이라면 specRows). 필요 없는 필드는 비워도 된다.
 - layoutRationale은 이 섹션에 그 layoutType을 고른 이유를 1문장으로 설명한다.
 - warnings는 근거가 부족하거나 사용자가 확인해야 할 사항이 있을 때만 작성하고, 없으면 빈 배열로 반환한다.
+${
+  preferredLayoutByKind && Object.keys(preferredLayoutByKind).length > 0
+    ? `\n스타일 세트 선호 레이아웃 힌트(참고용, 문맥에 안 맞으면 다른 값을 골라도 됨):\n${Object.entries(
+        preferredLayoutByKind
+      )
+        .map(([kind, layout]) => `  - ${kind}: ${layout}`)
+        .join("\n")}\n`
+    : ""
+}
 `.trim();
 }
 
 export async function runProductionAgent(
   input: GenerateDetailPageInput,
-  planningOutput?: PlanningOutput
+  planningOutput?: PlanningOutput,
+  preferredLayoutByKind?: Partial<Record<SectionKind, DetailBlockLayoutType>>
 ): Promise<GenerateDetailPageOutput> {
   if (!isLiveAiEnabled()) {
-    return await fallback(input, getMockReason());
+    return await fallback(input, getMockReason(), preferredLayoutByKind);
   }
 
   if (!process.env.OPENAI_API_KEY) {
-    return await fallback(input, "OPENAI_API_KEY가 없어 mock 초안을 사용했습니다.");
+    return await fallback(input, "OPENAI_API_KEY가 없어 mock 초안을 사용했습니다.", preferredLayoutByKind);
   }
 
   try {
@@ -131,12 +150,12 @@ export async function runProductionAgent(
       temperature: 0.35,
       timeout: PRODUCTION_CALL_TIMEOUT_MS,
       output: Output.object({ schema: productionOutputSchema }),
-      prompt: buildPrompt(input, planningOutput),
+      prompt: buildPrompt(input, planningOutput, preferredLayoutByKind),
     });
 
     // 실제 kind별 mock 템플릿 섹션 — 소프트 실패(유효한 layoutType이지만 필수
     // 슬롯이 비어있는 경우)에서 그 키만 채우는 백필 소스로 쓴다.
-    const templateSections = createTemplateSections(input);
+    const templateSections = createTemplateSections(input, preferredLayoutByKind);
 
     const sections = output.sections.map((section, index) => {
       const kind = section.kind as SectionKind;
@@ -195,6 +214,6 @@ export async function runProductionAgent(
     };
   } catch (error) {
     console.error("production agent failed", error);
-    return await fallback(input, "OpenAI 호출 실패로 mock 초안을 사용했습니다.");
+    return await fallback(input, "OpenAI 호출 실패로 mock 초안을 사용했습니다.", preferredLayoutByKind);
   }
 }

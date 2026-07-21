@@ -6,6 +6,7 @@ import {
   ImageHeight,
   ImagePosition,
   SectionLayoutPreset,
+  StyleSet,
 } from "./types";
 
 /**
@@ -132,4 +133,19 @@ export function applyLayoutPresetToSections(
     ...(typeof preset.letterSpacing === "number" && { letterSpacing: preset.letterSpacing }),
     ...(typeof preset.lineHeight === "number" && { lineHeight: preset.lineHeight }),
   }));
+}
+
+/**
+ * Resolves a style set's `sectionVisibility` (keyed by SectionKind) into the
+ * actual section instance ids to hide for THIS draft's sections — the
+ * editor's real hide/show mechanism (`hiddenIds`) is keyed by section id, not
+ * kind, so this is the one place that bridges the two. Previously this field
+ * was set on StyleSet but never consumed anywhere (docs/TASKS.md 우선순위 3).
+ */
+export function resolveHiddenSectionIds(
+  sections: DetailSection[],
+  sectionVisibility: StyleSet["sectionVisibility"] | undefined
+): string[] {
+  if (!sectionVisibility) return [];
+  return sections.filter((section) => sectionVisibility[section.kind] === false).map((section) => section.id);
 }

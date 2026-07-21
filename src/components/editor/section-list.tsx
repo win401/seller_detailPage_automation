@@ -115,7 +115,13 @@ export function SectionList({
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+    // Fixed id — dnd-kit's default DndDescribedBy-N id comes from a module-level
+    // counter, which increments differently across the server render vs. the
+    // client's first hydration pass (e.g. after client-side navigation history),
+    // producing an aria-describedby hydration mismatch warning. A stable id
+    // makes both passes agree without needing that counter (dnd-kit's
+    // documented fix for exactly this SSR case).
+    <DndContext id="section-list-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={sections.map((sec) => sec.id)} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col">
           {sections.map((sec, i) => (
