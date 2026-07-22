@@ -209,7 +209,7 @@
 
 ## 배포 전 체크리스트
 
-- [ ] 기능 계약이 바뀌면 README, MVP plan, schema, 환경변수 예시를 함께 갱신
-- [ ] `docs/DEMO_SCRIPT.md`를 실제 데모 흐름과 일치시킴
-- [ ] 발표 전 제한 사항과 mock fallback 동작을 정리
+- [x] (2026-07-22) 기능 계약이 바뀌면 README, MVP plan, schema, 환경변수 예시를 함께 갱신 — 조사 에이전트로 README/MVP_PLAN/DEMO_SCRIPT/.env.example/schema.sql을 실제 구현과 대조. `README.md`가 가장 심하게 낡아 있었음(여전히 "Claude Design으로 시안 생성", "PNG/HTML/복사용 텍스트 내보내기", "localStorage 우선" 등 에이전트 파이프라인 이전 초기 구상 문구 — 에이전트/구조화 레이아웃/스타일 세트 언급이 아예 없었음): Product Flow/MVP Scope/Suggested Stack/Current implementation status 전체 재작성. `MVP_PLAN.md`는 제작·검수 에이전트 섹션(구조화 `layoutType`/`slots`, 검수 4개 신규 기준), `style_sets` 데이터 모델(2026-07-21 레이아웃 시스템 확장 컬럼 10여 개 누락 상태였음), §16 관리자 화면(실제로는 미구현 상태인데 이미 만든 것처럼 서술돼 있었음 — "미구현" 명시 + 우선순위5의 별개 관리자 기능과 혼동 주의 문구 추가)에 타겟 수정. `.env.example`/`schema.sql`은 조사 결과 실제로 이미 최신 상태라 수정 없음(각각 실제 `process.env.*` 사용처, 적용된 migration과 대조 확인 완료).
+- [x] (2026-07-22) `docs/DEMO_SCRIPT.md`를 실제 데모 흐름과 일치시킴 — 이미지 위치 조절이 예전 "3x3 그리드"로 서술돼 있던 걸 실제 UI(가로/세로 슬라이더, 2026-07-21 변경)로 수정, 스타일 세트 다이얼로그의 새 라이브 미리보기 캔버스 언급 추가, `FROZEN_DEMO_MODE`/`PAUSED_FOR_SPEND_CAP` 임시 플래그가 켜져 있어 "무드 바꾸면 이미지 톤이 달라짐" 시연 포인트가 지금은 실제로 안 먹힌다는 경고를 문서 맨 위에 명시(안 그러면 발표 중 실제로 눌러보다 발표자가 당황할 위험).
+- [x] (2026-07-22) 발표 전 제한 사항과 mock fallback 동작을 정리 — 위 두 항목에 포함: `FROZEN_DEMO_MODE`/`PAUSED_FOR_SPEND_CAP`가 README "Current implementation status"와 DEMO_SCRIPT 상단에 각각 명시됨.
 - [ ] 최종 배포 전 데스크톱 반응형, 테마, 기본 접근성, 프로젝트 복원, 이미지 영속성, ZIP 파일 내용을 확인

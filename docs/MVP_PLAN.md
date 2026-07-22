@@ -112,6 +112,7 @@ MVP의 AI 생성은 단일 호출로 끝나는 문구 생성기가 아니라, �
 
 - 입력: 기획안, 상품 정보, 이미지 설명, 추가 제작 요청
 - 출력: 13개 섹션 JSON, 섹션별 카피, 상세설명, 이미지 역할, 이미지 프롬프트
+- 현재 구현(2026-07-21)은 여기서 더 나아가 섹션마다 `blockRole`/`layoutType`(승인된 18종 중 선택)/`slots`까지 채운 구조화 출력을 만듦 — 렌더러(`StructuredSectionBlock`)가 이 값을 그대로 읽어 블록을 그림. `layoutType`은 서버 enum으로 제한, 알 수 없는 값은 안전한 mock 슬롯 값으로 fallback.
 - 현재 구현된 AI 상세페이지 생성 API는 이 제작 에이전트 역할부터 시작합니다.
 
 #### 검수 에이전트
@@ -119,6 +120,7 @@ MVP의 AI 생성은 단일 호출로 끝나는 문구 생성기가 아니라, �
 - 입력: 제작 에이전트 결과, 상품 정보, 플랫폼, 금지 표현 규칙
 - 출력: 검수 점수, 경고 목록, 수정 제안, 자동 수정 가능 여부
 - 검수 기준: 과장 표현, 근거 없는 효능/인증/수치, 섹션 누락, 모바일 가독성, CTA 명확성
+- 2026-07-21 확장: 이미지 슬롯 누락(결정론적 체크, LLM 호출 없이도 항상 동작), 레이아웃 불일치, 섹션 흐름, 반복 표현 4개 검수 기준 추가.
 
 #### 수정 요청 루프
 
@@ -170,7 +172,7 @@ MVP 범위:
 
 - Vercel AI SDK 사용
 - 에이전트 단계별 structured output 사용
-- 13개 섹션 JSON 생성
+- 13개 섹션 JSON 생성 — 2026-07-21부터 섹션마다 `blockRole`/`layoutType`(18종 승인 목록)/`slots`까지 구조화 출력, 렌더러가 이 값으로 실제 블록을 선택
 - zod schema 기반 출력 검증
 - 낮은 temperature 설정
 - 상품 정보에 없는 효능, 인증, 수치 생성 금지
@@ -405,7 +407,7 @@ FastAPI/Python 백엔드는 지금 MVP의 메인 백엔드로 만들지 않습�
 - 스마트스토어
 - 쿠팡
 
-### 16. 관리자 화면
+### 16. 관리자 화면 — 미구현 (2026-07-22 기준)
 
 - 관리자 계정만 접근
 - 전체 사용자 수
@@ -415,6 +417,8 @@ FastAPI/Python 백엔드는 지금 MVP의 메인 백엔드로 만들지 않습�
 - 최근 프로젝트 메타데이터
 
 관리자 화면은 프로젝트 시연과 기본 운영 확인을 위한 범위로 제한합니다.
+
+**주의**: `src/app`에 `/admin` 라우트나 `role`/관리자 권한 체크가 아직 전혀 없음 — 이 섹션은 아직 손대지 않은 순수 계획 상태. `docs/TASKS.md` 우선순위 5("관리자 경쟁 상세페이지 이미지 분석/EDA")와는 다른 기능(그쪽은 경쟁사 이미지 분석용 관리자 도구, 이쪽은 사용/운영 통계 대시보드)이니 혼동 주의.
 
 ## Should Have
 
@@ -510,6 +514,15 @@ FastAPI/Python 백엔드는 지금 MVP의 메인 백엔드로 만들지 않습�
 - `style_signal_summary`
 - `created_at`
 - `updated_at`
+
+2026-07-21 레이아웃 시스템 확장(`migration_2026-07-21_style_set_layout_system.sql`)으로 아래 컬럼 추가 — 색상/무드 프리셋이 아니라 재사용 가능한 상세페이지 디자인 시스템으로 확장됨:
+
+- `image_position`, `image_position_x`, `image_position_y`, `image_fit`, `image_height`
+- `spacing`, `text_scale`, `font_family`, `letter_spacing`, `line_height`
+- `preferred_layout_by_kind` (섹션 kind별 선호 `layoutType`, 제작 에이전트 프롬프트 힌트 + mock 템플릿 패밀리 선택에 사용)
+- `image_slot_priority`
+
+`/styles`의 스타일 세트 편집 다이얼로그는 2026-07-22부터 이 값들을 실시간으로 반영하는 미리보기 캔버스(샘플 상품 기준, 실제 `SectionCanvas` 재사용)를 포함함. `preferred_layout_by_kind`를 직접 편집하는 UI는 아직 없음(4개 기본 시드 세트만 값을 가짐) — 별도 예정.
 
 ### detail_page_projects
 
