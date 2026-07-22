@@ -2093,6 +2093,19 @@ export default function DetailPageEditor() {
           </div>
           <div className="p-4">
             <SectionEditPanel
+              // draftLoadSource in the key: this panel's 본문 RichTextEditor
+              // builds its contentEditable DOM once on mount from a ref, by
+              // design (docs on RichTextEditor). sections starts as the
+              // "mock" placeholder before the async local/Supabase load
+              // resolves; without draftLoadSource here, the panel mounts
+              // against that placeholder body first and — since section ids
+              // are stable across mock/real data — never remounts once the
+              // real (possibly richly-styled) body arrives, silently
+              // showing stale plain text that a blur-triggered edit would
+              // then commit over the real content (found via an actual
+              // Supabase round-trip: canvas showed bold/highlight correctly,
+              // this panel didn't, docs/TASKS.md).
+              key={`${selectedId}-${draftLoadSource}`}
               section={selectedSection}
               hidden={hiddenIds.has(selectedId)}
               onCommitBody={(before, after) => handleCanvasTextCommit(selectedId, "body", before, after)}
