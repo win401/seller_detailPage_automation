@@ -1680,7 +1680,12 @@ export default function DetailPageEditor() {
       const exportWidth = PLATFORM_EXPORT_WIDTH[projectSummary.platform];
       const sourceNode = canvasWrapRef.current;
       const sourceWidth = sourceNode.offsetWidth || 360;
-      const sourceHeight = sourceNode.scrollHeight || sourceNode.offsetHeight;
+      // SectionCanvas renders its own editor-only "상세페이지 캔버스" label bar
+      // (data-export-chrome) above the actual sections — excluded from both
+      // the height measurement here and the clone below so it never ends up
+      // baked into the exported PNG.
+      const chromeHeight = sourceNode.querySelector<HTMLElement>('[data-export-chrome="true"]')?.offsetHeight ?? 0;
+      const sourceHeight = (sourceNode.scrollHeight || sourceNode.offsetHeight) - chromeHeight;
       const pixelRatio = exportWidth / sourceWidth;
       const previewSliceHeight = EXPORT_SLICE_HEIGHT / pixelRatio;
       const sliceCount = Math.max(1, Math.ceil(sourceHeight / previewSliceHeight));
@@ -1704,6 +1709,15 @@ export default function DetailPageEditor() {
       offscreenHost.style.overflow = "hidden";
       const clone = sourceNode.cloneNode(true) as HTMLElement;
       clone.style.position = "relative";
+      clone.querySelectorAll('[data-export-chrome="true"]').forEach((el) => el.remove());
+      // Whichever section is currently selected in the editor gets an
+      // outline (StructuredSectionBlock's sectionFrameClass) — also
+      // editor-only chrome, so it must not survive into the export (found
+      // baked into a real downloaded ZIP, orange outline around whichever
+      // section was selected when "ZIP 다운로드" was clicked).
+      const noSelectionOutline = document.createElement("style");
+      noSelectionOutline.textContent = "[data-section-id] { outline: none !important; }";
+      clone.prepend(noSelectionOutline);
       offscreenHost.appendChild(clone);
       document.body.appendChild(offscreenHost);
 

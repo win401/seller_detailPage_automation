@@ -808,7 +808,13 @@ export function SectionCanvas({
       ref={canvasRef}
       className="w-[360px] max-w-full shrink-0 overflow-hidden rounded-xl border border-canvas-border bg-canvas-bg shadow-[0_10px_28px_rgba(23,32,28,0.14)]"
     >
-      <div className="flex h-[34px] items-center justify-between border-b border-canvas-border bg-canvas-soft px-3.5 text-[11px] font-bold text-canvas-dark">
+      {/* data-export-chrome: editor-only chrome, stripped from the clone
+          before ZIP capture in editor/page.tsx's handleExport — without
+          this the exported PNG shows this label bar baked into the image. */}
+      <div
+        data-export-chrome="true"
+        className="flex h-[34px] items-center justify-between border-b border-canvas-border bg-canvas-soft px-3.5 text-[11px] font-bold text-canvas-dark"
+      >
         <span>상세페이지 캔버스</span>
         <span className="font-semibold text-canvas-muted">
           {platform} · {PLATFORM_EXPORT_WIDTH[platform]}px
