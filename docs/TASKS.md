@@ -1,6 +1,6 @@
 # Tasks
 
-> 최종 갱신: 2026-07-16
+> 최종 갱신: 2026-07-22
 >
 > 이 문서는 현재 구현 상태와 다음 실행 순서를 관리한다. 과거 논의와 폐기된 결정은 다른 `docs/` 문서에 남기고, 여기에는 실제로 의미 있는 완료 상태와 남은 작업만 기록한다.
 
@@ -168,28 +168,36 @@
 
 ### 레퍼런스 데이터 모델
 
-- [ ] `nav-bar.tsx`에 관리자 전용 "레퍼런스 분석" 진입 버튼
-- [ ] 업로드·분석 상태·결과·재시도를 제공하는 `/admin/reference-analysis` 화면
-- [ ] `competitor_references` 확장: 원본 메타데이터만 저장 — nullable `project_id`, `source_url`, `platform`, `product_name`, `category`, `analysis_status`, `updated_at`
-- [ ] `competitor_reference_assets` 추가: 여러 장의 캡처 이미지 경로, 순서, 크기, MIME 타입, 파일 크기, 해시
-- [ ] `competitor_analysis_runs` 추가: 분석 모델/프롬프트 버전/상태/오류와 페이지 단위 EDA 수치
-- [ ] `competitor_reference_sections` 추가: 감지된 섹션마다 1행 — 섹션 유형, 순서, 원본 Y 좌표, 비율, OCR 카피, 카피 특징, 신뢰도
-- [ ] `agent_runs`는 필요 시 호출 추적/디버깅에만 연결하고 EDA 주 데이터 저장소로 사용하지 않음
-- [ ] 일반 사용자는 본인이 올린 원본만, 관리자는 전체 분석 코퍼스에 접근하는 RLS 정책
-- [ ] 외부 원본 이미지 보관 기간/삭제/내부 분석 범위를 정의하고, 장기 데이터는 원본보다 파생 지표 중심으로 보관
+**Phase 1 착수 (2026-07-22, Claude):** 아래 체크리스트는 전체 스펙(좌표/OCR 신뢰도/오버레이/EDA 집계까지 전부) 기준으로 작성돼 있어 규모가 크다 — 이번 배치는 그중 **관리자 게이팅 + 다중 이미지 Storage 풀링 + 분석 실행 추적**만 놓는 Phase 1로 스코프를 좁혔다(사용자 확인). 좌표 보정/섹션별 OCR 신뢰도/오버레이 UI/EDA 집계 대시보드는 Phase 2+로 명시적으로 미룸 — Vision AI 호출 자체를 페이지 단위+겹침 병합으로 재설계해야 하는 별도 작업이라 이번 스코프에 안 맞음.
+
+- [x] (2026-07-22) `nav-bar.tsx`에 관리자 전용 "레퍼런스 분석" 진입 버튼 — `profiles.role` 조회 후 `role === "admin"`일 때만 `NAV_LINKS`에 조건부 추가. 어디까지나 UI 노출용이고 실제 보안 경계는 API 레벨 체크(아래) — 실브라우저로 admin 계정엔 링크가 뜨고, `role`을 `seller`로 되돌리면 즉시 안 뜨는 것 확인.
+- [x] (2026-07-22) 업로드·분석 상태·결과를 제공하는 `/admin/reference-analysis` 화면 — 재시도 UI는 이번엔 스코프 밖(실패해도 페이지 새로고침 후 다시 업로드하면 됨, Phase 2에서 재검토). `/competitor-analysis`(축소 MVP, 이미지 1장, 무인증)의 업로드/스티칭/최적화 로직과 `AnalysisResultCard`를 그대로 재사용(export만 추가), 다중 페이지 업로드/저장/`referenceId` 배선만 새로 얹음.
+- [x] (2026-07-22) `competitor_references` 확장 — **대상을 다르게 판단**: 조사 결과 `competitor_references`는 `project_id`가 필수인 완전히 다른 테이블(셀러가 프로젝트별로 입력하는 URL/메모 전용, AI 분석과 무관)이었고, 축소 MVP 때 만든 `competitor_page_analyses`가 이미 `project_id` nullable로 설계돼 있어 실제 확장 대상이었음(그 테이블 자체 주석에 "관리자 전용 다중 이미지 스펙으로 확장하는 게 다음 단계"라고 명시돼 있었음). `competitor_page_analyses`에 `source_url`/`platform`/`product_name`/`category`/`analysis_status`/`updated_at` 추가, `image_data_url`은 nullable로 전환(관리자 다중 이미지 경로는 이제 이 컬럼을 안 쓰고 아래 assets 테이블을 씀 — 기존 축소 MVP row의 base64는 그대로 유지). `competitor_references`는 손 안 댐.
+- [x] (2026-07-22) `competitor_reference_assets` 추가 — 여러 장의 캡처 이미지 경로, `position`(순서), 크기, MIME 타입 저장(파일 해시는 이번엔 스코프 밖). `project_image_assets`(우선순위 1)와 똑같은 패턴(Storage 버킷 `competitor-references`, DB insert 실패 시 Storage 객체 롤백) — `src/lib/supabase/reference-assets.ts`(신규) `uploadReferenceAsset`/`listReferenceAssets`. 실브라우저로 3장 업로드 → Storage에 `position` 0/1/2 순서로 정확히 저장되는 것을 Supabase에서 직접 확인.
+- [x] (2026-07-22) `competitor_analysis_runs` 추가 — 분석 모델/프롬프트 버전(자리만, 아직 값 안 채움)/상태(`pending`/`running`/`completed`/`failed`)/오류. `analyze-competitor-page` API 라우트가 `referenceId`가 있을 때만(관리자 경로) run row를 만들고 완료/실패 시 갱신 — 기존 축소 MVP(단일 이미지, 무인증) 경로는 이 필드 자체를 안 건드림. 실측: run이 `completed` 상태로 정확히 남는 것 확인.
+- [ ] `competitor_reference_sections` (섹션별 좌표/OCR/신뢰도) — Phase 2+.
+- [x] (2026-07-22) `agent_runs`는 그대로 두고 안 건드림 — 이번 배치에서 EDA 데이터는 전부 `competitor_page_analyses`/`competitor_reference_assets`/`competitor_analysis_runs` 3개로만 감.
+- [x] (2026-07-22) 일반 사용자는 본인이 올린 원본만, 관리자는 전체 분석 코퍼스에 접근하는 RLS 정책 — 이 코드베이스에서 **최초의 관리자 RLS 패턴**(그 전까진 모든 정책이 `user_id = auth.uid()` 단순 소유 체크뿐). `public.is_admin()` SQL 함수(`security invoker` 기본값으로 충분 — 호출자 자신의 `profiles` row만 봄) 추가, `competitor_page_analyses` 정책을 `user_id = auth.uid() or is_admin()`으로, 새 테이블 2개는 `is_admin()` 전용으로. **API 인증도 이번이 최초** — 지금까지 이 앱의 어떤 API 라우트도 인증을 안 했음(클라이언트가 보낸 body를 무조건 신뢰). `src/lib/supabase/server-auth.ts`(신규) `requireAdmin(request)` — 새 의존성(`@supabase/ssr`) 없이 기존 `@supabase/supabase-js`만으로 `Authorization: Bearer <token>` 검증(`supabase.auth.getUser(token)`) + `profiles.role` 체크. 실측 3가지 부정 케이스 전부 확인: (1) `role`을 `seller`로 되돌리면 nav 링크 즉시 사라짐, (2) `/admin/reference-analysis` 직접 URL 접근 시 페이지 레벨에서 "관리자만 접근할 수 있는 화면입니다" 차단, (3) 유효한 non-admin 토큰으로 API를 직접 호출해도 403 `{"error":"관리자만 접근할 수 있습니다."}` 정확히 반환.
+- [ ] 외부 원본 이미지 보관 기간/삭제 정책 정의 — Phase 2+(지금은 코퍼스가 없어 정책을 정할 실익이 없음).
+  - **부수적으로 발견+수정한 실제 버그(비용 관련)**: `competitor-analysis.ts`가 다른 모든 에이전트(`production`/`planning`/`review`)와 달리 `isLiveAiEnabled()`(`ENABLE_LIVE_AI` 토글)를 안 보고 `OPENAI_API_KEY` 존재 여부만 봤음 — 이 환경엔 실제 키가 설정돼 있어서, `ENABLE_LIVE_AI=false`로 다른 생성은 전부 mock만 쓰도록 의도적으로 막아둔 상태에서도 `/competitor-analysis`(축소 MVP, 로그인만 하면 누구나 접근)는 매번 조용히 실제 OpenAI를 호출해 비용이 새고 있었음. 다른 에이전트와 같은 게이트(`isLiveAiEnabled()` 우선 체크, `AI_CALL_TIMEOUT_MS` 타임아웃도 같이 추가)로 통일해 해결.
+  - 테스트로 만든 관리자 분석 row 2건 + Storage 이미지 6장 + 레거시 단일 이미지 테스트 1건 전부 정리 완료(Supabase에서 직접 확인, cascade로 assets/runs도 0건).
 
 ### 분석 파이프라인
 
-- [ ] 여러 장의 긴 이미지 업로드와 수동 순서 변경
+**나머지는 전부 Phase 2+ (위 "레퍼런스 데이터 모델" Phase 1 노트 참고)** — Vision AI 호출을 페이지 단위+겹침 병합으로 재설계해야 좌표/신뢰도가 나오므로, `competitor_reference_sections` 테이블이 생기기 전까지는 착수 자체가 의미 없다.
+
+- [x] (2026-07-22, 부분) 여러 장의 긴 이미지 업로드 — `/admin/reference-analysis`에서 다중 파일 업로드 + 업로드 순서 그대로 `position`으로 저장하는 것까지는 Phase 1에서 됨. **수동 순서 변경(업로드 후 드래그로 재배열)은 아직 없음** — Phase 2 후보.
 - [ ] 지나치게 긴 이미지는 겹침 영역을 포함한 분석 단위로 분할하고 원본 Y 좌표 유지
 - [ ] 경계 중복 없이 분할 분석 결과를 하나의 상세페이지 좌표계로 병합
 - [ ] 이미지 처리로 캔버스 크기, 여백, 텍스트/이미지/피사체 비율, 정렬, 색상 팔레트 추출
 - [ ] Vision AI로 OCR, 13대 섹션 분류, 제목/본문 분리, 카피 톤·페인포인트·효익·근거·CTA 추출
 - [ ] 타이포그래피는 캡처 이미지 기반 추정값과 confidence를 저장하고, 원본 CSS 값이라고 단정하지 않음
 - [ ] 결과 화면에서 섹션 경계, 텍스트 안전영역, 여백 측정치를 원본 위에 오버레이
-- [ ] 업로드·대기·분석 중·완료·실패·재시도 상태 UI
+- [x] (2026-07-22, 부분) 업로드·대기·분석 중·완료·실패 상태 UI — `competitor_analysis_runs.status`(`pending`/`running`/`completed`/`failed`)가 실제로 추적되고 이력 목록에 상태 배지로 뜸. **재시도 UI는 없음**(실패 시 새로고침 후 재업로드) — Phase 2 후보.
 
 ### EDA 출력
+
+**전부 Phase 2+** — 의미 있게 집계할 만한 코퍼스(여러 레퍼런스 분석 결과)가 쌓인 뒤, 그리고 섹션 단위 좌표/신뢰도 데이터가 있어야 아래 지표들이 실제로 계산 가능하다.
 
 - [ ] 비주얼: 전체/섹션 여백 비율, 피사체 비율, 텍스트/이미지 비율, 정렬, 팔레트, 안전영역
 - [ ] 타이포: 제목/본문 상대 크기, 줄 수, 추정 줄간격/자간, 대비와 가독성
@@ -201,6 +209,7 @@
 
 아래는 현재 구현 우선순위가 아니다.
 
+- [ ] **관리자 회원/사용량 대시보드** (`MVP_PLAN.md` §16) — 전체 사용자 수, 전체 프로젝트 수, AI 생성 횟수, ZIP 다운로드 횟수, 최근 프로젝트 메타데이터를 한눈에 보는 화면. 우선순위 5(경쟁 상세페이지 분석 EDA)와는 완전히 별개 개념(둘 다 "관리자"라 혼동하기 쉬움, MVP_PLAN.md에도 주의 문구 있음) — 이쪽은 아직 백로그에만 있던 아이디어를 2026-07-22에 사용자가 다시 언급, 방금 만든 관리자 인프라(`is_admin()`, `requireAdmin`, `profiles.role`)를 그대로 재사용 가능해 착수 자체는 가벼움. 집계 대상 후보(설계 전 메모): 전체 사용자 수(`profiles` count), 전체 프로젝트 수(`detail_page_projects` count), AI 생성 횟수(`agent_runs`의 `agent_type = 'orchestrator'` row count가 유력한 대리 지표), ZIP 다운로드 횟수(현재 어디서도 기록 안 됨 — `usage_events` 테이블이 스키마엔 있지만 `profiles.role`처럼 코드 어디서도 안 쓰이는 죽은 테이블이라 export 시점에 기록하는 코드부터 새로 필요). RLS 확장 방식은 재검토 필요 — `competitor_page_analyses`처럼 여러 테이블에 개별적으로 "or is_admin()"을 추가하는 대신, `security definer` 집계 함수(내부에서 `is_admin()`을 한 번만 체크하고 원본 row가 아니라 집계된 숫자/최근 목록만 반환) 쪽이 RLS 변경 범위를 좁힐 수 있어 유력한 후보.
 - [ ] 레퍼런스 이미지를 활용한 상품 이미지 개선/합성. 실제 상품 정보 보존 규칙이 전제
 - [ ] 누끼 제거 또는 이미지 품질 개선 worker
 - [ ] 대량 이미지 분석이 필요해질 때 OpenCV/FastAPI worker 검토

@@ -152,10 +152,48 @@ create table if not exists public.competitor_page_analyses (
   user_id uuid not null references auth.users(id) on delete cascade,
   project_id uuid references public.detail_page_projects(id) on delete set null,
   label text,
-  image_data_url text not null,
+  image_data_url text,
   analysis jsonb not null default '{}'::jsonb,
   source text not null default 'mock',
+  -- 우선순위 5 Phase 1(2026-07-22, docs/TASKS.md): 관리자 다중 이미지 경로용 확장 —
+  -- 그 경로는 image_data_url을 안 쓰고 competitor_reference_assets Storage 풀을 씀
+  -- (그래서 image_data_url이 nullable), 기존 축소 MVP(단일 이미지, 무인증)는 그대로 유지.
+  source_url text,
+  platform text,
+  product_name text,
+  category text,
+  analysis_status text not null default 'completed',
+  updated_at timestamptz not null default now()
+);
+
+-- 우선순위 5 Phase 1: 관리자가 여러 장(페이지)의 캡처 이미지를 순서대로 저장하는 풀
+-- (project_image_assets와 같은 패턴, 부모가 project가 아니라 competitor_page_analyses row).
+create table if not exists public.competitor_reference_assets (
+  id uuid primary key default gen_random_uuid(),
+  reference_id uuid not null references public.competitor_page_analyses(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  storage_path text not null,
+  public_url text not null,
+  position integer not null default 0,
+  width integer,
+  height integer,
+  size_bytes integer,
+  mime_type text,
   created_at timestamptz not null default now()
+);
+
+-- 우선순위 5 Phase 1: 분석 1회 실행 기록 — competitor_page_analyses.analysis(최신 결과
+-- 요약)와 별개로, 모델/프롬프트 버전/상태/에러까지 실행 단위로 추적한다.
+create table if not exists public.competitor_analysis_runs (
+  id uuid primary key default gen_random_uuid(),
+  reference_id uuid not null references public.competitor_page_analyses(id) on delete cascade,
+  model text,
+  prompt_version text,
+  status text not null default 'pending' check (status in ('pending', 'running', 'completed', 'failed')),
+  error text,
+  result jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  completed_at timestamptz
 );
 
 -- 셀러가 업로드한 사진 "풀" (docs/TASKS.md 우선순위 1). 어떤 사진이 어떤 섹션/슬롯에
@@ -188,6 +226,15 @@ alter table public.user_style_signals enable row level security;
 alter table public.usage_events enable row level security;
 alter table public.competitor_page_analyses enable row level security;
 alter table public.project_image_assets enable row level security;
+alter table public.competitor_reference_assets enable row level security;
+alter table public.competitor_analysis_runs enable row level security;
+
+-- 우선순위 5 Phase 1: 관리자 판별 — SECURITY INVOKER(기본값)로 충분하다. auth.uid() =
+-- 호출자 자신의 profiles row만 보면 되므로 "본인만 select" RLS와 충돌하지 않는다.
+create or replace function public.is_admin()
+returns boolean language sql stable as $$
+  select exists(select 1 from public.profiles where id = auth.uid() and role = 'admin')
+$$;
 
 drop policy if exists "profiles select own" on public.profiles;
 create policy "profiles select own" on public.profiles
@@ -228,12 +275,21 @@ create policy "usage_events own access" on public.usage_events
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 drop policy if exists "competitor_page_analyses own access" on public.competitor_page_analyses;
-create policy "competitor_page_analyses own access" on public.competitor_page_analyses
-  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "competitor_page_analyses own or admin" on public.competitor_page_analyses
+  for all using (user_id = auth.uid() or public.is_admin())
+  with check (user_id = auth.uid() or public.is_admin());
 
 drop policy if exists "project_image_assets own access" on public.project_image_assets;
 create policy "project_image_assets own access" on public.project_image_assets
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "competitor_reference_assets admin only" on public.competitor_reference_assets;
+create policy "competitor_reference_assets admin only" on public.competitor_reference_assets
+  for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "competitor_analysis_runs admin only" on public.competitor_analysis_runs;
+create policy "competitor_analysis_runs admin only" on public.competitor_analysis_runs
+  for all using (public.is_admin()) with check (public.is_admin());
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -271,6 +327,8 @@ grant select, insert, update, delete on public.user_style_signals to authenticat
 grant select, insert, update, delete on public.usage_events to authenticated;
 grant select, insert, update, delete on public.competitor_page_analyses to authenticated;
 grant select, insert, update, delete on public.project_image_assets to authenticated;
+grant select, insert, update, delete on public.competitor_reference_assets to authenticated;
+grant select, insert, update, delete on public.competitor_analysis_runs to authenticated;
 
 -- Storage: 셀러가 업로드한 상품 사진 (docs/TASKS.md 우선순위 1). Public read로 감 —
 -- 이 사진들은 어차피 마켓플레이스 상세페이지에 공개될 콘텐츠라 서명 URL의 만료 관리
@@ -298,3 +356,16 @@ create policy "product-images owner update" on storage.objects
 drop policy if exists "product-images owner delete" on storage.objects;
 create policy "product-images owner delete" on storage.objects
   for delete using (bucket_id = 'product-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Storage: 관리자가 업로드한 경쟁사 상세페이지 캡처 (우선순위 5 Phase 1). product-images와
+-- 같은 이유로 public 버킷 — 경쟁사 자체가 이미 공개된 상품페이지 캡처라 민감 정보 아님.
+-- 쓰기/읽기 전부 is_admin()으로 제한(공개 읽기 URL이라 누구나 URL을 알면 열람 가능하다는
+-- 트레이드오프는 product-images와 동일, "owner folder" 대신 "관리자만" 정책).
+insert into storage.buckets (id, name, public)
+values ('competitor-references', 'competitor-references', true)
+on conflict (id) do nothing;
+
+drop policy if exists "competitor-references admin all" on storage.objects;
+create policy "competitor-references admin all" on storage.objects
+  for all using (bucket_id = 'competitor-references' and public.is_admin())
+  with check (bucket_id = 'competitor-references' and public.is_admin());

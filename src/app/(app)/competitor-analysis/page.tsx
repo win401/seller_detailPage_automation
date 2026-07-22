@@ -23,7 +23,7 @@ type AnalysisHistoryRow = {
   createdAt: string;
 };
 
-const SECTION_KIND_LABELS_FALLBACK: Record<string, string> = {
+export const SECTION_KIND_LABELS_FALLBACK: Record<string, string> = {
   intro: "도입부",
   one_line: "한 줄 요약",
   problem: "문제 제기",
@@ -39,7 +39,7 @@ const SECTION_KIND_LABELS_FALLBACK: Record<string, string> = {
   cta: "구매 유도",
 };
 
-function AnalysisResultCard({ analysis, source }: { analysis: CompetitorPageAnalysis; source: "ai" | "mock" }) {
+export function AnalysisResultCard({ analysis, source }: { analysis: CompetitorPageAnalysis; source: "ai" | "mock" }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4.5">
       <div className="mb-3 flex items-center justify-between">

@@ -25,10 +25,13 @@ const NAV_LINKS = [
   { href: "/competitor-analysis", label: "경쟁 분석" },
 ] as const;
 
+const ADMIN_NAV_LINK = { href: "/admin/reference-analysis", label: "레퍼런스 분석" } as const;
+
 export function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
   const [email, setEmail] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -40,7 +43,14 @@ export function NavBar() {
       const {
         data: { user },
       } = await client.auth.getUser();
-      if (!cancelled) setEmail(user?.email ?? null);
+      if (cancelled) return;
+      setEmail(user?.email ?? null);
+      if (!user) return;
+
+      // Nav visibility only — the real security boundary is the API-level
+      // requireAdmin check + RLS (docs/TASKS.md 우선순위 5), not this.
+      const { data: profile } = await client.from("profiles").select("role").eq("id", user.id).single();
+      if (!cancelled) setIsAdmin(profile?.role === "admin");
     }
 
     void loadUser();
@@ -49,6 +59,8 @@ export function NavBar() {
       cancelled = true;
     };
   }, []);
+
+  const navLinks = isAdmin ? [...NAV_LINKS, ADMIN_NAV_LINK] : NAV_LINKS;
 
   const fallback = (email?.slice(0, 2) || "SW").toUpperCase();
 
@@ -66,7 +78,7 @@ export function NavBar() {
           <span className="text-[15px] font-extrabold tracking-tight">셀러페이지 AI</span>
         </Link>
         <nav className="flex items-center gap-1">
-          {NAV_LINKS.map((link) => {
+          {navLinks.map((link) => {
             const active = pathname?.startsWith(link.href);
             return (
               <Link

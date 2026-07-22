@@ -3,6 +3,7 @@ import { openai } from "@ai-sdk/openai";
 
 import { mockCompetitorPageAnalysis } from "@/lib/mock-ai";
 import { CompetitorPageAnalysis, competitorPageAnalysisSchema } from "./schemas";
+import { AI_CALL_TIMEOUT_MS, isLiveAiEnabled } from "./runtime-config";
 
 export type CompetitorPageAnalysisResult = {
   analysis: CompetitorPageAnalysis;
@@ -45,7 +46,12 @@ export async function runCompetitorPageAnalysisAgent(
     source: "mock",
   });
 
-  if (!process.env.OPENAI_API_KEY) {
+  // Previously gated on OPENAI_API_KEY alone, unlike every other agent
+  // (production/planning/review all check isLiveAiEnabled() first) — meant
+  // this endpoint silently bypassed the ENABLE_LIVE_AI cost-control toggle
+  // whenever a real key was configured, burning real API calls even while
+  // other generation was deliberately kept mock-only (docs/TASKS.md).
+  if (!isLiveAiEnabled() || !process.env.OPENAI_API_KEY) {
     return fallback();
   }
 
@@ -62,6 +68,7 @@ export async function runCompetitorPageAnalysisAgent(
       maxRetries: 0,
       maxOutputTokens: 4000,
       temperature: 0.3,
+      timeout: AI_CALL_TIMEOUT_MS,
       output: Output.object({ schema: competitorPageAnalysisSchema }),
       prompt: [
         {
