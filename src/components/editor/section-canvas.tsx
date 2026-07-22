@@ -625,6 +625,7 @@ export function SectionCanvas({
   onSelect,
   onCommitText,
   onCommitLabel,
+  readOnly = false,
 }: {
   sections: DetailSection[];
   selectedId: string;
@@ -639,6 +640,12 @@ export function SectionCanvas({
    * handleCanvasLabelCommit in editor/page.tsx for the key format and scope
    * (structured slots like steps/faqItems stay read-only). */
   onCommitLabel: (sectionId: string, key: string, before: string, after: string) => void;
+  /** Drops the double-click-to-edit affordance from renderEditableText/
+   * renderEditableLabel entirely (docs/TASKS.md — 스타일 세트 미리보기 캔버스).
+   * Without this, a preview-only render would still let a user double-click
+   * into edit mode, type, then have it silently discarded on blur (onCommit*
+   * has nowhere real to go) — worse than no affordance at all. */
+  readOnly?: boolean;
 }) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null);
@@ -720,22 +727,26 @@ export function SectionCanvas({
 
     return (
       <div
-        onDoubleClick={(e) => {
-          e.stopPropagation();
-          startEdit(sec, field);
-        }}
-        onKeyDown={(e) => {
-          if (e.key !== "Enter" && e.key !== " ") return;
-          e.preventDefault();
-          e.stopPropagation();
-          startEdit(sec, field);
-        }}
-        tabIndex={0}
-        role="button"
-        aria-label={`${field === "headline" ? "헤드라인" : "본문"} 편집 (Enter)`}
+        {...(!readOnly && {
+          onDoubleClick: (e: React.MouseEvent) => {
+            e.stopPropagation();
+            startEdit(sec, field);
+          },
+          onKeyDown: (e: React.KeyboardEvent) => {
+            if (e.key !== "Enter" && e.key !== " ") return;
+            e.preventDefault();
+            e.stopPropagation();
+            startEdit(sec, field);
+          },
+          tabIndex: 0,
+          role: "button",
+          "aria-label": `${field === "headline" ? "헤드라인" : "본문"} 편집 (Enter)`,
+        })}
         style={typographyStyle}
         className={cn(
-          "cursor-text whitespace-pre-line focus-visible:outline focus-visible:outline-2 focus-visible:outline-canvas-accent",
+          "whitespace-pre-line",
+          !readOnly &&
+            "cursor-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-canvas-accent",
           className
         )}
       >
@@ -781,22 +792,27 @@ export function SectionCanvas({
 
     return (
       <span
-        onDoubleClick={(e) => {
-          e.stopPropagation();
-          onSelect(sec.id);
-          setEditingLabelKey({ sectionId: sec.id, key });
-        }}
-        onKeyDown={(e) => {
-          if (e.key !== "Enter" && e.key !== " ") return;
-          e.preventDefault();
-          e.stopPropagation();
-          onSelect(sec.id);
-          setEditingLabelKey({ sectionId: sec.id, key });
-        }}
-        tabIndex={0}
-        role="button"
-        aria-label="문구 편집 (Enter)"
-        className="cursor-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-canvas-accent"
+        {...(!readOnly && {
+          onDoubleClick: (e: React.MouseEvent) => {
+            e.stopPropagation();
+            onSelect(sec.id);
+            setEditingLabelKey({ sectionId: sec.id, key });
+          },
+          onKeyDown: (e: React.KeyboardEvent) => {
+            if (e.key !== "Enter" && e.key !== " ") return;
+            e.preventDefault();
+            e.stopPropagation();
+            onSelect(sec.id);
+            setEditingLabelKey({ sectionId: sec.id, key });
+          },
+          tabIndex: 0,
+          role: "button",
+          "aria-label": "문구 편집 (Enter)",
+        })}
+        className={cn(
+          !readOnly &&
+            "cursor-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-canvas-accent"
+        )}
       >
         {value}
       </span>

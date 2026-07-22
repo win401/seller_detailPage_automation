@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { SectionCanvas } from "@/components/editor/section-canvas";
 import { PresetToggleGroup, SliderField } from "@/components/editor/layout-preset-controls";
 import {
   Select,
@@ -23,14 +24,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { mockStyleSets } from "@/lib/mock-data";
+import { createTemplateSections } from "@/lib/detail-page-templates";
+import { mockProductInput, mockStyleSets } from "@/lib/mock-data";
 import {
+  applyLayoutPresetToSections,
   IMAGE_POSITION_DEFAULT,
   IMAGE_POSITION_RANGE,
   LETTER_SPACING_DEFAULT,
   LETTER_SPACING_RANGE,
   LINE_HEIGHT_DEFAULT,
   LINE_HEIGHT_RANGE,
+  resolveHiddenSectionIds,
   SECTION_SPACING_DEFAULT,
   SECTION_SPACING_RANGE,
   TEXT_SIZE_DEFAULT,
@@ -127,6 +131,18 @@ function StyleSetFormDialog({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<StyleSet>(() => initial ?? emptyStyleSet());
 
+  // 샘플 상품(mockProductInput) 기준 라이브 미리보기 — preferredLayoutByKind가
+  // 아직 편집 UI 없이 (docs/TASKS.md) 시드 스타일 세트에만 값이 있어, 새로 만드는
+  // 세트는 항상 같은(키워드 추론) 템플릿 패밀리로 보인다. 나머지 레이아웃 프리셋/
+  // 섹션 표시는 새 세트에서도 그대로 실시간 반영됨. 전부 순수 함수라 매 키 입력/
+  // 슬라이더 드래그마다 다시 계산해도 무해함.
+  const previewSections = useMemo(() => {
+    const base = createTemplateSections(mockProductInput, draft.preferredLayoutByKind);
+    const styled = applyLayoutPresetToSections(base, draft);
+    const hiddenIds = resolveHiddenSectionIds(styled, draft.sectionVisibility);
+    return styled.filter((s) => !hiddenIds.includes(s.id));
+  }, [draft]);
+
   return (
     <Dialog
       open={open}
@@ -136,12 +152,13 @@ function StyleSetFormDialog({
       }}
     >
       <DialogTrigger render={trigger} />
-      <DialogContent className="max-w-[560px]">
+      <DialogContent className="max-w-[980px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{initial ? "스타일 세트 수정" : "새 스타일 세트 만들기"}</DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-4">
+        <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid gap-4">
           <div className="grid gap-1.5">
             <Label>이름</Label>
             <Input
@@ -387,6 +404,25 @@ function StyleSetFormDialog({
               value={draft.brandNote ?? ""}
               onChange={(e) => setDraft((d) => ({ ...d, brandNote: e.target.value }))}
               placeholder="예: 텀블러·주방용품 라인에 사용하는 기본 세트"
+            />
+          </div>
+          </div>
+
+          <div className="sticky top-0 self-start">
+            <div className="mb-2 text-[13px] font-bold">미리보기</div>
+            <p className="mb-3 text-[11.5px] leading-5 text-muted-foreground">
+              샘플 상품(프리미엄 뱀부 대형 타올) 기준 미리보기입니다. 실제 상품에는 다르게
+              적용될 수 있습니다.
+            </p>
+            <SectionCanvas
+              sections={previewSections}
+              selectedId=""
+              flashId={null}
+              platform={draft.defaultPlatform}
+              onSelect={() => {}}
+              onCommitText={() => {}}
+              onCommitLabel={() => {}}
+              readOnly
             />
           </div>
         </div>
