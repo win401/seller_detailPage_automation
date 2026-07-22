@@ -27,6 +27,7 @@ import { applyLayoutPresetToSections, resolveHiddenSectionIds } from "@/lib/layo
 import { buildStyleSignalHint, loadUserStyleSignals, summarizeStyleSignals } from "@/lib/style-signals";
 import { loadRemoteStyleSets, loadStyleSets, saveStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { uploadProjectImage } from "@/lib/supabase/storage";
 import { optimizeImageFile } from "@/lib/image-optimize";
 import {
   ADDITIONAL_INSTRUCTION_EXAMPLES,
@@ -395,6 +396,32 @@ export default function CreateProjectPage() {
     const { error: agentRunsError } = await supabase.from("agent_runs").insert(agentRunRows);
     if (agentRunsError) throw agentRunsError;
 
+    // production.ts stamps the seller's uploaded product photo (raw base64
+    // from the "상품 이미지" field) directly onto every applicable section's
+    // imageUrl as a same-photo fallback (docs/TASKS.md 우선순위 2) — unlike
+    // the other 3 image-producing paths (manual upload/replace, AI
+    // generation, image manager), this one was never retrofitted to go
+    // through Storage, so it left base64 sitting in draft_versions.sections
+    // (functions fine, doesn't expire, but bloats the row and breaks the
+    // "DB엔 Storage 경로/URL만" convention — docs/TASKS.md 우선순위 1).
+    // Upload once here and swap every section still holding that exact
+    // string for the resulting public URL; a failed upload just leaves the
+    // base64 in place rather than blocking project creation.
+    let sections = output.sections;
+    if (input.productImageDataUrl && sections.some((s) => s.imageUrl === input.productImageDataUrl)) {
+      try {
+        const asset = await uploadProjectImage(supabase, user.id, projectId, {
+          dataUrl: input.productImageDataUrl,
+          name: "product-photo.webp",
+        });
+        sections = sections.map((s) =>
+          s.imageUrl === input.productImageDataUrl ? { ...s, imageUrl: asset.publicUrl } : s
+        );
+      } catch (error) {
+        console.warn("Product photo Storage upload skipped, keeping base64:", error);
+      }
+    }
+
     const { data: draft, error: draftError } = await supabase
       .from("draft_versions")
       .insert({
@@ -402,7 +429,7 @@ export default function CreateProjectPage() {
         user_id: user.id,
         version_no: 1,
         source: output.source ?? "ai",
-        sections: output.sections,
+        sections,
         hidden_section_ids: hiddenSectionIds ?? [],
         asset_paths: [],
         review_summary: {
