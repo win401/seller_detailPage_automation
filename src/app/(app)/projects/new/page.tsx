@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, ClipboardList, ImagePlus, LinkIcon, Loader2, Plus, Sparkles } from "lucide-react";
@@ -8,6 +8,8 @@ import { Check, ClipboardList, ImagePlus, LinkIcon, Loader2, Plus, Sparkles } fr
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PriceInput } from "@/components/ui/price-input";
+import { TextSuggestInput } from "@/components/ui/text-suggest-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -22,8 +24,9 @@ import {
   mockGenerateDetailPage,
   upgradeLegacyMockSections,
 } from "@/lib/mock-ai";
-import { mockEmphasisOptions, mockProductInput, mockStyleSets } from "@/lib/mock-data";
+import { mockStyleSets } from "@/lib/mock-data";
 import { applyLayoutPresetToSections, resolveHiddenSectionIds } from "@/lib/layout-presets";
+import { suggestProductAttributes } from "@/lib/product-suggestions";
 import { buildStyleSignalHint, loadUserStyleSignals, summarizeStyleSignals } from "@/lib/style-signals";
 import { loadRemoteStyleSets, loadStyleSets, saveStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -87,6 +90,16 @@ function Chip({
     >
       {children}
     </button>
+  );
+}
+
+/** Marks a chip as the deterministic-suggestion pick (product-suggestions.ts)
+ * — distinguishes "auto-selected for you" from "you clicked this yourself". */
+function SuggestedBadge() {
+  return (
+    <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-px text-[9px] font-bold text-primary">
+      추천
+    </span>
   );
 }
 
@@ -207,20 +220,66 @@ function GenerationProgressOverlay({
 
 export default function CreateProjectPage() {
   const router = useRouter();
-  const [productName, setProductName] = useState(mockProductInput.productName);
-  const [category, setCategory] = useState(mockProductInput.category);
-  const [price, setPrice] = useState(mockProductInput.price ?? "");
-  const [keywordText, setKeywordText] = useState(mockProductInput.keywords.join(", "));
-  const [targetCustomer, setTargetCustomer] = useState(mockProductInput.targetCustomer);
-  const [emphasis, setEmphasis] = useState<Record<string, boolean>>({
-    warmth: true,
-    design: true,
-  });
-  const [tone, setTone] = useState<Tone>("practical");
-  const [mood, setMood] = useState<DesignMood>("minimal");
-  const [platform, setPlatform] = useState<Platform>("smartstore");
+  const [productName, setProductName] = useState("");
+  const [category, setCategory] = useState("");
+  const [price, setPrice] = useState("");
+  const [keywordText, setKeywordText] = useState("");
+  const [targetCustomer, setTargetCustomer] = useState("");
+  const [platform, setPlatform] = useState<Platform | null>(null);
   const [styleSets, setStyleSets] = useState<StyleSet[]>(mockStyleSets);
-  const [styleSetId, setStyleSetId] = useState(mockStyleSets[0]?.id ?? "");
+  const [styleSetId, setStyleSetId] = useState("");
+
+  // Product-aware suggestions (deterministic keyword matching, no AI call —
+  // src/lib/product-suggestions.ts) recomputed as the seller types the
+  // product name/category. tone/mood/emphasis are *derived*, not stored
+  // state — while untouched they always track the live suggestion (so
+  // continuing to type keeps them in sync with no effect needed); a manual
+  // click sets the matching *Touched flag and the manual* value takes over
+  // and stops following further suggestion changes (새 상세페이지 만들기 폼
+  // 개편, docs/TASKS.md).
+  const suggestions = useMemo(
+    () =>
+      suggestProductAttributes(
+        productName,
+        category,
+        keywordText.split(",").map((k) => k.trim()).filter(Boolean)
+      ),
+    [productName, category, keywordText]
+  );
+  const [manualTone, setManualTone] = useState<Tone | null>(null);
+  const [manualMood, setManualMood] = useState<DesignMood | null>(null);
+  const [manualEmphasis, setManualEmphasis] = useState<Record<string, boolean> | null>(null);
+  const [toneTouched, setToneTouched] = useState(false);
+  const [moodTouched, setMoodTouched] = useState(false);
+  const [emphasisTouched, setEmphasisTouched] = useState(false);
+
+  const tone = toneTouched ? manualTone : (suggestions.suggestedTone ?? null);
+  const mood = moodTouched ? manualMood : (suggestions.suggestedMood ?? null);
+  // suggestedEmphasisOptions is never empty (falls back to a neutral option
+  // list even with nothing typed) — only auto-check the top pick once a real
+  // product match actually fired, so the form doesn't start with a chip
+  // already selected before the seller has typed anything.
+  const suggestedPrimaryEmphasis = suggestions.hasMatch ? suggestions.suggestedEmphasisOptions[0] : undefined;
+  const emphasis = emphasisTouched
+    ? (manualEmphasis ?? {})
+    : suggestedPrimaryEmphasis
+      ? { [suggestedPrimaryEmphasis.key]: true }
+      : {};
+
+  function setTone(next: Tone) {
+    setToneTouched(true);
+    setManualTone(next);
+  }
+  function setMood(next: DesignMood) {
+    setMoodTouched(true);
+    setManualMood(next);
+  }
+  function toggleEmphasis(key: string) {
+    setEmphasisTouched(true);
+    setManualEmphasis({ ...emphasis, [key]: !emphasis[key] });
+  }
+
+  const canGenerate = Boolean(productName.trim() && category.trim() && tone && mood && platform);
 
   useEffect(() => {
     // one-time hydration from localStorage on mount, not a render loop
@@ -528,10 +587,6 @@ export default function CreateProjectPage() {
     }
   }
 
-  function toggleEmphasis(key: string) {
-    setEmphasis((prev) => ({ ...prev, [key]: !prev[key] }));
-  }
-
   function updateCompetitorReference(
     id: string,
     field: keyof Omit<CompetitorReferenceInput, "id">,
@@ -563,18 +618,23 @@ export default function CreateProjectPage() {
   }
 
   async function handleGenerate() {
+    // canGenerate (disables the button) already guarantees these are set —
+    // this guard is just so TypeScript (and any future caller) can't
+    // construct GenerateDetailPageInput with a null tone/mood/platform.
+    if (!tone || !mood || !platform) return;
     setGenerationElapsed(0);
     setIsGenerating(true);
     setGenerationMessage("분석 → 기획 → 제작 → 검수 에이전트가 초안을 준비하는 중입니다...");
     const input: GenerateDetailPageInput = {
       productName,
       category,
+      price: price || undefined,
       keywords: keywordText
         .split(",")
         .map((keyword) => keyword.trim())
         .filter(Boolean),
       targetCustomer,
-      emphasisPoints: mockEmphasisOptions
+      emphasisPoints: suggestions.suggestedEmphasisOptions
         .filter((option) => emphasis[option.key])
         .map((option) => option.label),
       tone,
@@ -748,23 +808,35 @@ export default function CreateProjectPage() {
             <div className="flex flex-col gap-3">
               <div className="grid gap-1.5">
                 <Label>상품명</Label>
-                <Input value={productName} onChange={(e) => setProductName(e.target.value)} />
+                <Input
+                  value={productName}
+                  onChange={(e) => setProductName(e.target.value)}
+                  placeholder="예: 프리미엄 뱀부 대형 타올"
+                />
               </div>
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="grid gap-1.5">
                   <Label>카테고리</Label>
-                  <Input value={category} onChange={(e) => setCategory(e.target.value)} />
+                  <TextSuggestInput
+                    value={category}
+                    onChange={setCategory}
+                    mode="replace"
+                    suggestions={suggestions.suggestedCategory ? [suggestions.suggestedCategory] : []}
+                    placeholder="예: 리빙/패브릭"
+                  />
                 </div>
                 <div className="grid gap-1.5">
                   <Label>가격</Label>
-                  <Input value={price} onChange={(e) => setPrice(e.target.value)} />
+                  <PriceInput value={price} onChange={setPrice} placeholder="예: 32900" />
                 </div>
               </div>
               <div className="grid gap-1.5">
                 <Label>핵심 키워드</Label>
-                <Input
+                <TextSuggestInput
                   value={keywordText}
-                  onChange={(e) => setKeywordText(e.target.value)}
+                  onChange={setKeywordText}
+                  mode="append"
+                  suggestions={suggestions.suggestedKeywords}
                   placeholder="보온보냉, 슬림디자인, 컵홀더호환"
                 />
               </div>
@@ -774,7 +846,22 @@ export default function CreateProjectPage() {
                   rows={2}
                   value={targetCustomer}
                   onChange={(e) => setTargetCustomer(e.target.value)}
+                  placeholder="예: 포근한 욕실/침구 무드를 원하는 1인 가구"
                 />
+                {suggestions.suggestedTargetCustomers.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {suggestions.suggestedTargetCustomers.map((example) => (
+                      <button
+                        key={example}
+                        type="button"
+                        onClick={() => setTargetCustomer(example)}
+                        className="rounded-full bg-muted px-2.5 py-1 text-[11.5px] font-semibold text-muted-foreground"
+                      >
+                        {example}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </section>
@@ -782,13 +869,14 @@ export default function CreateProjectPage() {
           <section className="rounded-xl border border-border bg-card p-4.5">
             <div className="mb-3 text-[13px] font-bold">강조 포인트</div>
             <div className="flex flex-wrap gap-2">
-              {mockEmphasisOptions.map((opt) => (
+              {suggestions.suggestedEmphasisOptions.map((opt, index) => (
                 <Chip
                   key={opt.key}
                   active={!!emphasis[opt.key]}
                   onClick={() => toggleEmphasis(opt.key)}
                 >
                   {opt.label}
+                  {index === 0 && !emphasisTouched && suggestions.hasMatch && <SuggestedBadge />}
                 </Chip>
               ))}
             </div>
@@ -800,6 +888,7 @@ export default function CreateProjectPage() {
               {TONE_OPTIONS.map((t) => (
                 <Chip key={t} active={tone === t} onClick={() => setTone(t)}>
                   {TONE_LABELS[t]}
+                  {suggestions.suggestedTone === t && !toneTouched && <SuggestedBadge />}
                 </Chip>
               ))}
             </div>
@@ -807,6 +896,7 @@ export default function CreateProjectPage() {
               {MOOD_OPTIONS.map((m) => (
                 <Chip key={m} active={mood === m} onClick={() => setMood(m)}>
                   {MOOD_LABELS[m]}
+                  {suggestions.suggestedMood === m && !moodTouched && <SuggestedBadge />}
                 </Chip>
               ))}
             </div>
@@ -822,7 +912,7 @@ export default function CreateProjectPage() {
               ))}
             </div>
             <Select
-              value={styleSetId}
+              value={styleSetId || undefined}
               onValueChange={(value) => {
                 if (!value) return;
                 setStyleSetId(value);
@@ -834,7 +924,7 @@ export default function CreateProjectPage() {
               }}
             >
               <SelectTrigger className="h-9 w-full bg-transparent">
-                <SelectValue />
+                <SelectValue placeholder="스타일 세트 선택 (선택)" />
               </SelectTrigger>
               <SelectContent>
                 {styleSets.map((ss) => (
@@ -1087,7 +1177,7 @@ export default function CreateProjectPage() {
       <div className="mt-6 flex justify-end">
         <Button
           onClick={handleGenerate}
-          disabled={isGenerating || isOptimizingImage}
+          disabled={isGenerating || isOptimizingImage || !canGenerate}
           className="h-[46px] gap-2 rounded-[10px] px-6 text-[14.5px] font-bold"
         >
           <Sparkles className="size-4.5" />
@@ -1098,6 +1188,11 @@ export default function CreateProjectPage() {
               : "에이전트로 상세페이지 시안 생성"}
         </Button>
       </div>
+      {!canGenerate && !isGenerating && (
+        <p className="mt-2 text-right text-[11.5px] text-muted-foreground">
+          상품명, 카테고리, 톤앤매너, 디자인 무드, 플랫폼을 입력/선택해주세요.
+        </p>
+      )}
       {generationMessage && (
         <p className="mt-3 text-right text-xs font-semibold text-muted-foreground">
           {generationMessage}

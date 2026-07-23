@@ -205,6 +205,20 @@
 - [ ] 카피: 제목/본문 길이, 문장 구조, 공감·페인포인트·효익·근거·CTA 분류, 톤
 - [ ] 카테고리·플랫폼·레퍼런스 유형별 평균 여백, 섹션 흐름, 카피 길이, 톤 분포 관리자 집계
 
+## 우선순위 6: "새 상세페이지 만들기" 폼 개편
+
+`/projects/new` 폼 전체 필드가 `mockProductInput`/하드코딩 값으로 미리 채워져 있어(예: "프리미엄 뱀부 대형 타올") 실제 사용자 입력 흐름이라기보다 데모 프리셋을 고치는 것처럼 보이던 문제를 개편.
+
+- [x] (2026-07-22) 모든 필드 기본값 제거 — `productName`/`category`/`price`/`keywordText`/`targetCustomer`/`styleSetId`는 빈 문자열로, `emphasis`는 빈 객체로, `tone`/`mood`/`platform`은 `Tone | null` 등으로 상태 타입 자체를 nullable로 바꿔 "선택된 칩 없음"을 표현. "생성" 버튼은 상품명/카테고리/톤/무드/플랫폼이 전부 채워지기 전엔 비활성화(빈 안내 문구도 같이 표시).
+- [x] (2026-07-22) 가격 입력 개편 — 새 `src/components/ui/price-input.tsx`: 숫자만 저장, 화면엔 `toLocaleString("ko-KR")`로 콤마 실시간 포맷, "원"은 input 밖 별도 `<span>`(`SliderField`의 단위 표시와 같은 패턴).
+- [x] (2026-07-22) **부수 발견+수정한 버그**: `price` 필드가 입력해도 `GenerateDetailPageInput` 타입 자체에 없어서 AI 요청/Supabase 저장 어디에도 안 들어가고 조용히 버려지고 있었음. `types.ts`에 `price?: string` 추가, `handleGenerate`의 `input` 생성부에 포함 — jsonb라 마이그레이션 불필요. 실제 생성 후 Supabase `detail_page_projects.product_input.price`에 정확히 값이 들어가는 것 확인.
+- [x] (2026-07-22) 카테고리/핵심 키워드/타깃 고객 자동완성 — 이 코드베이스에 콤보박스/자동완성 컴포넌트가 전혀 없어서(카테고리 분류표도 없음, `category`는 항상 자유 텍스트) 새 의존성 없이 `src/components/ui/text-suggest-input.tsx`(신규, `MarkupToolbar` 글꼴 팝오버와 같은 시각 언어 — 절대위치 리스트, outside-click/Escape로 닫힘, 방향키+Enter 네비게이션) 직접 구현. 카테고리는 `mode="replace"`, 핵심 키워드는 `mode="append"`(클릭 시 콤마로 이어붙임), 타깃 고객은 문장 단위라 기존 `ADDITIONAL_INSTRUCTION_EXAMPLES`와 같은 클릭-시-전체-교체 칩 패턴.
+- [x] (2026-07-22) 강조 포인트/톤앤매너/디자인 무드를 상품에 맞게 추천 — 새 `src/lib/product-suggestions.ts`, `selectTemplateFamily`(`detail-page-templates.ts`)와 똑같은 결정론적 키워드 매칭(AI 호출 없음) 방식으로 카테고리 버킷 11개(리빙/뷰티/전자기기/식품/의류/반려동물/유아/스포츠/가구/문구/건강기능식품) 큐레이션. 추천된 칩은 자동 선택되지만 "추천" 배지로 표시해 수동 선택과 구분, 사용자가 다른 칩을 클릭하면 해당 그룹(`toneTouched`/`moodTouched`/`emphasisTouched`)이 잠겨 이후 상품명/카테고리를 계속 수정해도 안 덮어씀 — 실브라우저로 수동 선택 후 계속 타이핑해도 유지되는 것 확인.
+  - **강조 포인트는 부분집합이 아니라 전체 옵션 세트를 교체**: 기존 `mockEmphasisOptions`(소재감/생활무드/관리편의/흡수력/선물용) 자체가 타올 전용이라 전자기기·식품 등 다른 카테고리에 그대로 노출하면 안 맞음 — 카테고리 버킷마다 자기 `suggestedEmphasisOptions` 전체를 갖고, 매치 없으면 중립 폴백 세트로.
+  - **실제 겪은 버그**: 처음 구현에서 강조 포인트의 "추천 1순위 자동 체크"가 실제 매치 여부와 무관하게 항상 동작(폴백 옵션 배열이 비어있지 않아서) — 상품명을 아예 입력 안 한 초기 상태에도 "소재감"이 이미 체크된 채로 뜸(방금 없앤 하드코딩 기본값과 똑같은 문제 재발). `ProductSuggestions`에 `hasMatch: boolean` 필드를 추가해 "진짜 카테고리 매치가 있었는지"와 "표시용 폴백 옵션 목록이 있는지"를 구분, `hasMatch`가 true일 때만 자동 체크하도록 수정 — 재검증 결과 완전히 빈 상태에선 강조 포인트도 정말 하나도 안 뜨는 것 확인.
+  - **겪은 lint 이슈**: 처음엔 `useEffect` 안에서 `setTone`/`setMood`/`setEmphasis`를 직접 호출했는데 `react-hooks/set-state-in-effect` 규칙에 걸림(cascading render 경고) — `tone`/`mood`/`emphasis`를 별도 state로 두고 effect로 동기화하는 대신, `manualTone`/`manualMood`/`manualEmphasis`(사용자가 직접 고른 값)만 state로 두고 `tone`/`mood`/`emphasis`는 "touched면 manual, 아니면 매 렌더 suggestions에서 바로 파생"하는 순수 계산값으로 바꿔 effect 자체를 없앰 — 더 단순하고 규칙 위반도 해결.
+- [x] (2026-07-22) `tsc`/`eslint`/`next build` 클린. 실브라우저로 전체 플로우(빈 상태 확인 → 상품명 입력 시 추천 자동 반영 → 카테고리 자동완성 클릭 → 키워드 추천 클릭 append → 타깃고객 추천 클릭 → 톤 수동 오버라이드 후 계속 타이핑해도 안 바뀌는 것 → 가격 콤마 포맷 → 실제 생성 후 Supabase에 price 저장 확인)까지 전부 검증, 테스트 프로젝트 정리 완료(잔여 0건).
+
 ## 보류 / 리서치 후보
 
 아래는 현재 구현 우선순위가 아니다.

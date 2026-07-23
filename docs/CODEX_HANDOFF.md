@@ -1,110 +1,57 @@
-# Codex Handoff (2026-07-16)
+# Codex Handoff (2026-07-23)
 
-이 문서는 Claude 세션이 토큰 소진으로 중단되면서, 같은 작업을 Codex가 이어받기 위해 작성한 인수인계 문서입니다. 프로젝트 전반 배경은 `docs/CLAUDE_HANDOFF.md`, `docs/TASKS.md`를 참고하세요 (특히 `docs/TASKS.md` 우선순위 4의 2026-07-16 항목들이 이번 세션 작업 전체입니다).
+이 문서는 사용자가 Claude와 Codex를 함께 쓰기 위해 작성한 인수인계 문서입니다 (이전 2026-07-16 버전은 완전히 낡았음 — 거기 적힌 Konva 자유 편집 작업은 이후 실사용 피드백으로 전부 되돌려졌습니다, `git log`의 `f134653`/`d2ce688` 참고). 프로젝트 전반 배경은 `docs/MVP_PLAN.md`, 지금까지의 전체 작업 이력·설계 결정·겪은 버그는 전부 `docs/TASKS.md`에 있습니다 — **이 문서는 "지금 당장 뭘 해야 하는지"만 요약하고, 세부 근거/코드 위치는 항상 TASKS.md를 원본으로 취급하세요.**
 
-## 지금 당장 해야 할 일 (최우선)
+## 지금 당장 해야 할 일
 
-**Konva 자유 편집 모드의 ZIP export 버그를 방금 고쳤는데, 실제로 고쳐졌는지 아직 육안 확인을 못 했습니다.**
+**우선순위 6("새 상세페이지 만들기" 폼 개편)은 다른 터미널 세션에서 이미 구현·검증까지 끝났고 (2026-07-23 세션에서) 방금 커밋했습니다. 다음에 뭘 할지는 아직 사용자가 정하지 않았으니, 아래 "다음 후보들"을 참고해서 사용자에게 먼저 물어보세요.**
 
-1. `npm run dev`로 서버 실행, `/projects/[아무 프로젝트]/editor` 접속.
-2. 좌측에서 "Intro" 섹션 선택 → 우측 패널의 "자유 편집으로 전환 (실험적)" 버튼 클릭.
-3. 캔버스에 나타난 텍스트박스/이미지박스 중 하나를 클릭해 우측 패널이 속성 편집 패널(글꼴/굵게/크기/줄간격/자간/정렬/색상)로 바뀌는지 확인.
-4. 상단 "ZIP 다운로드" 클릭.
-5. **다운로드된 zip을 풀어서 `01.png`를 직접 열어보고 다음 두 가지를 확인**:
-   - Intro 섹션 이미지가 좌우로 늘어나 보이지 않는지 (원래 버그: 비정상적으로 stretch됨)
-   - 이미지 위에 "상세페이지 캔버스" / "smartstore·860px" 라는 헤더 텍스트나 테두리가 찍혀있지 않은지 (원래 버그: 에디터 UI 크롬이 그대로 캡처됨)
+우선순위 6에서 한 일 요약(자세한 내용은 TASKS.md 우선순위 6 참고):
 
-두 버그 모두 아래 "방금 한 수정"에서 고쳤다고 판단했지만, Claude 세션에서는 자동화된 브라우저 환경이라 다운로드된 실제 파일을 열어볼 수 없어서 **코드 레벨 검증(`tsc`/`lint` 통과, Konva 자체 렌더링 비율 확인)까지만 하고 최종 육안 확인은 못 한 채 끝났습니다.**
+1. `/projects/new`의 모든 필드 기본값(`mockProductInput` 하드코딩)을 제거하고 전부 빈 값 시작으로 변경, 필수값 채워지기 전엔 "생성" 버튼 비활성화.
+2. 새 `src/components/ui/price-input.tsx` — 가격 입력 시 콤마 자동 포맷, "원"은 input 밖 별도 `<span>`.
+3. **부수 발견 버그도 같이 수정**: `price`가 `GenerateDetailPageInput` 타입에 없어서 입력해도 조용히 버려지던 것 — `types.ts`에 `price?: string` 추가.
+4. 새 `src/lib/product-suggestions.ts` — 상품명/카테고리 입력에 반응해 카테고리·키워드·타깃고객·톤·무드·강조포인트를 결정론적 키워드 매칭(AI 호출 없음)으로 추천, 수동으로 칩을 바꾸면 이후 입력을 더 수정해도 안 덮어씀(`touched` 플래그).
+5. 새 `src/components/ui/text-suggest-input.tsx` — 새 의존성 없이 만든 자동완성 콤보박스(카테고리/키워드).
 
-문제가 남아있다면 아래 "관련 코드" 섹션을 참고해서 `src/lib/canvas-export.ts`와 `handleExport`(editor page.tsx) 쪽을 다시 보세요.
+실브라우저로 재검증 완료(빈 상태, 추천 칩 자동 반영, 자동완성 드롭다운, 가격 콤마 포맷) + `tsc`/`lint`/`build` 클린 확인.
 
-## 커밋 상태
+## 커밋/push 상태
 
-다음 순서로 이미 커밋되어 있습니다 (전부 `main` 브랜치, `git log --oneline`으로 확인):
+우선순위 6 작업을 방금 커밋했습니다 — push 여부는 `git log origin/main..HEAD`로 확인하세요(사용자가 명시적으로 요청하기 전엔 push 안 함, 아래 "일하는 방식" 참고).
 
-1. `f72af20` Gemini 이미지 생성 응답 모달리티 누락 버그 수정
-2. `408f443` 새 상세페이지 생성 시 섹션별 이미지 자동 생성
-3. `3d99c80` 섹션별 카피 기반 이미지 프롬프트 개선 + 데모 고정
-4. `0db92fc` localStorage 용량 초과로 생성 버튼이 먹통되던 버그 수정
-5. `11ec4a0` 리치텍스트 에디터에 단어별 폰트 변경 기능 추가
-6. `f0fd8bb` 폰트/굵게 등 스타일만 바뀐 편집이 blur 시 사라지던 버그 수정
-7. `fedd535` **Konva 기반 자유 편집(Figma-style) 1단계 수직 슬라이스** (가장 큰 작업)
-8. **커밋 안 됨 (작업 트리에 있음, 아래 "커밋 필요" 참고)** — ZIP export 버그 2건 수정
+## 일하는 방식 (이 세션 내내 지켜온 규칙, 계속 지켜주세요)
 
-`git push` 여부: 사용자가 매번 명시적으로 요청할 때만 push했습니다. 최신 상태가 push됐는지 `git status`/`git log origin/main..HEAD`로 확인하세요.
+- **커밋은 사용자가 명시적으로 요청할 때만.** push도 마찬가지로 매번 별도 요청 시에만.
+- **비트리비얼한 기능은 먼저 조사(Explore) → 계획 → 사용자 확인(스코프 갈림길은 꼭 물어보기) → 구현** 순서. 계획 없이 바로 큰 코드를 쓰지 않습니다.
+- **실제로 동작하는지 항상 실제로 확인** — 코드만 보고 "될 것 같다"고 끝내지 않음. Playwright로 실브라우저 조작 + Supabase MCP(`mcp__claude_ai_Supabase__*`)로 DB 직접 조회/검증. 테스트 계정: `winnerv401+qae2e@gmail.com`(Supabase 프로젝트 `xfzirfufohqazkqbnxdx`, QA 전용, 현재 `profiles.role = 'admin'`으로 지정돼 있음). 사용자 실제 계정 `winnerv401@gmail.com`도 최근 가입시켜 admin으로 지정함(이메일 확인 완료 여부는 재확인 필요).
+- **테스트 중 만든 프로젝트/스타일 세트/이미지/분석 row는 작업 끝에 항상 정리** — Supabase에서 직접 delete하고 정리 완료를 확인.
+- **매 작업 단위 후 `docs/TASKS.md` 갱신** — 뭘 만들었는지, 실제 겪은 버그와 원인, 검증 방법까지 상세히 기록하는 게 관례(대충 "완료"만 적지 않음). 이 문서 자체보다 TASKS.md가 항상 최신 진실.
+- `npm run lint` / `npx tsc --noEmit` / `npm run build` 클린 확인은 매 배치 필수.
 
-## 커밋 필요 (Claude 세션 마지막에 처리 못함)
+## 지금 꺼져 있는 것들 (비용 관련 임시 플래그, 절대 그냥 켜지 마세요)
 
-아래 4개 파일이 수정된 채 커밋되지 않았을 수 있습니다 (Claude Code의 자동 안전 분류기가 세션 막바지에 일시 장애를 일으켜 `git commit`이 반복 실패했습니다 — 이 저장소나 코드와는 무관한 인프라 이슈였습니다):
+- `ENABLE_LIVE_AI=false` (`.env.local`) — 켜지기 전엔 모든 AI 생성이 mock. 실제 품질 테스트가 필요하면 사용자에게 먼저 확인.
+- `FROZEN_DEMO_MODE = true` (`src/lib/mock-ai.ts`) — mock 생성이 입력값과 무관하게 항상 같은 고정 "프리미엄 뱀부 대형 타올" 초안을 반환.
+- `PAUSED_FOR_SPEND_CAP = true` (`src/lib/agents/section-images.ts`) — Gemini 자동 섹션 이미지 생성 완전 중단(월 지출 한도 초과, 계정 이슈였고 코드 문제 아님). 섹션 편집 패널의 수동 "AI로 이미지 생성" 버튼은 이 플래그와 무관하게 동작.
 
-```
-M  src/app/(app)/projects/[id]/editor/page.tsx
-M  src/components/editor/section-canvas-konva.tsx
-M  src/components/editor/section-canvas.tsx
-?? src/lib/canvas-export.ts
-```
+## 최근에 뭘 했는지 (요약, 자세한 내용/발견한 버그는 전부 TASKS.md)
 
-`git status`로 먼저 확인하고, 이미 커밋되어 있지 않다면 아래 메시지로 커밋해 주세요 (사용자가 "push까지 완료해줘"라고 요청했으니, 커밋 후 `git push`도 실행):
+최근 커밋 순서(오래된 것 → 최신, `git log`로 재확인 가능):
+1. 우선순위 1: 셀러 업로드 이미지가 실제 Storage 풀 + 슬롯 배정으로 상세페이지를 채우게 함.
+2. 우선순위 2: 제작 에이전트가 실제 `layoutType`/`slots`를 구조화 출력하도록(mock뿐 아니라 라이브 AI도).
+3. 우선순위 3: 스타일 세트를 색상 프리셋에서 실제 레이아웃 시스템으로 확장, Supabase 동기화.
+4. 검수 에이전트에 레이아웃/이미지 슬롯 체크 4종 추가 + 사용자 스타일 신호 집계 → 기획 에이전트에 반영.
+5. ZIP export 버그 2건(에디터 크롬/선택 테두리가 export 이미지에 찍히던 것) 발견+수정.
+6. Supabase 새로고침 후 RichText 서식이 사이드패널에서만 유실되던 버그 발견+수정.
+7. 스타일 세트 다이얼로그에 실시간 미리보기 캔버스 추가.
+8. 이미지 영속성 검증 + 초기 생성 시 상품 사진이 base64로 남던 잔여 버그 수정.
+9. README/MVP_PLAN/DEMO_SCRIPT를 실제 구현과 재동기화(README가 에이전트 파이프라인 이전 문구로 심하게 낡아 있었음).
+10. **우선순위 5 Phase 1**: 관리자 전용 경쟁 상세페이지 분석(`/admin/reference-analysis`) — 이 코드베이스 최초의 인증 API 라우트(`src/lib/supabase/server-auth.ts`)와 최초의 관리자 RLS 패턴(`public.is_admin()`). 좌표/OCR 신뢰도/EDA 집계 대시보드는 Phase 2+로 명시적으로 미룸(TASKS.md 우선순위5 참고).
+11. **우선순위 6**: `/projects/new` 폼 개편 — 기본값 제거, 가격 콤마 입력, 상품 속성 결정론적 추천, 카테고리/키워드 자동완성. 위 "지금 당장 해야 할 일" 참고.
 
-```
-Fix ZIP export capturing editor chrome and stretching Konva sections
+## 다음 후보들 (사용자가 아직 확정 안 함, 순서 없음)
 
-Two bugs found by the user opening a real exported ZIP:
-
-1. Canvas-mode section images came out stretched left-right —
-   html-to-image doesn't reliably capture a live Konva <canvas>. Fixed
-   by rendering canvasData through a detached offscreen Konva stage at
-   real export resolution (canvas-export.ts's renderCanvasDataToDataUrl)
-   and swapping the live <Stage> for a plain <img> of that render
-   (SectionCanvasKonva's staticImageUrl prop) just for the html-to-image
-   capture window.
-2. Exported PNGs included the editor's own header label/border because
-   handleExport captured canvasWrapRef, which wrapped <SectionCanvas>'s
-   entire root (header included), not just the section stack. Fixed via
-   a new sectionsRootRef that wraps only the sections.
-
-tsc/lint clean.
-```
-
-## 이번 세션에서 실제로 한 작업 (시간순)
-
-1. **Gemini 실제 이미지 생성 활성화** — `generateText` 호출에 `providerOptions.google.responseModalities`가 빠져 있던 버그.
-2. **"새 상세페이지 만들기" 시 섹션 이미지 자동 생성** — 기존엔 고정 스톡 사진만 붙던 것을 Gemini로 실제 생성하도록 확장. 이 과정에서 localStorage 용량 초과 버그를 2번 겪고 고침(자세한 내용 `docs/TASKS.md` 참고).
-3. **Gemini 월 지출 한도 초과** → 임시로 `src/lib/agents/section-images.ts`의 `PAUSED_FOR_SPEND_CAP = true`, `src/lib/mock-ai.ts`의 `FROZEN_DEMO_MODE = true`로 이미지 생성을 중단하고 데모용 고정 데이터(`src/lib/data/frozen-demo-sections.json`)를 반환하도록 해둠. **한도가 풀리면 이 두 플래그를 `false`로 되돌려야 합니다.**
-4. **리치텍스트 에디터에 단어별 글꼴 변경 기능 추가** (`TextRun.fontFamily`, `MarkupToolbar`의 "글꼴" 드롭다운).
-5. **Konva 기반 자유 편집(Figma-style) 마이그레이션 1단계** — 가장 큰 작업, 아래 별도 섹션 참고.
-
-## Konva 마이그레이션 — 핵심 설계 결정
-
-전체 배경/설계는 `/Users/sungwoo/.claude/plans/transient-humming-puppy.md`에 상세히 있습니다 (계획 파일, 삭제하지 마세요). 요약:
-
-- **왜 Konva**: 사용자가 Figma 스타일 자유 편집(텍스트박스 클릭 → 우측 패널에서 font/px/lineheight/letterspacing/align/fill, 섹션 background/box 크기·모양·round 편집)을 원함. Polotno SDK는 $899/월 상용 라이선스라 제외, `react-konva`/`konva`(MIT, 무료) 채택.
-- **범위를 의도적으로 좁힘**: 전체 19개 layoutType을 한 번에 바꾸는 대신, **"intro" 섹션 1개만** 자유 편집 모드로 전환 가능하게 만들어 전체 파이프라인(선택→속성패널→드래그/리사이즈→텍스트편집→undo/redo→export)을 검증. 나머지 18개는 명시적으로 다음 세션 몫.
-- **단어별 스타일링 → 박스 단위로 축소**: Konva.Text가 리치텍스트(한 텍스트박스 안에 여러 스타일)를 기본 지원하지 않아서, 캔버스 텍스트박스는 폰트/굵기/크기/줄간격/자간/정렬/색상을 박스 전체 단위로만 적용(Figma의 실제 동작과 동일). 기존 구조화 블록(`StructuredSectionBlock`)의 단어별 굵게/강조/글꼴은 그대로 유지.
-- **데이터 모델**: `DetailSection.canvasData?: SectionCanvasData` (신규, additive 필드). `canvasData` 있으면 Konva 렌더러, 없으면 기존 `StructuredSectionBlock` — 섹션 단위로 공존.
-
-## 관련 코드 (새로 만든 파일)
-
-- `src/lib/types.ts` — `CanvasElement`(`text`/`image`/`shape` union), `SectionCanvasData`, `DetailSection.canvasData?`
-- `src/lib/canvas-elements.ts` — `createDefaultCanvasData(section)`: 기존 headline/body/imageUrl을 1회성으로 캔버스 엘리먼트로 변환
-- `src/lib/canvas-export.ts` — `renderCanvasDataToDataUrl(data)`: export 전용, 오프스크린 Konva 스테이지로 실제 해상도 PNG 생성 (오늘 마지막에 추가)
-- `src/components/editor/section-canvas-konva.tsx` — `<Stage>` 렌더러, 선택/드래그/리사이즈(Konva `Transformer`)/더블클릭 텍스트 편집(HTML textarea 오버레이), `staticImageUrl` prop(export 전용)
-- `src/components/editor/canvas-element-panel.tsx` — 선택된 엘리먼트 타입별 속성 패널
-- `src/components/editor/section-canvas.tsx` — `sec.canvasData` 있으면 Konva 렌더러로 분기, `sectionsRootRef`(export 캡처 대상, 헤더/테두리 제외)
-- `src/components/editor/section-edit-panel.tsx` — "자유 편집으로 전환" 버튼(intro 섹션에만 노출, 되돌리기 없음)
-- `src/app/(app)/projects/[id]/editor/page.tsx` — `selectedElementId` state, `handleSelectElement`/`handleChangeElement`/`handleEnableCanvasMode`, export 시 `exportImageOverrides` 처리
-
-## 겪었던 실제 버그들 (같은 실수 반복하지 않도록)
-
-1. **미리보기(360px) vs 실제 좌표(860px) 불일치** → 텍스트 잘림. Konva `Stage`의 `scaleX/scaleY`로 해결(좌표값은 그대로, Konva가 드래그/리사이즈 결과를 이미 스케일 반영해서 돌려줌 — 이벤트 핸들러에 추가 계산 불필요).
-2. **섹션 wrapper div의 `onClick`이 Konva 선택 이후 버블링되어 `selectedElementId`를 매번 `null`로 리셋** → 우측 패널이 절대 안 바뀌던 버그. 캔버스 모드 섹션에서는 그 `onClick` 제거.
-3. **`position: fixed` 오버레이가 엉뚱한 곳에 나타남** — 에디터가 캔버스 전체를 `transform: scale()`로 감싸는데, transform이 있는 조상은 `position: fixed` 자손의 containing block이 되어버림(zoom 100%/`scale(1)`이어도 발생). `position: absolute` + 같은 wrapper 안에 배치로 해결.
-4. **`useEffect`를 조건부 early-return 뒤에 호출** — Rules of Hooks 위반, lint로 잡음.
-5. **ZIP export에서 Konva 캔버스가 늘어남 + 에디터 크롬이 찍힘** — 위 "지금 당장 해야 할 일" 참고, 코드 수정은 했지만 육안 재확인 필요.
-
-## 하지 말아야 할 것 / 주의
-
-- `docs/TASKS.md`는 매 작업 단위 후 갱신하는 규칙이 있습니다 (`git log`의 "Require updating docs/TASKS.md after each unit of work" 커밋 참고). 계속 지켜주세요.
-- push는 사용자가 매번 명시적으로 요청할 때만 하세요 (이번엔 요청했으니 위 "커밋 필요" 항목 커밋 후 push).
-- `PAUSED_FOR_SPEND_CAP`/`FROZEN_DEMO_MODE` 두 플래그는 Gemini 지출 한도가 풀렸는지 사용자에게 먼저 확인 후에만 되돌리세요.
-- Konva 마이그레이션의 나머지 18개 layoutType 전환, 레이어 패널, "구조화 블록↔캔버스 되돌리기"는 사용자가 명시적으로 요청하기 전까지 시작하지 마세요 (범위가 크다는 걸 사용자와 이미 합의했습니다).
+- `docs/TASKS.md`의 "보류/리서치 후보"에 있는 **관리자 회원/사용량 대시보드**(전체 사용자 수/프로젝트 수/AI 생성 횟수/ZIP 다운로드 횟수) — 사용자가 2026-07-22에 언급했다가 "일단 보류"로 미룸. 우선순위5의 경쟁분석 관리자 기능과는 완전히 다른 별개 개념이니 혼동 주의.
+- 실제 상품 사진(mock 아님)으로 3개 템플릿 패밀리(리빙/기능성/웰니스) 최종 시각 QA — 사용자의 실제 사진 필요.
+- `ENABLE_LIVE_AI` 켜고 실제 AI 품질 1회 테스트 — 비용 발생, 사용자 승인 필요.

@@ -424,6 +424,10 @@ export interface DetailPageProject {
 export interface GenerateDetailPageInput {
   productName: string;
   category: string;
+  /** Raw digits only (no "원"/commas) — display formatting happens at the UI layer
+   * (PriceInput). Not currently read by any agent prompt, kept only so the value the
+   * seller enters actually reaches persisted product_input instead of being dropped. */
+  price?: string;
   keywords: string[];
   targetCustomer: string;
   emphasisPoints: string[];
