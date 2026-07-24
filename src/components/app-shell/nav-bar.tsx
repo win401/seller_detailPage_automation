@@ -25,7 +25,10 @@ const NAV_LINKS = [
   { href: "/competitor-analysis", label: "경쟁 분석" },
 ] as const;
 
-const ADMIN_NAV_LINK = { href: "/admin/reference-analysis", label: "레퍼런스 분석" } as const;
+const ADMIN_NAV_LINKS = [
+  { href: "/admin/reference-analysis", label: "레퍼런스 분석" },
+  { href: "/admin/usage-dashboard", label: "사용량 대시보드" },
+] as const;
 
 export function NavBar() {
   const pathname = usePathname();
@@ -60,7 +63,7 @@ export function NavBar() {
     };
   }, []);
 
-  const navLinks = isAdmin ? [...NAV_LINKS, ADMIN_NAV_LINK] : NAV_LINKS;
+  const navLinks = isAdmin ? [...NAV_LINKS, ...ADMIN_NAV_LINKS] : NAV_LINKS;
 
   const fallback = (email?.slice(0, 2) || "SW").toUpperCase();
 

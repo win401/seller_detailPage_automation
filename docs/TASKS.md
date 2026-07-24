@@ -219,11 +219,22 @@
   - **겪은 lint 이슈**: 처음엔 `useEffect` 안에서 `setTone`/`setMood`/`setEmphasis`를 직접 호출했는데 `react-hooks/set-state-in-effect` 규칙에 걸림(cascading render 경고) — `tone`/`mood`/`emphasis`를 별도 state로 두고 effect로 동기화하는 대신, `manualTone`/`manualMood`/`manualEmphasis`(사용자가 직접 고른 값)만 state로 두고 `tone`/`mood`/`emphasis`는 "touched면 manual, 아니면 매 렌더 suggestions에서 바로 파생"하는 순수 계산값으로 바꿔 effect 자체를 없앰 — 더 단순하고 규칙 위반도 해결.
 - [x] (2026-07-22) `tsc`/`eslint`/`next build` 클린. 실브라우저로 전체 플로우(빈 상태 확인 → 상품명 입력 시 추천 자동 반영 → 카테고리 자동완성 클릭 → 키워드 추천 클릭 append → 타깃고객 추천 클릭 → 톤 수동 오버라이드 후 계속 타이핑해도 안 바뀌는 것 → 가격 콤마 포맷 → 실제 생성 후 Supabase에 price 저장 확인)까지 전부 검증, 테스트 프로젝트 정리 완료(잔여 0건).
 
+## 우선순위 7: 관리자 회원/사용량 대시보드
+
+`MVP_PLAN.md` §16에 있던 백로그 아이디어를 우선순위로 승격. 전체 사용자 수/프로젝트 수/AI 생성 횟수/ZIP 다운로드 횟수 + 최근 프로젝트 목록을 한눈에 보는 관리자 화면. 우선순위 5(경쟁 상세페이지 분석 EDA)와는 완전히 별개 개념(둘 다 "관리자"라 혼동하기 쉬움).
+
+- [x] (2026-07-23) **RLS 확장 방식 결정**: `competitor_page_analyses`처럼 여러 테이블에 개별적으로 "or is_admin()"을 추가하는 대신, `docs/supabase/migration_2026-07-23_admin_usage_dashboard.sql`(+ `schema.sql` 동기화)에 `SECURITY DEFINER` 집계 함수 2개만 신설: `admin_usage_stats()`(총 사용자/총 프로젝트/AI 생성 횟수/ZIP 다운로드 횟수), `admin_recent_projects(limit)`(최근 프로젝트 제목/카테고리/플랫폼/작성자 이메일/생성일). 둘 다 함수 내부에서 `is_admin()`을 체크해 아니면 예외를 던지고, `profiles`/`detail_page_projects`/`agent_runs`/`usage_events` 자체의 RLS는 이번에 손대지 않음 — 관리자에게 4개 테이블 전체 CRUD 우회 권한을 여는 것보다 노출 범위가 좁다는 판단(사용자 확인 후 진행). Supabase MCP `apply_migration`으로 실제 프로젝트(`xfzirfufohqazkqbnxdx`)에 적용 완료.
+- [x] (2026-07-23) `/api/admin/usage-dashboard`(GET) — `requireAdmin()` 재사용 후 두 RPC를 호출해 합쳐서 반환. `SupabaseClient`에 제네릭 Database 타입이 없어 `.rpc().single()`의 반환 타입이 `{}`로 좁혀지는 tsc 에러가 나서, RPC 컬럼 shape을 나타내는 별도 로컬 타입으로 캐스팅(`.returns<T>()` 제네릭은 supabase-js 쪽에서 "single과 배열 캐스팅 충돌" 에러를 내서 포기하고 `as` 캐스팅으로 해결).
+- [x] (2026-07-23) `/admin/usage-dashboard` 화면 — `reference-analysis` 페이지와 동일한 gate 패턴(checking/allowed/denied/signedOut), 통계 카드 4개 + 최근 프로젝트 표. nav-bar에 두 번째 관리자 링크 추가(`ADMIN_NAV_LINK` 단수 상수를 `ADMIN_NAV_LINKS` 배열로 변경).
+- [x] (2026-07-23) ZIP 다운로드 카운트 — `editor/page.tsx`의 `handleExport()` 성공 직후(토스트 띄우는 지점) `usage_events`에 `event_type: 'zip_download'` row를 직접 insert(기존 owner-only RLS 그대로 통과, 스키마 변경 불필요). **이 시점 이전의 다운로드는 소급 집계되지 않음** — 배포 시점부터의 카운트만 정확함.
+- [x] (2026-07-23) 실브라우저로 전체 플로우 검증: 관리자 계정으로 대시보드 진입(비관리자면 차단 확인은 기존 reference-analysis와 동일 패턴이라 재검증 생략) → 실제 카운트(총 사용자 2, 총 프로젝트 52) 확인 → 테스트 프로젝트 생성 → ZIP 다운로드 클릭 → `usage_events`에 실제 row 생성 확인 → 대시보드 새로고침 시 총 프로젝트 53·ZIP 다운로드 1로 정확히 반영 + 최근 프로젝트 표에 내 계정 이메일이 정확히 표시되는 것 확인. 테스트 프로젝트는 Supabase에서 직접 delete, cascade로 `usage_events`/`agent_runs` row도 0건 확인.
+- [x] (2026-07-23) `tsc`/`eslint`/`next build` 클린.
+  - **부수적으로 발견한 데이터 이슈(버그 아님, 사전 존재하던 테스트 데이터 정리 상태)**: `detail_page_projects` 52건 전부가 현재 `profiles` 테이블의 2개 계정 중 어느 것과도 `user_id`가 매칭되지 않음(고아 row) — 과거 QA 세션에서 테스트 계정의 `profiles` row(또는 `auth.users`)만 정리하고 그 계정이 만든 프로젝트 row는 안 지운 흔적으로 보임. 대시보드의 "작성자" 열에는 그대로 "-"로 표시됨(join 실패가 아니라 실제로 매칭되는 프로필이 없는 것). 정리가 필요하면 별도로 논의.
+
 ## 보류 / 리서치 후보
 
 아래는 현재 구현 우선순위가 아니다.
 
-- [ ] **관리자 회원/사용량 대시보드** (`MVP_PLAN.md` §16) — 전체 사용자 수, 전체 프로젝트 수, AI 생성 횟수, ZIP 다운로드 횟수, 최근 프로젝트 메타데이터를 한눈에 보는 화면. 우선순위 5(경쟁 상세페이지 분석 EDA)와는 완전히 별개 개념(둘 다 "관리자"라 혼동하기 쉬움, MVP_PLAN.md에도 주의 문구 있음) — 이쪽은 아직 백로그에만 있던 아이디어를 2026-07-22에 사용자가 다시 언급, 방금 만든 관리자 인프라(`is_admin()`, `requireAdmin`, `profiles.role`)를 그대로 재사용 가능해 착수 자체는 가벼움. 집계 대상 후보(설계 전 메모): 전체 사용자 수(`profiles` count), 전체 프로젝트 수(`detail_page_projects` count), AI 생성 횟수(`agent_runs`의 `agent_type = 'orchestrator'` row count가 유력한 대리 지표), ZIP 다운로드 횟수(현재 어디서도 기록 안 됨 — `usage_events` 테이블이 스키마엔 있지만 `profiles.role`처럼 코드 어디서도 안 쓰이는 죽은 테이블이라 export 시점에 기록하는 코드부터 새로 필요). RLS 확장 방식은 재검토 필요 — `competitor_page_analyses`처럼 여러 테이블에 개별적으로 "or is_admin()"을 추가하는 대신, `security definer` 집계 함수(내부에서 `is_admin()`을 한 번만 체크하고 원본 row가 아니라 집계된 숫자/최근 목록만 반환) 쪽이 RLS 변경 범위를 좁힐 수 있어 유력한 후보.
 - [ ] 레퍼런스 이미지를 활용한 상품 이미지 개선/합성. 실제 상품 정보 보존 규칙이 전제
 - [ ] 누끼 제거 또는 이미지 품질 개선 worker
 - [ ] 대량 이미지 분석이 필요해질 때 OpenCV/FastAPI worker 검토

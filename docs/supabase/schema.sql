@@ -310,6 +310,72 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
+-- 관리자 회원/사용량 대시보드 — profiles/detail_page_projects/agent_runs/
+-- usage_events 각각에 "or is_admin()" RLS를 얹는 대신, SECURITY DEFINER
+-- 집계 함수 2개만 추가한다(함수 내부에서 is_admin()을 한 번만 체크하고
+-- 집계된 숫자/제한된 컬럼만 반환 — 4개 테이블 전체 CRUD 우회보다 노출
+-- 범위가 좁다). 각 테이블 자체의 RLS/정책은 이번에 손대지 않음.
+create or replace function public.admin_usage_stats()
+returns table (
+  total_users bigint,
+  total_projects bigint,
+  total_generations bigint,
+  total_zip_downloads bigint
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception '관리자만 접근할 수 있습니다.' using errcode = '42501';
+  end if;
+
+  return query
+  select
+    (select count(*) from public.profiles)::bigint,
+    (select count(*) from public.detail_page_projects)::bigint,
+    -- 'orchestrator'는 전체 4단계 파이프라인 1회 실행마다 정확히 1건 남는
+    -- 최상위 agent_runs row (src/lib/agents/orchestrator.ts) — analysis/
+    -- planning/production/review 각 하위 에이전트 row와는 구분됨.
+    (select count(*) from public.agent_runs where agent_type = 'orchestrator')::bigint,
+    (select count(*) from public.usage_events where event_type = 'zip_download')::bigint;
+end;
+$$;
+
+revoke all on function public.admin_usage_stats() from public;
+grant execute on function public.admin_usage_stats() to authenticated;
+
+create or replace function public.admin_recent_projects(result_limit integer default 20)
+returns table (
+  id uuid,
+  title text,
+  category text,
+  selected_platform text,
+  owner_email text,
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception '관리자만 접근할 수 있습니다.' using errcode = '42501';
+  end if;
+
+  return query
+  select p.id, p.title, p.category, p.selected_platform, pr.email, p.created_at
+  from public.detail_page_projects p
+  left join public.profiles pr on pr.id = p.user_id
+  order by p.created_at desc
+  limit result_limit;
+end;
+$$;
+
+revoke all on function public.admin_recent_projects(integer) from public;
+grant execute on function public.admin_recent_projects(integer) to authenticated;
+
 -- RLS policies alone are not enough: Postgres also requires table-level
 -- GRANTs for a role before RLS is even evaluated. Without these, every
 -- query from the `authenticated` role fails with

@@ -4,21 +4,21 @@
 
 ## 지금 당장 해야 할 일
 
-**우선순위 6("새 상세페이지 만들기" 폼 개편)은 다른 터미널 세션에서 이미 구현·검증까지 끝났고 (2026-07-23 세션에서) 방금 커밋했습니다. 다음에 뭘 할지는 아직 사용자가 정하지 않았으니, 아래 "다음 후보들"을 참고해서 사용자에게 먼저 물어보세요.**
+**우선순위 7(관리자 회원/사용량 대시보드)을 2026-07-23 세션에서 구현·실브라우저 검증까지 끝냈습니다 — 아직 커밋 전입니다(아래 "커밋/push 상태" 참고). 다음에 뭘 할지는 아직 사용자가 정하지 않았으니, 아래 "다음 후보들"을 참고해서 사용자에게 먼저 물어보세요.**
 
-우선순위 6에서 한 일 요약(자세한 내용은 TASKS.md 우선순위 6 참고):
+우선순위 7에서 한 일 요약(자세한 내용은 TASKS.md 우선순위 7 참고):
 
-1. `/projects/new`의 모든 필드 기본값(`mockProductInput` 하드코딩)을 제거하고 전부 빈 값 시작으로 변경, 필수값 채워지기 전엔 "생성" 버튼 비활성화.
-2. 새 `src/components/ui/price-input.tsx` — 가격 입력 시 콤마 자동 포맷, "원"은 input 밖 별도 `<span>`.
-3. **부수 발견 버그도 같이 수정**: `price`가 `GenerateDetailPageInput` 타입에 없어서 입력해도 조용히 버려지던 것 — `types.ts`에 `price?: string` 추가.
-4. 새 `src/lib/product-suggestions.ts` — 상품명/카테고리 입력에 반응해 카테고리·키워드·타깃고객·톤·무드·강조포인트를 결정론적 키워드 매칭(AI 호출 없음)으로 추천, 수동으로 칩을 바꾸면 이후 입력을 더 수정해도 안 덮어씀(`touched` 플래그).
-5. 새 `src/components/ui/text-suggest-input.tsx` — 새 의존성 없이 만든 자동완성 콤보박스(카테고리/키워드).
+1. Supabase 마이그레이션(`docs/supabase/migration_2026-07-23_admin_usage_dashboard.sql` + `schema.sql` 동기화) — `admin_usage_stats()`/`admin_recent_projects(limit)` SECURITY DEFINER 함수 2개. `profiles`/`detail_page_projects`/`agent_runs`/`usage_events` 자체 RLS는 안 건드리고, 함수 내부에서만 `is_admin()` 체크 후 집계값/제한된 컬럼만 반환(4개 테이블에 "or is_admin()"을 직접 까는 것보다 노출 범위가 좁다는 설계 — 사용자 확인 후 진행). Supabase MCP `apply_migration`으로 실제 프로젝트에 이미 적용 완료.
+2. `/api/admin/usage-dashboard`(GET, `requireAdmin()` 재사용) + `/admin/usage-dashboard` 화면(reference-analysis와 동일한 gate 패턴) + nav-bar 두 번째 관리자 링크.
+3. ZIP 다운로드 카운트 — `editor/page.tsx`의 `handleExport()` 성공 직후 `usage_events`에 `event_type: 'zip_download'` insert. **배포 시점 이전 다운로드는 소급 집계 안 됨.**
 
-실브라우저로 재검증 완료(빈 상태, 추천 칩 자동 반영, 자동완성 드롭다운, 가격 콤마 포맷) + `tsc`/`lint`/`build` 클린 확인.
+실브라우저로 전체 플로우 검증 완료(실제 카운트 확인 → 테스트 프로젝트 생성 → ZIP 다운로드 → `usage_events` row 생성 및 대시보드 카운트 반영 확인 → 테스트 데이터 정리) + `tsc`/`lint`/`build` 클린.
+
+**부수 발견(버그 아님, 데이터 이슈)**: `detail_page_projects` 52건 전부 현재 `profiles` 2개 계정 어느 쪽과도 안 맞는 고아 row — 과거 QA 세션에서 계정만 정리하고 그 계정이 만든 프로젝트는 안 지운 흔적으로 보임. 대시보드 "작성자" 열엔 "-"로 표시(정상 동작, join 실패 아님). 정리 필요하면 별도 논의.
 
 ## 커밋/push 상태
 
-우선순위 6 작업을 방금 커밋했습니다 — push 여부는 `git log origin/main..HEAD`로 확인하세요(사용자가 명시적으로 요청하기 전엔 push 안 함, 아래 "일하는 방식" 참고).
+우선순위 7 작업은 아직 커밋 전입니다 — 사용자에게 먼저 커밋 여부를 확인하세요(이 세션 내내 지켜온 규칙, 아래 "일하는 방식" 참고). Supabase 마이그레이션 자체는 이미 라이브 DB에 적용되어 있으니(코드 커밋과 별개), 다음 세션에서 이 마이그레이션 파일을 다시 적용하려 하면 idempotent라 안전하지만 이미 적용됐다는 걸 알고 있으면 됨.
 
 ## 일하는 방식 (이 세션 내내 지켜온 규칙, 계속 지켜주세요)
 
@@ -48,10 +48,10 @@
 8. 이미지 영속성 검증 + 초기 생성 시 상품 사진이 base64로 남던 잔여 버그 수정.
 9. README/MVP_PLAN/DEMO_SCRIPT를 실제 구현과 재동기화(README가 에이전트 파이프라인 이전 문구로 심하게 낡아 있었음).
 10. **우선순위 5 Phase 1**: 관리자 전용 경쟁 상세페이지 분석(`/admin/reference-analysis`) — 이 코드베이스 최초의 인증 API 라우트(`src/lib/supabase/server-auth.ts`)와 최초의 관리자 RLS 패턴(`public.is_admin()`). 좌표/OCR 신뢰도/EDA 집계 대시보드는 Phase 2+로 명시적으로 미룸(TASKS.md 우선순위5 참고).
-11. **우선순위 6**: `/projects/new` 폼 개편 — 기본값 제거, 가격 콤마 입력, 상품 속성 결정론적 추천, 카테고리/키워드 자동완성. 위 "지금 당장 해야 할 일" 참고.
+11. **우선순위 6**: `/projects/new` 폼 개편 — 기본값 제거, 가격 콤마 입력, 상품 속성 결정론적 추천, 카테고리/키워드 자동완성.
+12. **우선순위 7**: 관리자 회원/사용량 대시보드. 위 "지금 당장 해야 할 일" 참고.
 
 ## 다음 후보들 (사용자가 아직 확정 안 함, 순서 없음)
 
-- `docs/TASKS.md`의 "보류/리서치 후보"에 있는 **관리자 회원/사용량 대시보드**(전체 사용자 수/프로젝트 수/AI 생성 횟수/ZIP 다운로드 횟수) — 사용자가 2026-07-22에 언급했다가 "일단 보류"로 미룸. 우선순위5의 경쟁분석 관리자 기능과는 완전히 다른 별개 개념이니 혼동 주의.
 - 실제 상품 사진(mock 아님)으로 3개 템플릿 패밀리(리빙/기능성/웰니스) 최종 시각 QA — 사용자의 실제 사진 필요.
 - `ENABLE_LIVE_AI` 켜고 실제 AI 품질 1회 테스트 — 비용 발생, 사용자 승인 필요.

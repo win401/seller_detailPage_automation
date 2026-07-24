@@ -1766,6 +1766,28 @@ export default function DetailPageEditor() {
         description: `${finalWidth}px 폭 · ${sliceCount}개 PNG`,
       });
       setExportSuccessKey((key) => key + 1);
+
+      // 관리자 사용량 대시보드 집계용 — 실패해도 다운로드 자체는 이미
+      // 끝났으니 export 흐름을 막지 않고 콘솔 경고만 남긴다.
+      try {
+        const supabase = getSupabaseBrowserClient();
+        if (supabase && isUuid(projectId)) {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (user) {
+            const { error: usageEventError } = await supabase.from("usage_events").insert({
+              user_id: user.id,
+              project_id: projectId,
+              event_type: "zip_download",
+              metadata: { platform: projectSummary.platform, width: finalWidth, height: finalHeight, sliceCount },
+            });
+            if (usageEventError) console.warn("usage_events insert failed:", usageEventError);
+          }
+        }
+      } catch (err) {
+        console.warn("usage_events insert failed:", err);
+      }
     } finally {
       offscreenHost.remove();
       setIsExporting(false);
