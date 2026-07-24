@@ -229,7 +229,7 @@
 - [x] (2026-07-23) ZIP 다운로드 카운트 — `editor/page.tsx`의 `handleExport()` 성공 직후(토스트 띄우는 지점) `usage_events`에 `event_type: 'zip_download'` row를 직접 insert(기존 owner-only RLS 그대로 통과, 스키마 변경 불필요). **이 시점 이전의 다운로드는 소급 집계되지 않음** — 배포 시점부터의 카운트만 정확함.
 - [x] (2026-07-23) 실브라우저로 전체 플로우 검증: 관리자 계정으로 대시보드 진입(비관리자면 차단 확인은 기존 reference-analysis와 동일 패턴이라 재검증 생략) → 실제 카운트(총 사용자 2, 총 프로젝트 52) 확인 → 테스트 프로젝트 생성 → ZIP 다운로드 클릭 → `usage_events`에 실제 row 생성 확인 → 대시보드 새로고침 시 총 프로젝트 53·ZIP 다운로드 1로 정확히 반영 + 최근 프로젝트 표에 내 계정 이메일이 정확히 표시되는 것 확인. 테스트 프로젝트는 Supabase에서 직접 delete, cascade로 `usage_events`/`agent_runs` row도 0건 확인.
 - [x] (2026-07-23) `tsc`/`eslint`/`next build` 클린.
-  - **부수적으로 발견한 데이터 이슈(버그 아님, 사전 존재하던 테스트 데이터 정리 상태)**: `detail_page_projects` 52건 전부가 현재 `profiles` 테이블의 2개 계정 중 어느 것과도 `user_id`가 매칭되지 않음(고아 row) — 과거 QA 세션에서 테스트 계정의 `profiles` row(또는 `auth.users`)만 정리하고 그 계정이 만든 프로젝트 row는 안 지운 흔적으로 보임. 대시보드의 "작성자" 열에는 그대로 "-"로 표시됨(join 실패가 아니라 실제로 매칭되는 프로필이 없는 것). 정리가 필요하면 별도로 논의.
+  - **부수적으로 발견한 데이터 이슈(버그 아님, 사전 존재하던 테스트 데이터 정리 상태) — 발견 후 정리 완료**: `detail_page_projects` 52건 전부가 현재 `profiles` 테이블의 2개 계정 중 어느 것과도 `user_id`가 매칭되지 않았음(고아 row) — 과거 QA 세션에서 테스트 계정의 `profiles` row(또는 `auth.users`)만 정리하고 그 계정이 만든 프로젝트 row는 안 지운 흔적. 사용자 확인 후 (2026-07-24) `detail_page_projects`(52건, cascade로 `agent_runs` 232건·`draft_versions` 68건 자동 삭제) + 별도 테이블이라 cascade 안 되던 `user_style_signals`(125건, `detail_page_projects`와 무관하게 `user_id`로만 연결) 전부 삭제. 삭제 후 재확인: `detail_page_projects`/`agent_runs`/`draft_versions`/`user_style_signals` 전부 0건, 고아 데이터 잔존 없음. 두 관리자 계정 다 아직 자기 프로젝트가 없어 현재 `detail_page_projects` 총계는 0.
 
 ## 보류 / 리서치 후보
 
