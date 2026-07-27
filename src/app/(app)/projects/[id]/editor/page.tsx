@@ -43,7 +43,7 @@ import { loadUserStyleSignals } from "@/lib/style-signals";
 import { loadRemoteStyleSets, loadStyleSets, saveStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { deleteProjectImage, listProjectImages, uploadProjectImage } from "@/lib/supabase/storage";
-import { richTextToPlainText } from "@/lib/rich-text";
+import { richTextToPlainText, toRichText } from "@/lib/rich-text";
 import { cn, isUuid } from "@/lib/utils";
 import {
   AgentRunDraft,
@@ -1032,6 +1032,73 @@ export default function DetailPageEditor() {
     }
   }
 
+  /** Applies a 검수 에이전트 autoFixSuggestion ({sectionId, field, before,
+   * after}) by clicking a button in AgentWorkflowPanel. `field` is AI-
+   * generated free text (schemas.ts's reviewOutputSchema doesn't constrain
+   * it to an enum), so it isn't trustworthy as a direct path into section
+   * state — instead this searches the section's actual text content for an
+   * exact match of `before` (headline/body first, since that's what the
+   * review agent's flagged claims are usually about) and reuses the same
+   * commit handlers manual edits already go through, so history/undo and
+   * style-signal recording stay consistent with a hand-typed edit. Returns
+   * false (no section state change) if `before` isn't found anywhere —
+   * e.g. the user already hand-edited that text — so the caller can show
+   * "적용됨" only when something actually changed. */
+  function handleApplyAutoFix(sectionId: string, _field: string, before: string, after: string): boolean {
+    const section = sections.find((s) => s.id === sectionId);
+    if (!section || !before || before === after) return false;
+
+    const headlineText = richTextToPlainText(section.headline);
+    if (headlineText.includes(before)) {
+      handleCanvasTextCommit(sectionId, "headline", section.headline, toRichText(headlineText.split(before).join(after)));
+      return true;
+    }
+
+    const bodyText = richTextToPlainText(section.body);
+    if (bodyText.includes(before)) {
+      handleCanvasTextCommit(sectionId, "body", section.body, toRichText(bodyText.split(before).join(after)));
+      return true;
+    }
+
+    if (section.kicker.includes(before)) {
+      handleCanvasLabelCommit(sectionId, "kicker", section.kicker, section.kicker.split(before).join(after));
+      return true;
+    }
+
+    for (const key of SCALAR_SLOT_KEYS) {
+      const value = section.slots?.[key];
+      if (typeof value === "string" && value.includes(before)) {
+        handleCanvasLabelCommit(sectionId, `slot.${key}`, value, value.split(before).join(after));
+        return true;
+      }
+    }
+
+    for (const key of ARRAY_SLOT_KEYS) {
+      const items = section.slots?.[key];
+      const index = items?.findIndex((item) => item.includes(before)) ?? -1;
+      if (items && index !== -1) {
+        handleCanvasLabelCommit(sectionId, `slot.${key}.${index}`, items[index], items[index].split(before).join(after));
+        return true;
+      }
+    }
+
+    const bulletIndex = section.bullets.findIndex((b) => b.includes(before));
+    if (bulletIndex !== -1) {
+      pushHistory();
+      setSections((prev) =>
+        prev.map((s) =>
+          s.id === sectionId
+            ? { ...s, bullets: s.bullets.map((b, i) => (i === bulletIndex ? b.split(before).join(after) : b)) }
+            : s
+        )
+      );
+      recordStyleSignal({ kind: "copy_manual_edit", section, before, after });
+      return true;
+    }
+
+    return false;
+  }
+
   function zoomIn() {
     setCanvasZoom((z) => Math.min(CANVAS_ZOOM_MAX, Math.round((z + CANVAS_ZOOM_STEP) * 100) / 100));
   }
@@ -1979,7 +2046,7 @@ export default function DetailPageEditor() {
             onReorder={reorderSections}
           />
           <div className="mt-auto border-t border-border p-3">
-            <AgentWorkflowPanel workflow={agentWorkflow} compact />
+            <AgentWorkflowPanel workflow={agentWorkflow} compact onApplyAutoFix={handleApplyAutoFix} />
             {styleSets.length > 0 && (
               <div className="mt-3 rounded-lg border border-border bg-card-soft p-3">
                 <div className="mb-2 text-xs font-bold">스타일 세트 적용</div>

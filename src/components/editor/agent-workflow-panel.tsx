@@ -1,10 +1,20 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, CircleDashed, Clock3 } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, Check, CheckCircle2, CircleDashed, Clock3 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { AgentRunDraft, AgentRunStatus, AgentWorkflowDraft, AgentType } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+/** Handler wired from the editor page — searches the target section's text
+ * fields for `before` and swaps in `after` (see handleApplyAutoFix in
+ * editor/page.tsx for why this searches by content rather than trusting the
+ * AI-generated `field` label). Returns whether a match was found and
+ * applied, so the button can show success/failure without the panel itself
+ * knowing anything about section structure. */
+export type ApplyAutoFix = (sectionId: string, field: string, before: string, after: string) => boolean;
 
 const AGENT_LABELS: Record<AgentType, string> = {
   orchestrator: "총괄",
@@ -48,15 +58,69 @@ interface ReviewIssuePreview {
   suggestion: string;
 }
 
+interface AutoFixSuggestionPreview {
+  sectionId: string;
+  field: string;
+  before: string;
+  after: string;
+}
+
+/** One auto-fix suggestion with its own applied/not-applied state — a
+ * suggestion can fail to apply (its `before` text no longer matches the
+ * section, e.g. the user already hand-edited it), so "applied" is tracked
+ * per click result rather than assumed. */
+function AutoFixRow({
+  sectionId,
+  suggestion,
+  onApply,
+}: {
+  sectionId: string;
+  suggestion: AutoFixSuggestionPreview;
+  onApply?: ApplyAutoFix;
+}) {
+  const [state, setState] = useState<"idle" | "applied" | "not_found">("idle");
+
+  return (
+    <div className="rounded-md bg-card px-2 py-1.5">
+      <div className="text-[10.5px] leading-5 text-muted-foreground line-through">{suggestion.before}</div>
+      <div className="text-[11px] leading-5 text-foreground">{suggestion.after}</div>
+      <div className="mt-1 flex items-center gap-2">
+        {state === "idle" && onApply && (
+          <Button
+            size="xs"
+            variant="secondary"
+            className="h-6 px-2 text-[10.5px]"
+            onClick={() => setState(onApply(sectionId, suggestion.field, suggestion.before, suggestion.after) ? "applied" : "not_found")}
+          >
+            적용
+          </Button>
+        )}
+        {state === "applied" && (
+          <span className="flex items-center gap-1 text-[10.5px] font-semibold text-primary">
+            <Check className="size-3" /> 적용됨
+          </span>
+        )}
+        {state === "not_found" && (
+          <span className="text-[10.5px] text-muted-foreground">
+            원문과 일치하는 문구를 찾지 못해 자동 적용할 수 없습니다 — 섹션 편집에서 직접 반영해주세요.
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** issues/autoFixSuggestions used to be structurally unreachable here — the
  * generic outputPreview below only ever looks at the first 2 keys of
  * run.output, and for a review run those are score (filtered out, not a
  * string/array) and summary, so issues/autoFixSuggestions (keys 3-4) never
  * got read at all (docs/TASKS.md). Review gets its own render path instead
  * of relying on that generic preview. */
-function ReviewIssueList({ run }: { run: AgentRunDraft }) {
+function ReviewIssueList({ run, onApplyAutoFix }: { run: AgentRunDraft; onApplyAutoFix?: ApplyAutoFix }) {
   const issues = Array.isArray(run.output.issues) ? (run.output.issues as ReviewIssuePreview[]) : [];
-  const autoFixCount = Array.isArray(run.output.autoFixSuggestions) ? run.output.autoFixSuggestions.length : 0;
+  const autoFixSuggestions = Array.isArray(run.output.autoFixSuggestions)
+    ? (run.output.autoFixSuggestions as AutoFixSuggestionPreview[])
+    : [];
 
   if (issues.length === 0) {
     return (
@@ -80,14 +144,24 @@ function ReviewIssueList({ run }: { run: AgentRunDraft }) {
           <div className="mt-0.5 text-[10.5px] leading-5 text-muted-foreground">제안: {issue.suggestion}</div>
         </div>
       ))}
-      {autoFixCount > 0 && (
-        <div className="text-[10.5px] text-muted-foreground">자동 수정 제안 {autoFixCount}개 (읽기 전용)</div>
+      {autoFixSuggestions.length > 0 && (
+        <div className="space-y-1.5 border-t border-border pt-1.5">
+          <div className="text-[10.5px] font-semibold text-muted-foreground">자동 수정 제안</div>
+          {autoFixSuggestions.map((suggestion, index) => (
+            <AutoFixRow
+              key={`${suggestion.sectionId}-${index}`}
+              sectionId={suggestion.sectionId}
+              suggestion={suggestion}
+              onApply={onApplyAutoFix}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
 }
 
-function RunCard({ run }: { run: AgentRunDraft }) {
+function RunCard({ run, onApplyAutoFix }: { run: AgentRunDraft; onApplyAutoFix?: ApplyAutoFix }) {
   const isReview = run.agentType === "review";
   const outputPreview = isReview
     ? []
@@ -117,7 +191,7 @@ function RunCard({ run }: { run: AgentRunDraft }) {
         </Badge>
       </div>
       <p className="text-[11.5px] leading-5 text-muted-foreground">{run.summary}</p>
-      {isReview && <ReviewIssueList run={run} />}
+      {isReview && <ReviewIssueList run={run} onApplyAutoFix={onApplyAutoFix} />}
       {outputPreview.length > 0 && (
         <div className="mt-2 space-y-1 border-t border-border pt-2">
           {outputPreview.map((line) => (
@@ -139,9 +213,11 @@ function RunCard({ run }: { run: AgentRunDraft }) {
 export function AgentWorkflowPanel({
   workflow,
   compact = false,
+  onApplyAutoFix,
 }: {
   workflow: AgentWorkflowDraft | null;
   compact?: boolean;
+  onApplyAutoFix?: ApplyAutoFix;
 }) {
   if (!workflow) {
     return (
@@ -193,7 +269,7 @@ export function AgentWorkflowPanel({
 
       <div className={cn("grid gap-2", compact ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2")}>
         {workflow.runs.map((run) => (
-          <RunCard key={run.id} run={run} />
+          <RunCard key={run.id} run={run} onApplyAutoFix={onApplyAutoFix} />
         ))}
       </div>
     </div>
