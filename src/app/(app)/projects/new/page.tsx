@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, ClipboardList, ImagePlus, LinkIcon, Loader2, Plus, Sparkles } from "lucide-react";
+import { Check, ClipboardList, ImagePlus, LinkIcon, Loader2, Plus, Sparkles, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +26,7 @@ import {
 } from "@/lib/mock-ai";
 import { mockStyleSets } from "@/lib/mock-data";
 import { applyLayoutPresetToSections, resolveHiddenSectionIds } from "@/lib/layout-presets";
-import { suggestProductAttributes } from "@/lib/product-suggestions";
+import { CATEGORY_OPTIONS, suggestProductAttributes } from "@/lib/product-suggestions";
 import { buildStyleSignalHint, loadUserStyleSignals, summarizeStyleSignals } from "@/lib/style-signals";
 import { loadRemoteStyleSets, loadStyleSets, saveStyleSets } from "@/lib/style-sets";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -38,6 +38,7 @@ import {
   CompetitorReferenceInput,
   CompetitorReferenceType,
   DesignMood,
+  EmphasisOption,
   GenerateDetailPageInput,
   GenerateDetailPageOutput,
   MOOD_LABELS,
@@ -90,6 +91,44 @@ function Chip({
     >
       {children}
     </button>
+  );
+}
+
+/** Same look as Chip plus a small remove button for user-typed emphasis
+ * points — kept separate from Chip rather than adding an optional onRemove
+ * prop there, since nesting a remove <button> inside Chip's own <button>
+ * isn't valid HTML; this uses a <span> wrapper with two sibling buttons
+ * instead. */
+function RemovableChip({
+  active,
+  onClick,
+  onRemove,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  onRemove: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border py-1.5 pr-1.5 pl-3.5 text-[13px] font-semibold transition-colors",
+        active ? "border-primary bg-accent-soft text-primary" : "border-border bg-card-soft text-foreground"
+      )}
+    >
+      <button type="button" onClick={onClick} className="outline-none">
+        {children}
+      </button>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="강조 포인트 삭제"
+        className="rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <X className="size-3" />
+      </button>
+    </span>
   );
 }
 
@@ -252,6 +291,12 @@ export default function CreateProjectPage() {
   const [toneTouched, setToneTouched] = useState(false);
   const [moodTouched, setMoodTouched] = useState(false);
   const [emphasisTouched, setEmphasisTouched] = useState(false);
+  // User-typed emphasis points, on top of the curated per-category list —
+  // the curated list is always exactly 3-4 options per bucket, which isn't
+  // enough range for every product, so sellers can add their own.
+  const [customEmphasis, setCustomEmphasis] = useState<EmphasisOption[]>([]);
+  const [emphasisInput, setEmphasisInput] = useState("");
+  const [categoryCustomMode, setCategoryCustomMode] = useState(false);
 
   const tone = toneTouched ? manualTone : (suggestions.suggestedTone ?? null);
   const mood = moodTouched ? manualMood : (suggestions.suggestedMood ?? null);
@@ -265,6 +310,10 @@ export default function CreateProjectPage() {
     : suggestedPrimaryEmphasis
       ? { [suggestedPrimaryEmphasis.key]: true }
       : {};
+  // Custom entries appended after the curated ones so the "추천" badge's
+  // index === 0 check (against suggestedEmphasisOptions alone, see JSX)
+  // keeps pointing at the right chip.
+  const emphasisOptions = [...suggestions.suggestedEmphasisOptions, ...customEmphasis];
 
   function setTone(next: Tone) {
     setToneTouched(true);
@@ -277,6 +326,25 @@ export default function CreateProjectPage() {
   function toggleEmphasis(key: string) {
     setEmphasisTouched(true);
     setManualEmphasis({ ...emphasis, [key]: !emphasis[key] });
+  }
+  function addCustomEmphasis(label: string) {
+    const trimmed = label.trim();
+    if (!trimmed) return;
+    if (emphasisOptions.some((opt) => opt.label === trimmed)) return;
+    const key = `custom-${trimmed}`;
+    setCustomEmphasis((prev) => [...prev, { key, label: trimmed }]);
+    setEmphasisTouched(true);
+    setManualEmphasis({ ...emphasis, [key]: true });
+    setEmphasisInput("");
+  }
+  function removeCustomEmphasis(key: string) {
+    setCustomEmphasis((prev) => prev.filter((opt) => opt.key !== key));
+    setEmphasisTouched(true);
+    setManualEmphasis((prev) => {
+      const next = { ...(prev ?? emphasis) };
+      delete next[key];
+      return next;
+    });
   }
 
   const canGenerate = Boolean(productName.trim() && category.trim() && tone && mood && platform);
@@ -634,9 +702,7 @@ export default function CreateProjectPage() {
         .map((keyword) => keyword.trim())
         .filter(Boolean),
       targetCustomer,
-      emphasisPoints: suggestions.suggestedEmphasisOptions
-        .filter((option) => emphasis[option.key])
-        .map((option) => option.label),
+      emphasisPoints: emphasisOptions.filter((option) => emphasis[option.key]).map((option) => option.label),
       tone,
       designMood: mood,
       platform,
@@ -808,26 +874,56 @@ export default function CreateProjectPage() {
             <div className="flex flex-col gap-3">
               <div className="grid gap-1.5">
                 <Label>상품명</Label>
-                <Input
-                  value={productName}
-                  onChange={(e) => setProductName(e.target.value)}
-                  placeholder="예: 프리미엄 뱀부 대형 타올"
-                />
+                <Input value={productName} onChange={(e) => setProductName(e.target.value)} />
               </div>
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="grid gap-1.5">
                   <Label>카테고리</Label>
-                  <TextSuggestInput
-                    value={category}
-                    onChange={setCategory}
-                    mode="replace"
-                    suggestions={suggestions.suggestedCategory ? [suggestions.suggestedCategory] : []}
-                    placeholder="예: 리빙/패브릭"
-                  />
+                  {categoryCustomMode ? (
+                    <Input
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      autoFocus
+                      onBlur={() => {
+                        if (!category.trim()) setCategoryCustomMode(false);
+                      }}
+                    />
+                  ) : (
+                    <Select
+                      // Always a defined string (never undefined) so the
+                      // Select stays controlled from the first render —
+                      // flipping controlled/uncontrolled between renders
+                      // (e.g. "" -> undefined once nothing matches) is what
+                      // triggers Base UI's "changing uncontrolled to
+                      // controlled" console warning.
+                      value={CATEGORY_OPTIONS.includes(category) ? category : ""}
+                      onValueChange={(value) => {
+                        if (!value) return;
+                        if (value === "__custom__") {
+                          setCategoryCustomMode(true);
+                          setCategory("");
+                          return;
+                        }
+                        setCategory(value);
+                      }}
+                    >
+                      <SelectTrigger className="h-9 w-full bg-transparent">
+                        <SelectValue placeholder="카테고리 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORY_OPTIONS.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="__custom__">기타 (직접 입력)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <div className="grid gap-1.5">
                   <Label>가격</Label>
-                  <PriceInput value={price} onChange={setPrice} placeholder="예: 32900" />
+                  <PriceInput value={price} onChange={setPrice} />
                 </div>
               </div>
               <div className="grid gap-1.5">
@@ -837,17 +933,11 @@ export default function CreateProjectPage() {
                   onChange={setKeywordText}
                   mode="append"
                   suggestions={suggestions.suggestedKeywords}
-                  placeholder="보온보냉, 슬림디자인, 컵홀더호환"
                 />
               </div>
               <div className="grid gap-1.5">
                 <Label>타깃 고객</Label>
-                <Textarea
-                  rows={2}
-                  value={targetCustomer}
-                  onChange={(e) => setTargetCustomer(e.target.value)}
-                  placeholder="예: 포근한 욕실/침구 무드를 원하는 1인 가구"
-                />
+                <Textarea rows={2} value={targetCustomer} onChange={(e) => setTargetCustomer(e.target.value)} />
                 {suggestions.suggestedTargetCustomers.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {suggestions.suggestedTargetCustomers.map((example) => (
@@ -870,15 +960,45 @@ export default function CreateProjectPage() {
             <div className="mb-3 text-[13px] font-bold">강조 포인트</div>
             <div className="flex flex-wrap gap-2">
               {suggestions.suggestedEmphasisOptions.map((opt, index) => (
-                <Chip
-                  key={opt.key}
-                  active={!!emphasis[opt.key]}
-                  onClick={() => toggleEmphasis(opt.key)}
-                >
+                <Chip key={opt.key} active={!!emphasis[opt.key]} onClick={() => toggleEmphasis(opt.key)}>
                   {opt.label}
                   {index === 0 && !emphasisTouched && suggestions.hasMatch && <SuggestedBadge />}
                 </Chip>
               ))}
+              {customEmphasis.map((opt) => (
+                <RemovableChip
+                  key={opt.key}
+                  active={!!emphasis[opt.key]}
+                  onClick={() => toggleEmphasis(opt.key)}
+                  onRemove={() => removeCustomEmphasis(opt.key)}
+                >
+                  {opt.label}
+                </RemovableChip>
+              ))}
+            </div>
+            <div className="mt-2.5 flex items-center gap-1.5">
+              <Input
+                value={emphasisInput}
+                onChange={(e) => setEmphasisInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addCustomEmphasis(emphasisInput);
+                  }
+                }}
+                placeholder="직접 추가"
+                className="h-8 flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 shrink-0 gap-1 px-2.5 text-xs"
+                onClick={() => addCustomEmphasis(emphasisInput)}
+              >
+                <Plus className="size-3.5" />
+                추가
+              </Button>
             </div>
           </section>
 
@@ -912,7 +1032,9 @@ export default function CreateProjectPage() {
               ))}
             </div>
             <Select
-              value={styleSetId || undefined}
+              // Same fix as the 카테고리 Select above — an empty string, not
+              // undefined, keeps this controlled from the first render.
+              value={styleSetId}
               onValueChange={(value) => {
                 if (!value) return;
                 setStyleSetId(value);

@@ -171,6 +171,12 @@ const SUGGESTION_BUCKETS: ProductSuggestionBucket[] = [
   },
 ];
 
+/** Dropdown options for the "새 상세페이지 만들기" 카테고리 필드 — the same 11
+ * curated categories this file already matches against, plus a "기타" custom
+ * option the page adds itself. Kept here (not re-derived in page.tsx) so the
+ * dropdown list and the matching buckets can never drift apart. */
+export const CATEGORY_OPTIONS: string[] = SUGGESTION_BUCKETS.map((bucket) => bucket.suggestedCategory);
+
 const FALLBACK_EMPHASIS_OPTIONS: EmphasisOption[] = [
   { key: "material", label: "소재감" },
   { key: "design", label: "디자인" },

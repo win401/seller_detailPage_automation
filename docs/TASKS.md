@@ -224,6 +224,10 @@
   - **실제 겪은 버그**: 처음 구현에서 강조 포인트의 "추천 1순위 자동 체크"가 실제 매치 여부와 무관하게 항상 동작(폴백 옵션 배열이 비어있지 않아서) — 상품명을 아예 입력 안 한 초기 상태에도 "소재감"이 이미 체크된 채로 뜸(방금 없앤 하드코딩 기본값과 똑같은 문제 재발). `ProductSuggestions`에 `hasMatch: boolean` 필드를 추가해 "진짜 카테고리 매치가 있었는지"와 "표시용 폴백 옵션 목록이 있는지"를 구분, `hasMatch`가 true일 때만 자동 체크하도록 수정 — 재검증 결과 완전히 빈 상태에선 강조 포인트도 정말 하나도 안 뜨는 것 확인.
   - **겪은 lint 이슈**: 처음엔 `useEffect` 안에서 `setTone`/`setMood`/`setEmphasis`를 직접 호출했는데 `react-hooks/set-state-in-effect` 규칙에 걸림(cascading render 경고) — `tone`/`mood`/`emphasis`를 별도 state로 두고 effect로 동기화하는 대신, `manualTone`/`manualMood`/`manualEmphasis`(사용자가 직접 고른 값)만 state로 두고 `tone`/`mood`/`emphasis`는 "touched면 manual, 아니면 매 렌더 suggestions에서 바로 파생"하는 순수 계산값으로 바꿔 effect 자체를 없앰 — 더 단순하고 규칙 위반도 해결.
 - [x] (2026-07-22) `tsc`/`eslint`/`next build` 클린. 실브라우저로 전체 플로우(빈 상태 확인 → 상품명 입력 시 추천 자동 반영 → 카테고리 자동완성 클릭 → 키워드 추천 클릭 append → 타깃고객 추천 클릭 → 톤 수동 오버라이드 후 계속 타이핑해도 안 바뀌는 것 → 가격 콤마 포맷 → 실제 생성 후 Supabase에 price 저장 확인)까지 전부 검증, 테스트 프로젝트 정리 완료(잔여 0건).
+- [x] (2026-07-27) **사용자 피드백 3건 반영**: (1) 카테고리를 자유 텍스트+자동완성에서 `Select` 드롭다운(카테고리 버킷 11개 + "기타 (직접 입력)" 선택 시 텍스트 입력으로 전환)으로 — `product-suggestions.ts`에 `CATEGORY_OPTIONS`(버킷의 `suggestedCategory`를 그대로 재사용, 별도 정의로 드리프트 안 나게) 신규 export. (2) placeholder가 예시 문구라 빈 칸인데도 뭔가 차 있는 것처럼 보인다는 피드백 — 상품명/카테고리/가격/핵심 키워드/타깃 고객 필드의 `placeholder="예: ..."`를 전부 제거(라벨만으로 충분하다고 판단). (3) 강조 포인트가 카테고리 버킷당 정확히 3~4개로 고정돼 선택지가 좁다는 피드백 — 완전히 없애는 대신 "AI 추천 + 직접 추가" 방향으로, 새 `customEmphasis` state + "직접 추가" input/버튼으로 사용자가 직접 태그를 추가(중복 방지)/제거(`RemovableChip`, `Chip`과 달리 버튼 안에 버튼을 못 넣어 `<span>`+형제 버튼 2개로 구성)할 수 있게 함. `emphasisPoints`(생성 요청에 실리는 값)가 기존엔 `suggestions.suggestedEmphasisOptions`만 필터링해 커스텀 항목이 조용히 빠지던 것도 같이 발견해 `emphasisOptions`(추천+커스텀 합본)로 교체.
+  - **실제 발견한 버그**: 카테고리 `Select`의 `value`를 `CATEGORY_OPTIONS.includes(category) ? category : undefined`로 짰더니 브라우저 콘솔에 Base UI의 "component is changing the uncontrolled value state of Select to be controlled" 경고 발생 — 처음엔 `category`가 빈 문자열이라 `undefined`(uncontrolled)로 시작했다가, 옵션을 고르면 실제 문자열(controlled)로 바뀌는 게 원인. `undefined` 대신 항상 정의된 값(빈 문자열 `""`)을 넘기도록 수정해 처음부터 끝까지 controlled로 유지, 재확인 결과 경고 사라짐. 같은 파일의 기존 "스타일 세트 선택" `Select`(`value={styleSetId || undefined}`)도 정확히 같은 패턴이라 같이 수정.
+  - 실브라우저로 검증: 카테고리 드롭다운 11개 항목+기타 전환 정상, 기타 선택 후 텍스트 입력한 값("반려용품")이 강조 포인트/톤/타깃 고객 추천에 그대로 반영되는 것 확인, 강조 포인트 직접 추가("배설리었음 방지" 등 테스트 문구)→자동 선택→삭제(×)까지 정상, 실제 생성 후 Supabase `product_input.category`에 커스텀 텍스트가 정확히 저장되는 것 확인. 콘솔 에러 0건. `tsc`/`eslint`/`next build` 클린, 테스트 프로젝트 정리 완료.
+  - **논의만 하고 보류한 아이디어**: 사용자가 "서비스 전체를 안내/온보딩하는 비서 에이전트"를 제안 — 정적 툴팁이 아니라 실제 LLM 채팅(새 API 라우트, 전체 기능 컨텍스트 프롬프트, 쿼리당 비용, 잘못된 안내 리스크)까지 가야 하는 스코프라 지금 MVP 단계(실사용자 프로젝트 0개)엔 안 맞다고 판단해 보류 — 아래 "보류/리서치 후보"에 기록.
 
 ## 우선순위 7: 관리자 회원/사용량 대시보드
 
@@ -246,6 +250,7 @@
 - [ ] 대량 이미지 분석이 필요해질 때 OpenCV/FastAPI worker 검토
 - [ ] 사용자가 열어 둔 상세페이지에서 직접 자료를 수집하는 Chrome 확장 프로그램
 - [ ] 쇼핑몰 직접 업로드 API, 결제, 광범위한 마켓 자동화
+- [ ] **서비스 전체 안내/온보딩 비서 에이전트** (2026-07-27 사용자 제안) — 정적 툴팁이 아니라 실제 LLM 채팅(새 API 라우트, 전체 기능 컨텍스트 프롬프트 설계, 쿼리당 비용, 잘못된 안내를 하면 신뢰를 깎아먹을 리스크)까지 가야 하는 스코프라 보류. 에디터에 이미 있는 좁은 범위의 `AiAssistantPanel`(자유 텍스트 1개 받아 재기획만 트리거)과는 다른, 훨씬 넓은 개념이니 혼동 주의.
 
 ## 배포 전 체크리스트
 
